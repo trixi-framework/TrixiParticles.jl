@@ -193,18 +193,17 @@ CairoMakie.save("smoothing_kernels.png", fig)
     The compact support is automatically checked when inside a `foreach_point_neighbor`
     or `foreach_neighbor` loop.
     For the zero distance check, use
-    ```jldoctest kernels; output = false
-    h = TrixiParticles.smoothing_length(system, particle)
-    TrixiParticles.skip_zero_distance(system) &&
-        distance < TrixiParticles.almostzero(h)
+    ```jldoctest kernels; output = false, setup = :(almostzero = 1e-12)
+    TrixiParticles.skip_zero_distance(system) && distance < almostzero
 
     # output
     false
     ```
     where `skip_zero_distance` returns `true` if the kernel gradient is zero at zero
     distance, which is not the case for some corrected kernels.
-    Here, `almostzero(h)` is the threshold
-    `sqrt(eps(typeof(h))) * h ≈ sqrt(eps(h^2))`, where `h` is the smoothing length.
+    Here, `almostzero` is a small threshold, which should be chosen as `sqrt(eps(h^2))`,
+    where `h` is the smoothing length, since `distance^2` is in the order of `h^2`.
+    Note that `sqrt(eps(h^2)) != eps(h)`.
 
 ```@autodocs
 Modules = [TrixiParticles]

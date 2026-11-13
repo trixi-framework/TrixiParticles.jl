@@ -282,7 +282,6 @@
 
         function create_fluid_system(scheme, velocity, density, viscosity;
                                      shifting_technique=nothing, correction=nothing,
-                                     density_calculator=ContinuityDensity(),
                                      coordinates=zeros(2, 1))
             fluid = InitialCondition(; coordinates,
                                      velocity=reshape(collect(velocity), 2, 1),
@@ -293,7 +292,7 @@
             if scheme == "WCSPH"
                 return WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
                                                    smoothing_length, state_equation,
-                                                   density_calculator,
+                                                   density_calculator=ContinuityDensity(),
                                                    viscosity, shifting_technique,
                                                    correction)
             end
@@ -303,8 +302,8 @@
             average_pressure_reduction = scheme == "EDAC with average pressure reduction"
             return EntropicallyDampedSPHSystem(fluid; smoothing_kernel, smoothing_length,
                                                sound_speed, viscosity, shifting_technique,
-                                               average_pressure_reduction, correction,
-                                               density_calculator)
+                                               average_pressure_reduction,
+                                               density_calculator=ContinuityDensity())
         end
 
         function create_structure_system(structure_type, viscosity;
@@ -344,17 +343,15 @@
         # Run the regular update step to compute the boundary pressure, the wall velocity
         # for the viscosity, and the average pressure of EDAC. Return the systems
         # stored in the semidiscretization and the wrapped arrays.
-        function initialize(fluid_system, structure_system; interaction_matrix=nothing)
+        function initialize(fluid_system, structure_system)
             semi = if structure_system isa TotalLagrangianSPHSystem
                 @test_logs (:info,
                             r"^To create the self-interaction neighborhood search of a `TotalLagrangianSPHSystem`") begin
                     Semidiscretization(fluid_system, structure_system;
-                                       interaction_matrix,
                                        parallelization_backend=SerialBackend())
                 end
             else
                 @test_logs Semidiscretization(fluid_system, structure_system;
-                                              interaction_matrix,
                                               parallelization_backend=SerialBackend())
             end
             ode = semidiscretize(semi, (0.0, 0.01))
@@ -443,7 +440,7 @@
                                     (RigidBodySystem, false, smoothing_length))
         correction_methods = (nothing, AkinciFreeSurfaceCorrection(fluid_density),
                               KernelCorrection(), GradientCorrection(),
-                              BlendedGradientCorrection(0.3),
+                              BlendedGradientCorrection(0.5),
                               MixedKernelGradientCorrection())
 
         @testset "$(config[1]), Viscosity `$(nameof(typeof(config[2])))`" for config in

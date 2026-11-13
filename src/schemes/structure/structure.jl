@@ -80,8 +80,8 @@ end
 # fluid kernels. The TLSPH kernel for solid mechanics may differ.
 # Note that this is only a restriction for `BoundaryModelDummyParticles`, since
 # `BoundaryModelMonaghanKajtar` always uses the compact support of the fluid.
-function check_boundary_model_fsi(system, boundary_model::BoundaryModelDummyParticles,
-                                  neighbor_system::AbstractFluidSystem)
+function check_smoothing_kernel_fsi(system, boundary_model::BoundaryModelDummyParticles,
+                                    neighbor_system::AbstractFluidSystem)
     smoothing_kernel_structure = boundary_model.smoothing_kernel
     smoothing_kernel_fluid = system_smoothing_kernel(neighbor_system)
     smoothing_length_structure = initial_smoothing_length(boundary_model)
@@ -98,7 +98,7 @@ function check_boundary_model_fsi(system, boundary_model::BoundaryModelDummyPart
     return system
 end
 
-check_boundary_model_fsi(system, boundary_model, neighbor_system) = system
+check_smoothing_kernel_fsi(system, boundary_model, neighbor_system) = system
 
 # The correction values of a boundary particle are sums over its complete hydrodynamic
 # neighborhood in the current configuration, including the particles of its own structure
@@ -230,7 +230,7 @@ end
                                          m_b, rho_a, rho_b, v_a, v_b, grad_kernel_fluid,
                                          grad_kernel_boundary)
     # The boundary model is uncorrected and its kernel and smoothing length match the
-    # fluid's (see `check_boundary_model_correction` and `check_boundary_model_fsi`).
+    # fluid's (see `check_boundary_model_correction` and `check_smoothing_kernel_fsi`).
     # If the fluid uses an asymmetric corrected gradient, reuse the boundary gradient
     # computed for the pressure acceleration. Otherwise, reverse the fluid gradient.
     grad_kernel = isnothing(grad_kernel_boundary) ? -grad_kernel_fluid :
