@@ -65,6 +65,22 @@ end
     return false
 end
 
+# Safe kernel gradient with an explicit kernel and smoothing length `h`.
+# `system` stores the correction values of `particle` (a system or a boundary model).
+@inline function corrected_kernel_grad(kernel, pos_diff, distance, h, correction,
+                                       system, particle)
+    compact_support_ = compact_support(kernel, h)
+
+    # See `almostzero` for an explanation of the zero distance check
+    if distance >= compact_support_ ||
+       (skip_zero_distance(correction) && distance < almostzero(h))
+        return zero(pos_diff)
+    end
+
+    return corrected_kernel_grad_unsafe(kernel, pos_diff, distance, h, correction,
+                                        system, particle)
+end
+
 @inline function corrected_kernel_grad_unsafe(kernel, pos_diff, distance, h, correction,
                                               system, particle)
     return kernel_grad_unsafe(kernel, pos_diff, distance, h)
