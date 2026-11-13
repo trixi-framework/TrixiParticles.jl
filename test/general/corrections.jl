@@ -79,7 +79,8 @@ end
 
                 # The matrix must not be the identity matrix
                 @test !isapprox(L, I(2), atol=0.1)
-                @test system.cache.correction_matrix[:, :, a] ≈ L
+                @test isapprox(system.cache.correction_matrix[:, :, a], L,
+                               rtol=1e-14, atol=eps())
             end
 
             # Corrected kernel gradient of particle 1 with respect to particle 2
@@ -97,7 +98,7 @@ end
             else
                 L * kernel_corrected[2]
             end
-            @test grad_kernel ≈ expected
+            @test isapprox(grad_kernel, expected, rtol=1e-14, atol=eps())
         end
     end
 end

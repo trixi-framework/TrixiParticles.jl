@@ -56,7 +56,7 @@ jobs:
           - version: '1.12'
             os: windows-latest
           - version: '1.12'
-            os: macos-14
+            os: macos-26
 
     steps:
       - name: Check out project

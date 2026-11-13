@@ -124,7 +124,7 @@
         u = TrixiParticles.wrap_u(u_ode, structure, ode.p.semi)
         u[1, 2] += spacing / 4
         TrixiParticles.update_systems_and_nhs(v_ode, u_ode, ode.p.semi, 0.0)
-        @test TrixiParticles.has_boundary_correction(structure)
+        @test TrixiParticles.has_hydrodynamic_neighborhood(structure)
         @test structure.boundary_model.cache.density ≈ fill(1000.0, n^2)
 
         positions = Array(TrixiParticles.current_coordinates(u, structure))
