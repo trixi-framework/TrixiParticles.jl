@@ -376,6 +376,7 @@ end
 
 function update_boundary_interpolation!(boundary_model, system::RigidBodySystem, v, u,
                                         v_ode, u_ode, semi, t)
+    update_structure_boundary_density!(boundary_model, system, v, u, v_ode, u_ode, semi)
     @trixi_timeit timer() "interpolate wall velocity" begin
         interpolate_wall_velocity!(boundary_model, system, v, u, v_ode, u_ode, semi)
     end

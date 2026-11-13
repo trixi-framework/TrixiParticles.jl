@@ -507,6 +507,7 @@ function update_boundary_interpolation!(system::TotalLagrangianSPHSystem, v, u,
     # Only update boundary model.
     # Not in `update_quantities!`, which the `SplitIntegrationCallback` also calls
     # without any fluid systems to interpolate the wall velocity from.
+    update_structure_boundary_density!(boundary_model, system, v, u, v_ode, u_ode, semi)
     @trixi_timeit timer() "interpolate wall velocity" begin
         interpolate_wall_velocity!(boundary_model, system, v, u, v_ode, u_ode, semi)
     end

@@ -283,6 +283,7 @@
 
         function create_fluid_system(scheme, velocity, density, viscosity;
                                      shifting_technique=nothing, correction=nothing,
+                                     density_calculator=ContinuityDensity(),
                                      dimensions=2,
                                      coordinates=zeros(dimensions, 1),
                                      mass=fluid_density * particle_spacing^dimensions)
@@ -955,6 +956,7 @@
             for structure_type in structure_types,
                 correction in (KernelCorrection(), GradientCorrection(),
                  BlendedGradientCorrection(0.3), MixedKernelGradientCorrection()),
+                boundary_correction in (nothing, correction),
                 boundary_density in (AdamiPressureExtrapolation(), PressureMirroring())
 
                 kernel_correction = correction isa Union{KernelCorrection,
@@ -979,7 +981,7 @@
                 structure_system = create_structure_system(structure_type, nothing;
                                                            boundary_density,
                                                            initial_boundary_density=[1005.0],
-                                                           boundary_correction=correction,
+                                                           boundary_correction,
                                                            structure_smoothing_kernel=WendlandC2Kernel{2}(),
                                                            structure_smoothing_length=0.4)
                 cache = structure_system.boundary_model.cache
@@ -1097,11 +1099,6 @@
                     continue
                 end
 
-            for structure_type in structure_types,
-                config in near_zero_configurations,
-                distance in distances,
-                boundary_density in (AdamiPressureExtrapolation(), PressureMirroring())
-                scheme, correction = config
                 fluid_coordinates = reshape([1.5 + distance, 0.0], 2, 1)
                 fluid_system = create_fluid_system(scheme, velocity, density, nothing;
                                                    correction,
@@ -1111,7 +1108,7 @@
                 structure_system = create_structure_system(structure_type, nothing;
                                                            boundary_density,
                                                            initial_boundary_density=[1005.0],
-                                                           boundary_correction=KernelCorrection())
+                                                           boundary_correction)
                 fluid, structure, arrays, semi,
                 _ = initialize(fluid_system, structure_system)
 
@@ -1128,16 +1125,19 @@
                 (force_fluid, force_structure,
                  dv_structure) = pair_forces(fluid, structure, arrays, semi)
 
-                pressure = scheme == "EDAC with average pressure reduction" ? 0.0 : 500.0
-                fluid_gradient_only = scheme == "WCSPH" &&
-                                      boundary_density isa AdamiPressureExtrapolation
-                expected = isnothing(correction) || fluid_gradient_only ?
-                           zero(boundary_gradient) :
-                           pressure * volume^2 * boundary_gradient
-                @test isapprox(force_fluid, expected, atol=sqrt(eps()))
-                @test isapprox(force_structure, -expected, atol=sqrt(eps()))
-            end
-        end
+                W_a = correction isa KernelCorrection ? fluid_gradient :
+                      zero(fluid_gradient)
+                W_b = kernel_boundary ? boundary_gradient : zero(boundary_gradient)
+                if distance < almostzero
+                    pressure = scheme == "EDAC with average pressure reduction" ? 0.0 :
+                               state_equation(density)
+                    pressure_gradient = scheme == "WCSPH" &&
+                                        boundary_density isa AdamiPressureExtrapolation ?
+                                        -2W_a : W_b - W_a
+                    expected = pressure * volume^2 * pressure_gradient
+                    @test isapprox(force_fluid, expected, rtol=1e-14, atol=1e-14)
+                    @test isapprox(force_structure, -expected, rtol=1e-14, atol=1e-14)
+                end
 
                 if structure isa RigidBodySystem
                     # Both particles have density `density`, so their density ratio is one.

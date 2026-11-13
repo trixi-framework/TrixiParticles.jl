@@ -62,10 +62,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - The smoothing kernel and smoothing length of a `BoundaryModelDummyParticles` of a
   `TotalLagrangianSPHSystem` or `RigidBodySystem` must now be the same as those of all
   fluid systems in the simulation (#1338, #1348).
-- A `BoundaryModelDummyParticles` with `SummationDensity` is no longer accepted for a
-  `TotalLagrangianSPHSystem` or `RigidBodySystem` interacting with a fluid. The boundary
-  density was never computed for structures, so this combination behaved like
-  `PressureZeroing`, which can be used instead (#1341).
+- A `BoundaryModelDummyParticles` of a `TotalLagrangianSPHSystem` or `RigidBodySystem` with
+  `KernelCorrection` or `MixedKernelGradientCorrection` requires all fluid systems to use
+  one of these corrections as well (#1351).
 
 ### Features
 
@@ -83,13 +82,15 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 ### Important Bugfixes
 
 - Fixed structure boundary-correction caches to use their own kernel, raw gradients,
-  and complete current neighborhoods (#1351).
+  and complete current neighborhoods, and recompute structure boundary summation density
+  in every update (#1351).
 - Fixed double-counted Monaghan-Kajtar repulsion in TVF momentum and
   background-pressure shifting operators (#1344).
 - Fixed kernel gradients at structure particles in fluid–structure pressure acceleration
   to use the boundary model's kernel and corrections (#1342).
 - Fixed correction-matrix assembly for `GradientCorrection` and
-  `BlendedGradientCorrection` (#1342).
+  `BlendedGradientCorrection`, so results with these corrections change.
+  `DensityDiffusionAntuono` now always uses the uncorrected kernel gradient (#1342).
 - Fixed boundary-density evolution in `RigidBodySystem` with `ContinuityDensity` to
   use the boundary model's corrected kernel gradient (#1342).
 - Fixed the no-slip condition of `BoundaryModelDummyParticles` with `SummationDensity`,
