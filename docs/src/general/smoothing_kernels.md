@@ -203,8 +203,8 @@ CairoMakie.save("smoothing_kernels.png", fig)
     ```
     where `skip_zero_distance` returns `true` if the kernel gradient is zero at zero
     distance, which is not the case for some corrected kernels.
-    Here, `almostzero(h)` is the threshold `sqrt(eps(typeof(h))) * h`, where `h` is the
-    smoothing length.
+    Here, `almostzero(h)` is the threshold
+    `sqrt(eps(typeof(h))) * h ≈ sqrt(eps(h^2))`, where `h` is the smoothing length.
 
 ```@autodocs
 Modules = [TrixiParticles]

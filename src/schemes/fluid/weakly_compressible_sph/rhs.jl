@@ -53,6 +53,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                 return init
             end
 
+            # Now we can safely call the unsafe version of the kernel gradient to avoid
+            # redundant zero checks.
             grad_kernel = smoothing_kernel_grad_unsafe(particle_system, pos_diff, distance,
                                                        particle)
 

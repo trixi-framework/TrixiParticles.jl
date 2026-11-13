@@ -139,9 +139,12 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         # because computing it would divide by zero (see `almostzero`). The boundary
         # gradient also vanishes in this case (see `check_boundary_model_correction`).
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
-        skip_zero_distance(neighbor_system) &&
-            distance < almostzero(h) && return
+        if skip_zero_distance(neighbor_system) && distance < almostzero(h)
+            return
+        end
 
+        # Now we can safely call the unsafe version of the kernel gradient to avoid
+        # redundant zero checks.
         # Evaluate the gradient exactly as in the fluid-structure interaction, i.e.,
         # with the fluid particle's kernel and correction and the fluid-first displacement.
         # Note that we cannot just flip the sign of the structure-first gradient, since
@@ -171,8 +174,8 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         # by the pressure acceleration of a fluid with an asymmetric corrected kernel
         # gradient and by the continuity equation of the boundary particles.
         # When the pressure acceleration requires it, compute it only once for both.
-        # This is the same gradient as in the fluid-structure interaction, since negating
-        # the fluid-first displacement is exact.
+        # Here `pos_diff` is `x_structure - x_fluid`, matching the displacement
+        # passed to the boundary model in the fluid-structure interaction.
         grad_kernel_boundary = boundary_pressure_kernel_grad(system_correction(neighbor_system),
                                                              particle_system, pos_diff,
                                                              distance, particle)
