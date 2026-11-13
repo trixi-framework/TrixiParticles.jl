@@ -71,6 +71,7 @@ We provide six options to compute the boundary density and pressure, determined 
    and the pressure is computed from the density with the state equation.
 4. With [`ContinuityDensity`](@ref), the density is integrated from the continuity equation,
    and the pressure is computed from the density with the state equation.
+   This option is not supported for a [`TotalLagrangianSPHSystem`](@ref).
    Note that this causes a gap between fluid and boundary where the boundary is initialized
    without any contact to the fluid. This is due to overestimation of the boundary density
    as soon as the fluid comes in contact with boundary particles that initially did not have
@@ -176,6 +177,35 @@ condition is applied.
 !!! warning
     The viscosity model [`ArtificialViscosityMonaghan`](@ref) for [`BoundaryModelDummyParticles`](@ref)
     has not been verified yet.
+
+### [Corrections](@id boundary_corrections)
+
+When the adjacent fluid system uses a [correction](@ref corrections) with a kernel gradient
+that is not antisymmetric, i.e., [`KernelCorrection`](@ref), [`GradientCorrection`](@ref),
+[`BlendedGradientCorrection`](@ref) or [`MixedKernelGradientCorrection`](@ref),
+the pressure acceleration cannot use
+``\nabla_{r_b} W(\Vert r_b - r_a \Vert, h) = -\nabla_{r_a} W(\Vert r_a - r_b \Vert, h)``.
+Instead, each of the two particles uses its own corrected kernel gradient, e.g.,
+for [`ContinuityDensity`](@ref),
+```math
+\bm{f}_{ab}^{p}
+= -\frac{m_a m_b}{\rho_a \rho_b}
+\left( p_a \tilde{\nabla}_{r_a} W_{ab} - p_b \tilde{\nabla}_{r_b} W_{ba} \right),
+```
+where ``\tilde{\nabla}_{r_a} W_{ab}`` is the corrected kernel gradient of the fluid particle ``a``
+and ``\tilde{\nabla}_{r_b} W_{ba}`` is the corrected kernel gradient of the boundary particle ``b``.
+The latter is computed with the `correction` of the boundary model. With `correction=nothing`,
+the boundary gradient is uncorrected, even when the fluid uses a correction.
+With [`ContinuityDensity`](@ref), the density of the boundary particles also evolves with the
+corrected kernel gradient of the boundary particles.
+
+For a [`TotalLagrangianSPHSystem`](@ref) or a [`RigidBodySystem`](@ref), the kernel gradient
+at each boundary particle uses the smoothing kernel and smoothing length of the boundary
+model, which must match those of the fluid systems. The smoothing kernel of the
+[`TotalLagrangianSPHSystem`](@ref) is used for solid mechanics instead.
+Corrections at the boundary particles of these structures are not supported yet,
+so the boundary model's `correction` must be `nothing`.
+These requirements are checked when constructing the [`Semidiscretization`](@ref).
 
 ## Repulsive Particles
 
