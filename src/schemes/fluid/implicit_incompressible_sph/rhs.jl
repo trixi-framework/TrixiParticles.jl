@@ -70,13 +70,16 @@ end
 # Note that this function is also used for the structure-fluid interaction to compute
 # the exact opposite pair force. When adding new terms here, make sure that they are
 # also valid for structure neighbors.
+# `grad_kernel_neighbor` is only used by systems with an asymmetric kernel gradient
+# (see `pressure_acceleration`).
 @propagate_inbounds function add_momentum_equation(dv_particle,
                                                    particle_system::ImplicitIncompressibleSPHSystem,
                                                    neighbor_system,
                                                    v_particle_system, v_neighbor_system,
                                                    particle, neighbor, pos_diff, distance,
                                                    grad_kernel, sound_speed, m_a, m_b,
-                                                   p_a, p_b, rho_a, rho_b, v_a, v_b)
+                                                   p_a, p_b, rho_a, rho_b, v_a, v_b,
+                                                   grad_kernel_neighbor=nothing)
     dv_particle += pressure_acceleration(particle_system, neighbor_system,
                                          particle, neighbor,
                                          m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
