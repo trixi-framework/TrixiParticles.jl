@@ -175,19 +175,6 @@ end
     return smoothing_kernel_grad(system, pos_diff, distance, particle)
 end
 
-# Kernel gradient of `system` for an interaction with `neighbor_system`.
-# Particles at the same position are skipped if `skip_zero_distance(system, neighbor_system)`.
-# If the correction of `neighbor_system` requires such pairs to be processed
-# (e.g., because its kernel gradient does not vanish there), even though the kernel gradient
-# of `system` vanishes, use the safe gradient, which handles particles at the same position.
-@inline function interaction_kernel_grad(system, neighbor_system, pos_diff, distance,
-                                         particle)
-    if skip_zero_distance(system) && !skip_zero_distance(system, neighbor_system)
-        return smoothing_kernel_grad(system, pos_diff, distance, particle)
-    end
-    return smoothing_kernel_grad_unsafe(system, pos_diff, distance, particle)
-end
-
 # System updates do nothing by default, but can be dispatched if needed
 function update_positions!(system, v, u, v_ode, u_ode, semi, t)
     return system

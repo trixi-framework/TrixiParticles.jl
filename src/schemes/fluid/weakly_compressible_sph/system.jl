@@ -403,13 +403,13 @@ function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
                                                          MixedKernelGradientCorrection},
                                              system::WeaklyCompressibleSPHSystem, u,
                                              v_ode, u_ode, semi)
-    (; cache, smoothing_kernel) = system
+    (; cache) = system
     (; correction_matrix) = cache
 
     system_coords = current_coordinates(u, system)
 
     compute_gradient_correction_matrix!(correction_matrix, system, system_coords,
-                                        v_ode, u_ode, semi, corr, smoothing_kernel)
+                                        v_ode, u_ode, semi, corr)
 end
 
 function reinit_density!(vu_ode, semi)
