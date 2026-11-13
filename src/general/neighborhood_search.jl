@@ -158,10 +158,16 @@ end
 
 @inline function compact_support(system::WallBoundarySystem,
                                  model::BoundaryModelDummyParticles,
-                                 neighbor::RigidBodySystem{Nothing})
-    # Contact-only rigid bodies do not participate in wall-side hydrodynamic passes such as
+                                 neighbor::Union{RigidBodySystem{Nothing},
+                                                 WallBoundarySystem{Nothing}})
+    # Contact-only systems do not participate in wall-side hydrodynamic passes such as
     # density summation, pressure extrapolation, or correction assembly. Keep the reverse
-    # wall->rigid search radius at zero so those updates never query rigid hydrodynamic data.
+    # wall->neighbor search radius at zero so those updates never query hydrodynamic data.
+    return zero(eltype(system))
+end
+
+@inline function compact_support(system::WallBoundarySystem, ::Nothing, neighbor)
+    # Contact-only walls do not initiate hydrodynamic interactions or rigid contact.
     return zero(eltype(system))
 end
 
