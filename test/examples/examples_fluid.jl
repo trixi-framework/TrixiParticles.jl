@@ -175,7 +175,7 @@
                                             smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
                                             smoothing_length=0.5 *
                                                              fluid_particle_spacing,
-                                            correction=AkinciFreeSurfaceCorrection(fluid_density),
+                                            force_correction=AkinciFreeSurfaceCorrection(fluid_density),
                                             density_diffusion=nothing,
                                             adhesion_coefficient=0.05,
                                             sound_speed=100.0,
