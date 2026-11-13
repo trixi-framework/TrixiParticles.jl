@@ -64,6 +64,8 @@ smoothing kernel and smoothing length (see [Boundary Models](@ref boundary_model
 When using [`BoundaryModelDummyParticles`](@ref), its smoothing kernel and smoothing length
 must match those of every fluid system. Its `correction` must be `nothing`
 (see [Boundary Corrections](@ref boundary_corrections)).
+[`ContinuityDensity`](@ref) is not supported for the boundary model of a
+[`TotalLagrangianSPHSystem`](@ref).
 
 ```@autodocs
 Modules = [TrixiParticles]
