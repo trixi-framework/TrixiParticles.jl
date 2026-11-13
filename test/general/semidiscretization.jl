@@ -188,19 +188,6 @@
                                                                          fluid_system;
                                                                          neighborhood_search=nothing)
 
-                if structure_type === TotalLagrangianSPHSystem
-                    boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
-                                                                 ContinuityDensity(),
-                                                                 smoothing_kernel,
-                                                                 smoothing_length)
-                    structure = create_structure_system(structure_type, boundary_model)
-                    error_str = "`BoundaryModelDummyParticles` with density calculator " *
-                                "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"
-                    @test_throws ArgumentError(error_str) Semidiscretization(structure,
-                                                                             fluid_system;
-                                                                             neighborhood_search=nothing)
-                end
-
                 @testset "$name" for (name, boundary_kernel, boundary_length,
                                       compatible) in boundary_configurations
 

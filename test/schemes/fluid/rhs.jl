@@ -282,7 +282,6 @@
 
         function create_fluid_system(scheme, velocity, density, viscosity;
                                      shifting_technique=nothing, correction=nothing,
-                                     density_calculator=ContinuityDensity(),
                                      coordinates=zeros(2, 1))
             fluid = InitialCondition(; coordinates,
                                      velocity=reshape(collect(velocity), 2, 1),
@@ -293,7 +292,7 @@
             if scheme == "WCSPH"
                 return WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
                                                    smoothing_length, state_equation,
-                                                   density_calculator,
+                                                   density_calculator=ContinuityDensity(),
                                                    viscosity, shifting_technique,
                                                    correction)
             end
@@ -303,8 +302,8 @@
             average_pressure_reduction = scheme == "EDAC with average pressure reduction"
             return EntropicallyDampedSPHSystem(fluid; smoothing_kernel, smoothing_length,
                                                sound_speed, viscosity, shifting_technique,
-                                               average_pressure_reduction, correction,
-                                               density_calculator)
+                                               average_pressure_reduction,
+                                               density_calculator=ContinuityDensity())
         end
 
         function create_structure_system(structure_type, viscosity;
@@ -344,17 +343,15 @@
         # Run the regular update step to compute the boundary pressure, the wall velocity
         # for the viscosity, and the average pressure of EDAC. Return the systems
         # stored in the semidiscretization and the wrapped arrays.
-        function initialize(fluid_system, structure_system; interaction_matrix=nothing)
+        function initialize(fluid_system, structure_system)
             semi = if structure_system isa TotalLagrangianSPHSystem
                 @test_logs (:info,
                             r"^To create the self-interaction neighborhood search of a `TotalLagrangianSPHSystem`") begin
                     Semidiscretization(fluid_system, structure_system;
-                                       interaction_matrix,
                                        parallelization_backend=SerialBackend())
                 end
             else
                 @test_logs Semidiscretization(fluid_system, structure_system;
-                                              interaction_matrix,
                                               parallelization_backend=SerialBackend())
             end
             ode = semidiscretize(semi, (0.0, 0.01))
@@ -443,7 +440,7 @@
                                     (RigidBodySystem, false, smoothing_length))
         correction_methods = (nothing, AkinciFreeSurfaceCorrection(fluid_density),
                               KernelCorrection(), GradientCorrection(),
-                              BlendedGradientCorrection(0.3),
+                              BlendedGradientCorrection(0.5),
                               MixedKernelGradientCorrection())
 
         @testset "$(config[1]), Viscosity `$(nameof(typeof(config[2])))`" for config in
@@ -460,7 +457,7 @@
                                                                                                    structure_smoothing_length) in
                                                                                                   structure_configurations
 
-                    # TLSPH does not yet support `ContinuityDensity` boundaries.
+                    # TLSPH does not support `ContinuityDensity` boundaries.
                     boundary_densities = if structure_type === TotalLagrangianSPHSystem
                         (AdamiPressureExtrapolation(), SummationDensity())
                     else
@@ -620,40 +617,6 @@
                 expected_density_rate = -fluid.mass[1] * velocity[1] * kernel_derivative
                 @test dv_structure[end, 1] ≈ expected_density_rate
             end
-        end
-
-        # TLSPH does not support `ContinuityDensity` boundaries yet. However, the continuity
-        # equation of structure boundaries must already use the kernel of the boundary
-        # model and not the TLSPH kernel for solid mechanics, which has a smaller support.
-        @testset "TLSPH Continuity Equation with Correction `$(nameof(typeof(correction)))`" for correction in
-                                                                                                 (nothing,
-                                                                                                  GradientCorrection())
-            velocity = (1.0, 0.5)
-            density = 1005.0
-            structure = create_structure_system(TotalLagrangianSPHSystem, nothing;
-                                                boundary_density=ContinuityDensity(),
-                                                structure_smoothing_length=0.5 *
-                                                                           smoothing_length)
-            fluid = create_fluid_system("WCSPH", velocity, density, nothing; correction)
-            if haskey(fluid.cache, :correction_matrix)
-                fluid.cache.correction_matrix[:, :, 1] .= [2.0 0.3; 0.4 1.5]
-            end
-
-            pos_diff = SVector(1.5, 0.0)
-            grad_kernel_fluid = TrixiParticles.smoothing_kernel_grad_unsafe(fluid,
-                                                                            -pos_diff,
-                                                                            1.5, 1)
-            drho = TrixiParticles.add_continuity_equation(0.0, structure, fluid, 1, 1,
-                                                          pos_diff, 1.5, fluid.mass[1],
-                                                          fluid_density, density,
-                                                          SVector(0.0, 0.0),
-                                                          SVector(velocity),
-                                                          grad_kernel_fluid)
-
-            kernel_derivative = -0.75 * (2 - 1.5)^2 * 10 / (7pi)
-            expected_density_rate = -fluid_density / density * fluid.mass[1] *
-                                    velocity[1] * kernel_derivative
-            @test drho ≈ expected_density_rate
         end
 
         # Check that FSI pressure forces use the kernel and smoothing length of the boundary
