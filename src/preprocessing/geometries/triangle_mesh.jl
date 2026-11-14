@@ -171,15 +171,19 @@ end
 
 @inline face_normal(triangle, geometry::TriangleMesh) = geometry.face_normals[triangle]
 
-@inline function Base.deleteat!(mesh::TriangleMesh, indices)
-    (; face_vertices, face_vertices_ids, face_edges_ids, face_normals) = mesh
+@inline function delete_faces(mesh::TriangleMesh, indices)
+    face_vertices = copy(mesh.face_vertices)
+    face_normals = copy(mesh.face_normals)
 
     deleteat!(face_vertices, indices)
-    deleteat!(face_vertices_ids, indices)
-    deleteat!(face_edges_ids, indices)
     deleteat!(face_normals, indices)
 
-    return mesh
+    if isempty(face_vertices)
+        throw(ArgumentError("cannot delete all triangle mesh faces"))
+    end
+
+    vertices = collect(Iterators.flatten(face_vertices))
+    return TriangleMesh(face_vertices, face_normals, vertices)
 end
 
 @inline nfaces(mesh::TriangleMesh) = length(mesh.face_normals)
