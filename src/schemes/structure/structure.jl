@@ -41,9 +41,12 @@ end
 
 check_smoothing_kernel_fsi(system, boundary_model, neighbor_system) = system
 
-# The density of a structure boundary is computed by the pressure extrapolation or
-# integrated with the continuity equation. The summation density is only computed for
-# a `WallBoundarySystem`, so the density of a structure would stay at its initial value.
+# Dummy-particle pressure and density are separate from the TLSPH material state.
+# Adami extrapolation already uses the current fluid neighborhood. Summation density
+# additionally needs current boundary/structure neighbors and the boundary model's kernel;
+# the reference-configuration TLSPH self-search cannot supply those neighbors.
+# Structure updates do not perform this density summation, so accepting this configuration
+# would retain the initial boundary density.
 function check_boundary_density_fsi(system::Union{TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{SummationDensity}},
                                                   RigidBodySystem{<:BoundaryModelDummyParticles{SummationDensity}}},
                                     neighbor_system::AbstractFluidSystem)
