@@ -868,6 +868,10 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
         end
     end
 
+    # `ContinuityDensity` requires integrating the boundary density of all particles,
+    # including clamped ones. The ODE state only contains `n_integrated_particles`, with
+    # `v_nvariables` variables per particle. Increasing `v_nvariables` therefore does not
+    # provide density unknowns for clamped particles, whose motion must remain prescribed.
     if boundary_model isa BoundaryModelDummyParticles &&
        boundary_model.density_calculator isa ContinuityDensity
         throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
