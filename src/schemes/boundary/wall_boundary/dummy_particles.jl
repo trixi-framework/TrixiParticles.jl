@@ -496,9 +496,6 @@ function compute_density!(boundary_model, ::PressureBoundaries, system, v, u, v_
     (; density) = cache # Density is in the cache for `SummationDensity`
 
     summation_density!(system, semi, u, u_ode, density; particles=eachparticle(system))
-
-    # The boundary's diagonal elements and predicted density are computed in
-    # `update_implicit_sph!`, after all fluid velocities have been predicted.
 end
 
 function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityDensity},
@@ -622,6 +619,8 @@ function compute_pressure!(boundary_model,
     return boundary_model
 end
 
+# The wall velocity for `AdamiPressureExtrapolation` and `BernoulliPressureExtrapolation`
+# is computed later in the pressure extrapolation.
 @inline function interpolate_wall_velocity!(boundary_model, system, v, u, v_ode, u_ode,
                                             semi)
     return boundary_model

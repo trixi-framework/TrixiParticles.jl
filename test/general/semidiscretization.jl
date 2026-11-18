@@ -169,6 +169,7 @@
 
                 # Missing boundary model.
                 structure = create_structure_system(structure_type, nothing)
+                @test_nowarn Semidiscretization(structure; neighborhood_search=nothing)
                 error_str = "a boundary model for `$structure_type` must be specified " *
                             "when simulating a fluid-structure interaction."
                 @test_throws ArgumentError(error_str) Semidiscretization(fluid_system,
@@ -196,18 +197,13 @@
                                                              state_equation)
                 structure = create_structure_system(structure_type, boundary_model)
                 error_str = "`BoundaryModelDummyParticles` with density calculator " *
-                            "`SummationDensity` is not supported for a `$structure_type` " *
-                            "in a fluid-structure interaction"
-                @test_nowarn TrixiParticles.check_configuration((structure,), nothing)
+                            "`SummationDensity` is not supported for a `$structure_type`"
+                @test_throws ArgumentError(error_str) Semidiscretization(structure;
+                                                                         neighborhood_search=nothing)
                 for systems in ((structure, fluid_system), (fluid_system, structure))
-                    # With both directions disabled, this is not a fluid-structure
-                    # interaction, so the boundary density is never used.
-                    @test_nowarn Semidiscretization(systems...;
-                                                    neighborhood_search=nothing,
-                                                    interaction_matrix=[true false;
-                                                                        false true])
-                    # Either direction uses the boundary density of the structure.
-                    for interaction_matrix in ([true true; false true],
+                    # The boundary model is unsupported even with FSI disabled.
+                    for interaction_matrix in ([true false; false true],
+                         [true true; false true],
                          [true false; true true])
                         @test_throws ArgumentError(error_str) Semidiscretization(systems...;
                                                                                  neighborhood_search=nothing,

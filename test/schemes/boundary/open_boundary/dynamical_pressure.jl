@@ -169,7 +169,7 @@
         @test TrixiParticles.v_nvariables(open_boundary_edac_2) == n_dims + 2
     end
 
-    # The buffer particles are part of the fluid. Like all fluid particles, they see their
+    # The open boundary particles are part of the fluid. Like all fluid particles, they see their
     # own pressure at a wall with `PressureMirroring`, and not the (unused) pressure
     # stored in the wall.
     @testset verbose=true "Mirrored Wall Neighbor" begin

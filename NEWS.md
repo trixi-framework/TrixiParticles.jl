@@ -15,9 +15,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   `TotalLagrangianSPHSystem` or `RigidBodySystem` must now be the same as those of all
   fluid systems in the simulation (#1338, #1348).
 - A `BoundaryModelDummyParticles` with `SummationDensity` is no longer accepted for a
-  `TotalLagrangianSPHSystem` or `RigidBodySystem` interacting with a fluid. The boundary
-  density was never computed for structures, so this combination behaved like
-  `PressureZeroing`, which can be used instead (#1341).
+  `TotalLagrangianSPHSystem` or `RigidBodySystem`. The boundary density was never computed
+  for structures, so this combination behaved like `PressureZeroing`, which can be used
+  instead (#1341).
 - The `correction` of a `BoundaryModelDummyParticles` of a `TotalLagrangianSPHSystem` or
   `RigidBodySystem` must now be `nothing`. Previously, it was ignored or caused an error
   (#1342).

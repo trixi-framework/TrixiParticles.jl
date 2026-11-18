@@ -104,17 +104,15 @@ check_smoothing_kernel_fsi(system, boundary_model, neighbor_system) = system
 # Adami extrapolation already uses the current fluid neighborhood. Summation density
 # additionally needs current boundary/structure neighbors and the boundary model's kernel;
 # the reference-configuration TLSPH self-search cannot supply those neighbors.
-# Structure updates do not perform this density summation, so accepting this configuration
-# would retain the initial boundary density.
-function check_boundary_density_fsi(system::Union{TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{SummationDensity}},
-                                                  RigidBodySystem{<:BoundaryModelDummyParticles{SummationDensity}}},
-                                    neighbor_system::AbstractFluidSystem)
+# There is currently no NHS to find current structure neighbors with the boundary model's kernel.
+function check_boundary_model_density(system,
+                                      ::BoundaryModelDummyParticles{SummationDensity})
     throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
                         "`SummationDensity` is not supported for a " *
-                        "`$(nameof(typeof(system)))` in a fluid-structure interaction"))
+                        "`$(nameof(typeof(system)))`"))
 end
 
-check_boundary_density_fsi(system, neighbor_system) = system
+check_boundary_model_density(system, boundary_model) = system
 
 # The correction values of a boundary particle are sums over its complete hydrodynamic
 # neighborhood in the current configuration, including the particles of its own structure
@@ -185,7 +183,7 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         # particles corresponding to the chosen boundary model.
         # The following call is equivalent to
         #     `p_a = current_pressure(v_particle_system, particle_system, particle)`
-        # For structures using `PressureMirroring`, this returns `p_a = p_b`, which is
+        # except for structures using `PressureMirroring`, where this returns `p_a = p_b`, which is
         # the pressure of the fluid particle, mirroring the fluid-structure interaction.
         p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
         p_a = neighbor_pressure(v_particle_system, particle_system, particle, p_b)
