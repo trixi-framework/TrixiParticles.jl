@@ -163,16 +163,23 @@ by [Band et al. (2018)](@cite Band2018a).
 ### No-slip conditions
 
 For the interaction of dummy particles and fluid particles, [Adami et al. (2012)](@cite Adami2012)
-impose a no-slip boundary condition by assigning a wall velocity ``v_w`` to the dummy particle.
+impose a no-slip boundary condition by assigning a viscous ghost velocity ``v_w`` to the
+dummy particle.
 
-The wall velocity of particle ``a`` is calculated from the prescribed boundary particle
-velocity ``v_a`` and the smoothed velocity field
+The ghost velocity of particle ``a`` is calculated from its physical velocity ``v_a`` and
+the smoothed fluid velocity:
 ```math
 v_w = 2 v_a - \frac{\sum_b v_b W_{ab}}{\sum_b W_{ab}},
 ```
-where the sum is over all fluid particles.
-The wall velocity is computed in this way for all density calculators.
-For IISPH, it is available before the advection prediction and pressure solve.
+where the sum is over eligible fluid and Zhang buffer neighbors within kernel support.
+A neighbor can contribute when either direction of the system interaction is enabled.
+Pressure extrapolation still uses only neighbors enabled in the wall's interaction row.
+
+With IISPH, viscosity uses the ghost velocity during the advection prediction, but the
+density prediction uses the physical wall velocity, even when `viscosity=nothing`.
+With wall viscosity and `AdamiPressureExtrapolation` or `BernoulliPressureExtrapolation`,
+set `state_equation=nothing` to keep the wall density fixed. To include the wall pressure
+in the IISPH pressure solve, use [`PressureBoundaries`](@ref).
 
 By choosing the viscosity model [`ViscosityAdami`](@ref) for `viscosity`, a no-slip
 condition is imposed. It is recommended to choose `nu` in the order of either the kinematic

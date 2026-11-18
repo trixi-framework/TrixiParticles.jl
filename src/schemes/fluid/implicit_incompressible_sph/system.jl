@@ -221,7 +221,11 @@ function update_implicit_sph!(semi, v_ode, u_ode, t)
         return semi
     end
 
-    # All densities and mirrored wall velocities are ready after `update_quantities!`.
+    @trixi_timeit timer() "correct IISPH wall density" correct_iisph_wall_densities!(semi,
+                                                                                     v_ode,
+                                                                                     u_ode)
+
+    # Wall densities and ghost velocities are ready for viscosity in the prediction.
     # Predict every fluid velocity before computing coefficients that use neighboring
     # predictions, including those of `PressureBoundaries`, regardless of system order.
     @trixi_timeit timer() "predict advection" begin
@@ -237,6 +241,34 @@ function update_implicit_sph!(semi, v_ode, u_ode, t)
     @trixi_timeit timer() "pressure solver" pressure_solve!(semi, v_ode, u_ode)
 
     return semi
+end
+
+@inline function needs_early_wall_density_correction(model, system, semi)
+    return model.density_calculator isa SummationDensity &&
+           model.correction isa ShepardKernelCorrection &&
+           has_iisph_neighbor(system, semi)
+end
+
+function correct_iisph_wall_densities!(semi, v_ode, u_ode)
+    # Every Shepard coefficient must see the same raw densities, including those of
+    # other corrected walls. Assemble all coefficients before applying any of them.
+    foreach_system(semi) do wall
+        wall isa WallBoundarySystem || return
+        model = wall.boundary_model
+        model isa BoundaryModelDummyParticles || return
+        needs_early_wall_density_correction(model, wall, semi) || return
+
+        u = wrap_u(u_ode, wall, semi)
+        compute_correction_values!(model, wall, model.correction, u, v_ode, u_ode, semi)
+    end
+    foreach_system(semi) do wall
+        wall isa WallBoundarySystem || return
+        model = wall.boundary_model
+        model isa BoundaryModelDummyParticles || return
+        needs_early_wall_density_correction(model, wall, semi) || return
+
+        apply_shepard_wall_density!(model)
+    end
 end
 
 function calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi)
@@ -767,6 +799,24 @@ function check_configuration(system::ImplicitIncompressibleSPHSystem, systems, n
                     throw(ArgumentError("`PressureBoundaries` parameters have to be the same as the
                     `ImplicitIncompressibleSPHSystem` parameters"))
                 end
+            end
+        end
+    end
+end
+
+function check_iisph_wall_viscosity(systems, interaction_matrix)
+    for (i, fluid) in pairs(systems)
+        fluid isa ImplicitIncompressibleSPHSystem || continue
+        for (j, wall) in pairs(systems)
+            wall isa WallBoundarySystem || continue
+            model = wall.boundary_model
+            model isa BoundaryModelDummyParticles{<:PressureExtrapolation} || continue
+            is_enabled_interaction(interaction_matrix[i, j]) || continue
+            if !isnothing(model.viscosity) && !isnothing(model.state_equation)
+                throw(ArgumentError("IISPH with a viscous Adami or Bernoulli pressure " *
+                                    "extrapolation wall requires `state_equation=nothing` " *
+                                    "to keep the wall density fixed in the predictor and RHS. " *
+                                    "Use `PressureBoundaries` to solve for wall pressure in the PPE."))
             end
         end
     end

@@ -703,6 +703,71 @@
             @test wall.boundary_model.cache.wall_velocity[:, 1] ≈ -velocity
         end
 
+        @testset "No-slip with one-way wall interactions: $calculator" for calculator in
+                                                                           (PressureZeroing(),
+                                                                            AdamiPressureExtrapolation())
+            viscosity = ViscosityAdami(nu=0.1)
+            fluid = create_fluid_system("WCSPH", (0.0, 0.0), fluid_density + 1,
+                                        viscosity)
+            ghost_neighbor = create_fluid_system("WCSPH", (0.0, 1.0), fluid_density + 9,
+                                                 viscosity)
+            wall = create_structure_system(WallBoundarySystem, viscosity;
+                                           boundary_density=calculator, velocity=(0.0, 1.0))
+            matrix = [true false true; false true true;
+                      calculator isa AdamiPressureExtrapolation false true]
+            semi = Semidiscretization(fluid, ghost_neighbor, wall;
+                                      interaction_matrix=matrix,
+                                      parallelization_backend=SerialBackend())
+            ode = semidiscretize(semi, (0.0, 0.01))
+            v, u = ode.u0.x
+            dv = zero(v)
+            TrixiParticles.kick!(dv, v, u, ode.p, 0.0)
+
+            # Both fluid particles contribute equal weights to the ghost velocity. Only
+            # the first is eligible to contribute its pressure for extrapolation.
+            model = wall.boundary_model
+            @test model.cache.wall_velocity[:, 1] ≈ SVector(0.0, 1.5)
+            expected_pressure = calculator isa PressureZeroing ? 0.0 :
+                                state_equation(fluid_density + 1)
+            @test model.pressure[1] ≈ expected_pressure
+            @test TrixiParticles.wrap_v(dv, ghost_neighbor, ode.p.semi)[2, 1] > 0
+        end
+
+        @testset "Ghost velocity at different length scales: $T, h=$h" for T in
+                                                                           (Float32,
+                                                                            Float64),
+                                                                           h in
+                                                                           (T(1), T(1e5))
+
+            kernel = SchoenbergCubicSplineKernel{3}()
+            rho = T(1000)
+            mass = rho * h^3
+            eos = StateEquationCole(sound_speed=T(10), reference_density=rho, exponent=1)
+            # Even integer viscosity parameters must yield floating-point accumulators.
+            viscosity = ViscosityAdami(nu=1, epsilon=1)
+            fluid_ic = InitialCondition(; coordinates=zeros(T, 3, 1), density=rho, mass,
+                                        particle_spacing=h)
+            fluid = WeaklyCompressibleSPHSystem(fluid_ic; smoothing_kernel=kernel,
+                                                smoothing_length=h, state_equation=eos,
+                                                density_calculator=ContinuityDensity(),
+                                                viscosity)
+            wall_ic = InitialCondition(; coordinates=h .* T[1.5 5.0; 0 0; 0 0], density=rho,
+                                       mass, particle_spacing=h)
+            model = BoundaryModelDummyParticles(wall_ic.density, wall_ic.mass,
+                                                PressureZeroing(),
+                                                kernel, h; state_equation=eos, viscosity)
+            motion = PrescribedMotion((x, t) -> x + SVector(zero(T), t, zero(T)), t -> true)
+            wall = WallBoundarySystem(wall_ic, model; prescribed_motion=motion)
+            semi = Semidiscretization(fluid, wall; parallelization_backend=SerialBackend())
+            ode = semidiscretize(semi, (zero(T), T(0.01)))
+            TrixiParticles.update_systems_and_nhs(ode.u0.x..., ode.p.semi, zero(T))
+            @test eltype(ode.u0.x[1]) === T
+            @test eltype(model.cache.wall_velocity) === T
+            @test eltype(model.cache.wall_velocity_weight) === T
+            @test model.cache.wall_velocity[:, 1] ≈ T[0, 2, 0]
+            @test iszero(model.cache.wall_velocity[:, 2]) # No fluid within support.
+        end
+
         @testset "No-slip with Zhang buffers: $boundary_density" for boundary_density in
                                                                      (SummationDensity(),
                                                                       no_slip_densities...)
