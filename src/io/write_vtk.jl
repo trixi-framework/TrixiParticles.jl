@@ -118,11 +118,14 @@ function _trixi2vtk(dvdu_ode, vu_ode, semi, t; iter=nothing, overwrite=isnothing
 end
 
 # Convert data for a single TrixiParticle system to VTK format.
-function trixi2vtk(system_, dv_ode, du_ode, v_ode, u_ode, semi_, t, periodic_box;
+function trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
                    output_directory="out", prefix="", iter=nothing,
                    overwrite=isnothing(iter),
                    system_name=vtkname(system_), max_coordinates=Inf,
                    custom_quantities...)
+    dv_ode, du_ode = dvdu_ode_.x
+    v_ode, u_ode = vu_ode_.x
+
     return _trixi2vtk(system_, dv_ode, du_ode, v_ode, u_ode, semi_, t, periodic_box;
                       output_directory, prefix, iter, overwrite,
                       append_collection=_default_append_collection(iter), system_name,
@@ -222,10 +225,6 @@ function _trixi2vtk(system_, dv_ode_, du_ode_, v_ode_, u_ode_, semi_, t, periodi
 
     return file
 end
-
-# The two parts of an `ArrayPartition` like `sol.u[end]`, or a tuple of the two parts.
-ode_parts(vu_ode) = vu_ode.x
-ode_parts(vu_ode::Tuple) = vu_ode
 
 # Without sorting, particles are written in the order of the system arrays.
 vtk_output_order(system, semi) = vtk_output_order(system, semi, particle_sorting(semi))

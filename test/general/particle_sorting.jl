@@ -359,7 +359,7 @@ using OrdinaryDiffEqLowStorageRK
     @testset "Unsupported System" begin
         semi = sorting_setup(; sort_particles=true, fluid_system_type=:edac)
         error_str = "sorting particles with a neighborhood search that sorts points is " *
-                    "not supported for systems of type EntropicallyDampedSPHSystem"
+                    "not (yet) supported for systems of type EntropicallyDampedSPHSystem"
         @test_throws ArgumentError(error_str) semidiscretize(semi, (0.0, 0.05))
     end
 end
