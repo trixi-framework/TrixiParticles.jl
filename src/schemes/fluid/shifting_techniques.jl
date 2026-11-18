@@ -309,6 +309,18 @@ end
 # so the `UpdateCallback` is required to update the shifting velocity.
 requires_update_callback(::ParticleShiftingTechnique{<:Any, false}) = true
 
+# Arrays of the shifting technique that have to be reordered when the particles are sorted
+# (see `particle_arrays_to_sort`). By default, the shifting velocity is either recomputed
+# in every update after sorting or not used in the time integration stages.
+shifting_arrays_to_sort(system, shifting) = ()
+
+# `ParticleShiftingTechnique{true, false}` means `integrate_shifting_velocity=true`
+# and `update_everystage=false`. The shifting velocity is only computed in the
+# `UpdateCallback` and used in all stages of the next time step.
+function shifting_arrays_to_sort(system, ::ParticleShiftingTechnique{true, false})
+    return (system.cache.delta_v,)
+end
+
 # `ParticleShiftingTechnique{false}` means `integrate_shifting_velocity=false`.
 # Zero if PST is applied in a callback as a position correction
 # and not with a shifting velocity in the time integration stages

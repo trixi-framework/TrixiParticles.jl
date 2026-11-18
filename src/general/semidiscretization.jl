@@ -80,7 +80,7 @@ semi = Semidiscretization(fluid_system, boundary_system;
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct Semidiscretization{BACKEND, S, RU, RV, NSH, IM, UCU, IT}
+struct Semidiscretization{BACKEND, S, RU, RV, NSH, IM, UCU, IT, PS}
     systems                     :: S
     ranges_u                    :: RU
     ranges_v                    :: RV
@@ -89,6 +89,7 @@ struct Semidiscretization{BACKEND, S, RU, RV, NSH, IM, UCU, IT}
     parallelization_backend     :: BACKEND
     update_callback_used        :: UCU
     integrate_tlsph             :: IT # `false` if TLSPH integration is decoupled
+    particle_sorting            :: PS # See `particle_sorting.jl`. Set in `semidiscretize`.
 
     # Dispatch at `systems` to distinguish this constructor from the one below when
     # 4 systems are passed.
@@ -97,14 +98,17 @@ struct Semidiscretization{BACKEND, S, RU, RV, NSH, IM, UCU, IT}
                                 neighborhood_search_handler,
                                 interaction_matrix,
                                 parallelization_backend::PointNeighbors.ParallelizationBackend,
-                                update_callback_used, integrate_tlsph)
+                                update_callback_used, integrate_tlsph,
+                                particle_sorting=nothing)
         new{typeof(parallelization_backend), typeof(systems), typeof(ranges_u),
             typeof(ranges_v), typeof(neighborhood_search_handler),
             typeof(interaction_matrix), typeof(update_callback_used),
-            typeof(integrate_tlsph)}(systems, ranges_u, ranges_v,
-                                     neighborhood_search_handler, interaction_matrix,
-                                     parallelization_backend,
-                                     update_callback_used, integrate_tlsph)
+            typeof(integrate_tlsph),
+            typeof(particle_sorting)}(systems, ranges_u, ranges_v,
+                                      neighborhood_search_handler, interaction_matrix,
+                                      parallelization_backend,
+                                      update_callback_used, integrate_tlsph,
+                                      particle_sorting)
     end
 end
 
@@ -276,6 +280,12 @@ Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
     restart time, it is adjusted and an info message is logged. Timestamps in multiple files
     must match.
 
+!!! warning "Sorting particles"
+    When the neighborhood search sorts the particles (see [Sorting Particles](@ref particle_sorting)),
+    the time integration arrays are not in the order of the particles in the systems.
+    They must not be indexed directly with particle indices, and `TrixiParticles.wrap_v`
+    and `TrixiParticles.wrap_u` throw an error for these arrays.
+
 # Returns
 A `DynamicalODEProblem` (see [the OrdinaryDiffEq.jl docs](https://docs.sciml.ai/DiffEqDocs/stable/types/dynamical_types/))
 to be integrated with [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl).
@@ -381,6 +391,22 @@ function semidiscretize(semi, tspan; reset_threads=true, restart_with=nothing)
 
         @info "To move data to the GPU, `semidiscretize` creates a deep copy of the passed " *
               "`Semidiscretization`. Use `semi = ode.p.semi` to access simulation data."
+    elseif uses_particle_sorting(semi.neighborhood_search_handler)
+        # Sorting particles reorders the arrays of the systems in place.
+        # Copy all arrays, so that the passed systems are not modified.
+        # See `particle_sorting.jl` for more details.
+        systems = Adapt.adapt(CopyArrays(), semi.systems)
+        semi_ = @set semi.systems = systems
+
+        # Re-link systems that link to other systems (see above).
+        semi_new_ = @set semi_.systems = set_system_links.(semi_.systems, Ref(semi_))
+
+        # Now set the `particle_sorting` field of the new `Semidiscretization`.
+        particle_sorting = create_particle_sorting(semi_new_, v0_ode, u0_ode)
+        semi_new = @set semi_new_.particle_sorting = particle_sorting
+
+        @info "To sort particles, `semidiscretize` creates a deep copy of the passed " *
+              "`Semidiscretization`. Use `semi = ode.p.semi` to access simulation data."
     else
         semi_new = semi
     end
@@ -449,7 +475,8 @@ function restart_with!(semi, sol; reset_threads=true)
 
     initialize_neighborhood_searches!(semi)
 
-    v_ode, u_ode = sol.u[end].x
+    # When particles are sorted, copy the integration arrays to system order.
+    v_ode, u_ode = sorted_ode_arrays!(sol.u[end].x..., semi)
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         restart_with!(system, v, u)
     end
@@ -460,9 +487,25 @@ function restart_with!(semi, sol; reset_threads=true)
     return semi
 end
 
+# Return the data of `system` in the integration array `v_ode` as a matrix,
+# where the column `particle` contains the variables of the particle `particle`.
+# When particles are sorted, `v_ode` must be a sorted copy of the integration array
+# (see `particle_sorting.jl`). Otherwise, this throws an error.
+#
 # We have to pass `system` here for type stability,
 # since the type of `system` determines the return type.
-@inline function wrap_v(v_ode, system, semi)
+@propagate_inbounds function wrap_v(v_ode, system, semi)
+    check_not_sorted(semi)
+
+    return wrap_v_unchecked(v_ode, system, semi)
+end
+
+# Like `wrap_v`, but without checking that `v_ode` is a sorted copy of the integration
+# array when particles are sorted. The returned array is in the order of `v_ode`,
+# which is the integration order for integration arrays and the system order
+# for sorted copies. Only use this when you know what you are doing
+# (see `particle_sorting.jl`).
+@inline function wrap_v_unchecked(v_ode, system, semi)
     (; ranges_v) = semi
 
     range = ranges_v[system_indices(system, semi)]
@@ -479,7 +522,15 @@ end
                       (StaticInt(v_nvariables(system)), n_integrated_particles(system)))
 end
 
-@inline function wrap_u(u_ode, system, semi)
+# See `wrap_v`.
+@propagate_inbounds function wrap_u(u_ode, system, semi)
+    check_not_sorted(semi)
+
+    return wrap_u_unchecked(u_ode, system, semi)
+end
+
+# See `wrap_v_unchecked`.
+@inline function wrap_u_unchecked(u_ode, system, semi)
     (; ranges_u) = semi
 
     range = ranges_u[system_indices(system, semi)]

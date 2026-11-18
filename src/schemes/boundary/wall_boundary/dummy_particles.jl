@@ -873,3 +873,8 @@ end
 @inline function correction_matrix(system::AbstractBoundarySystem, particle)
     extract_smatrix(system.boundary_model.cache.correction_matrix, system, particle)
 end
+
+# All per-particle arrays of the boundary model (see `particle_arrays_to_sort`).
+function particle_arrays_to_sort(model::BoundaryModelDummyParticles, n)
+    return (model.pressure, model.hydrodynamic_mass, per_particle_arrays(model.cache, n)...)
+end

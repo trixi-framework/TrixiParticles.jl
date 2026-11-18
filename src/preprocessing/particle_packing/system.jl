@@ -129,6 +129,14 @@ function ParticlePackingSystem(shape::InitialCondition;
     else
         nhs_ = isnothing(neighborhood_search) ? TrivialNeighborhoodSearch{NDIMS}() :
                neighborhood_search
+
+        # TODO The positions of the signed distance field would have to be sorted
+        # in order to support a neighborhood search that sorts points.
+        if PointNeighbors.sorts_points(nhs_)
+            throw(ArgumentError("a neighborhood search that sorts points, like the " *
+                                "`SortingGridNeighborhoodSearch`, is not supported " *
+                                "for particle packing"))
+        end
         nhs = copy_neighborhood_search(nhs_,
                                        compact_support(smoothing_kernel,
                                                        smoothing_length_interpolation),

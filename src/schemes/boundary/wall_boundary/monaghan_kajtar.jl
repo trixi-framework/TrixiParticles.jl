@@ -138,3 +138,6 @@ end
     # Nothing to do in the update step
     return boundary_model
 end
+
+# All per-particle arrays of the boundary model (see `particle_arrays_to_sort`).
+particle_arrays_to_sort(model::BoundaryModelMonaghanKajtar, n) = (model.hydrodynamic_mass,)

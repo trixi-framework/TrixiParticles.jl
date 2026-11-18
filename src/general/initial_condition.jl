@@ -388,8 +388,10 @@ function InitialCondition(sol::ODESolution, system, semi; use_final_velocity=fal
     v_ode, u_ode, system, semi = transfer2cpu(sol.u[end].x..., system, semi)
     ic = system.initial_condition
 
-    v = wrap_v(v_ode, system, semi)
-    u = wrap_u(u_ode, system, semi)
+    # The data of the initial condition is in the order of the integration arrays,
+    # so we have to use the unchecked wrapping here (see `particle_sorting.jl`).
+    v = wrap_v_unchecked(v_ode, system, semi)
+    u = wrap_u_unchecked(u_ode, system, semi)
 
     # Check if particles come too close especially when the surface exhibits large curvature
     too_close = find_too_close_particles(u, min_particle_distance)
