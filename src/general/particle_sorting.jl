@@ -21,7 +21,7 @@
 # is not safe when sorting is enabled.
 #
 # Instead, `v_ode` and `u_ode` are copied to sorted arrays (`SortedODEArray`s)
-# in system order before they are used (see `sorted_ode_arrays!`).
+# in system order before they are used (see `sorted_ode_arrays`).
 # All functions working with integration arrays (`kick!`, callbacks, postprocessing)
 # work with these sorted copies. `update_systems_and_nhs` returns them.
 # Callbacks that modify the integration arrays copy the sorted arrays back
@@ -115,7 +115,7 @@ end
 
 @noinline function check_not_sorted(::ParticleSorting)
     throw(ArgumentError("integration arrays must be copied to sorted arrays with " *
-                        "`sorted_ode_arrays!` before they can be wrapped when particles " *
+                        "`sorted_ode_arrays` before they can be wrapped when particles " *
                         "are sorted"))
 end
 
@@ -372,14 +372,16 @@ end
 # Return the integration arrays in system order.
 # When particles are sorted, copy `v_ode` and `u_ode` to the sorted buffers in system order
 # and return these. Otherwise, return the original arrays.
+# Note that the sorted buffers are not copies. They are overwritten by the next call
+# of this function, for example in the next `kick!`.
 # See the comments at the top of this file.
-function sorted_ode_arrays!(v_ode, u_ode, semi)
-    return sorted_ode_arrays!(v_ode, u_ode, semi, particle_sorting(semi))
+function sorted_ode_arrays(v_ode, u_ode, semi)
+    return sorted_ode_arrays(v_ode, u_ode, semi, particle_sorting(semi))
 end
 
-sorted_ode_arrays!(v_ode, u_ode, semi, ::Nothing) = (v_ode, u_ode)
+sorted_ode_arrays(v_ode, u_ode, semi, ::Nothing) = (v_ode, u_ode)
 
-function sorted_ode_arrays!(v_ode, u_ode, semi, sorting::ParticleSorting)
+function sorted_ode_arrays(v_ode, u_ode, semi, sorting::ParticleSorting)
     (; v_ode_sorted, u_ode_sorted) = sorting
 
     # This function returns sorted copies of the raw integration arrays.
@@ -502,7 +504,7 @@ function apply_system_order!(v_ode, u_ode, semi)
     (; v_ode_sorted, u_ode_sorted) = sorting
 
     # Copy to the sorted arrays first and then back to the integration arrays.
-    sorted_ode_arrays!(v_ode, u_ode, semi, sorting)
+    sorted_ode_arrays(v_ode, u_ode, semi, sorting)
     copyto!(v_ode, parent(v_ode_sorted))
     copyto!(u_ode, parent(u_ode_sorted))
 

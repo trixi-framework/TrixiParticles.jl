@@ -130,7 +130,7 @@ function reinitialize_density!(reinit_callback::DensityReinitializationCallback,
                                vu_ode, semi)
     # When particles are sorted, copy the integration arrays to system order
     # (see `particle_sorting.jl`).
-    v_ode, u_ode = sorted_ode_arrays!(vu_ode.x..., semi)
+    v_ode, u_ode = sorted_ode_arrays(vu_ode.x..., semi)
 
     particle_system = current_reinit_system(reinit_callback.system_index, semi)
     check_density_reinit_system(particle_system)
