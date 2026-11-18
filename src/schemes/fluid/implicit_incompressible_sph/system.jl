@@ -217,7 +217,7 @@ end
 
 @inline density_calculator(system::ImplicitIncompressibleSPHSystem) = nothing
 
-# Calculates the pressure values by solving a linear system with a relaxed Jacobi scheme
+# Compute density before the prediction and pressure solve in `update_implicit_sph!`.
 function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
     (; density) = system
@@ -225,29 +225,80 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
     # Compute density by kernel summation
     summation_density!(system, semi, u, u_ode, density)
 
-    @trixi_timeit timer() "predict advection" predict_advection!(system, v, u, v_ode, u_ode,
-                                                                 semi)
+    return system
 end
 
-function update_implicit_sph!(semi, v_ode, u_ode, t)
+@inline uses_iisph_wall_density_prediction(system, semi) = false
+
+@inline function uses_iisph_wall_density_prediction(wall::WallBoundarySystem, semi)
+    has_pressure_extrapolated_density(wall) || return false
+    return any(neighbor -> neighbor isa ImplicitIncompressibleSPHSystem &&
+                           has_system_interaction(neighbor, wall, semi), semi.systems)
+end
+
+# Walk the heterogeneous tuple directly to avoid allocating in the RHS.
+@inline any_iisph_wall_needs_prediction(::Tuple{}, semi) = false
+
+@inline function any_iisph_wall_needs_prediction(systems, semi)
+    return uses_iisph_wall_density_prediction(first(systems), semi) ||
+           any_iisph_wall_needs_prediction(Base.tail(systems), semi)
+end
+
+function seed_iisph_wall_densities!(semi, v_ode, u_ode)
+    # Start the provisional solve from the current ODE state, never from cached pressure
+    # left by a previous evaluation. The zero-pressure extrapolation retains hydrostatic,
+    # dynamic, and offset terms that are already known at the current state.
+    foreach_system(semi) do system
+        if system isa ImplicitIncompressibleSPHSystem ||
+           system isa
+           WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}
+            set_zero!(current_pressure(nothing, system))
+        end
+    end
+    extrapolate_iisph_wall_density!(semi, v_ode, u_ode)
+end
+
+function extrapolate_iisph_wall_density!(semi, v_ode, u_ode)
+    foreach_system_wrapped(semi, v_ode, u_ode) do wall, v, u
+        uses_iisph_wall_density_prediction(wall, semi) || return
+        update_pressure!(wall.boundary_model, wall, v, u, v_ode, u_ode, semi)
+    end
+end
+
+function update_implicit_sph!(semi, v_ode, u_ode, predict_wall_density::Bool)
     # This check is performed statically by the compiler and has no overhead
     if !any(system -> system isa ImplicitIncompressibleSPHSystem, semi.systems)
         return semi
     end
 
+    if predict_wall_density
+        # A single deferred correction: use provisional fluid pressures for the wall
+        # extrapolation, then keep the wall state fixed in the final solve and RHS.
+        @trixi_timeit timer() "provisional IISPH pressure" begin
+            predict_and_solve_iisph!(semi, v_ode, u_ode)
+            extrapolate_iisph_wall_density!(semi, v_ode, u_ode)
+        end
+    end
+
+    return predict_and_solve_iisph!(semi, v_ode, u_ode)
+end
+
+function predict_and_solve_iisph!(semi, v_ode, u_ode)
+    # Predict every fluid velocity before computing coefficients that use neighboring
+    # predictions, including those of `PressureBoundaries`, regardless of system order.
+    @trixi_timeit timer() "predict advection" begin
+        foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+            calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi)
+        end
+        foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+            calculate_diagonal_elements_and_predicted_density!(system, v, u, v_ode, u_ode,
+                                                               semi)
+        end
+    end
+
     @trixi_timeit timer() "pressure solver" pressure_solve!(semi, v_ode, u_ode)
 
     return semi
-end
-
-function predict_advection!(system::Union{ImplicitIncompressibleSPHSystem,
-                                          WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}},
-                            v, u, v_ode, u_ode, semi)
-    calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi)
-
-    calculate_diagonal_elements_and_predicted_density!(system, v, u, v_ode, u_ode, semi)
-
-    return system
 end
 
 function calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi)

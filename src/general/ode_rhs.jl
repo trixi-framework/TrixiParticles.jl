@@ -107,8 +107,6 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
         update_quantities!(system, v, u, v_ode, u_ode, semi, t)
     end
 
-    update_implicit_sph!(semi, v_ode, u_ode, t)
-
     # Refresh structure summation densities over the current hydrodynamic neighborhood
     # before assembling any correction moments. This phase is not part of the isolated
     # structural updates used by `SplitIntegrationCallback`.
@@ -117,6 +115,11 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
     end
 
     predict_boundary_densities!(semi, v_ode, u_ode, t)
+
+    predict_wall_density = any_iisph_wall_needs_prediction(semi.systems, semi)
+    if predict_wall_density
+        seed_iisph_wall_densities!(semi, v_ode, u_ode)
+    end
 
     # Correction moments can use densities from every interacting system. Assemble every
     # coefficient before correcting any density so all systems observe the same state.
@@ -127,6 +130,8 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_density_correction!(system, v, u, v_ode, u_ode, semi, t)
     end
+
+    update_implicit_sph!(semi, v_ode, u_ode, predict_wall_density)
 
     # Refresh pressure from corrected fluid density and the current open-boundary state.
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u

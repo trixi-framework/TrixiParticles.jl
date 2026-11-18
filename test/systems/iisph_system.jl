@@ -296,6 +296,78 @@
         @test v0 == velocity
     end
 
+    @testset "Extrapolated wall density is independent of RHS history" begin
+        kernel = SchoenbergCubicSplineKernel{2}()
+        h = 1.0
+        dt = 1e-3
+        rho = 1000.0
+        viscosity = ViscosityAdami(nu=0.1)
+        x = (0.0, 1.5, 1.75)
+        weights = [TrixiParticles.kernel(kernel, abs(a - b), h) for a in x, b in x]
+        masses = rho / (weights[1, 1] + 2weights[1, 2] + 3weights[1, 3]) .* [1, 2, 3]
+
+        function make_wall(i, calculator; state_equation=nothing, wall_viscosity=nothing)
+            ic = InitialCondition(; coordinates=reshape([x[i], 0.0], 2, 1), density=rho,
+                                  mass=masses[i], particle_spacing=h)
+            model = BoundaryModelDummyParticles(ic.density, ic.mass, calculator, kernel, h;
+                                                viscosity=wall_viscosity, state_equation)
+            motion = PrescribedMotion((coords, t) -> coords + SVector(0.0, t), t -> true)
+            return WallBoundarySystem(ic, model; prescribed_motion=motion)
+        end
+
+        calculators = (AdamiPressureExtrapolation(pressure_offset=50.0),
+                       BernoulliPressureExtrapolation(pressure_offset=50.0))
+        configurations = Iterators.product(calculators, (false, true))
+        @testset "$calculator, wall_first=$wall_first" for (calculator, wall_first) in
+                                                           configurations
+
+            ic = InitialCondition(; coordinates=zeros(2, 1), density=rho, mass=masses[1],
+                                  particle_spacing=h, velocity=reshape([0.005, 0.0], 2, 1))
+            fluid = ImplicitIncompressibleSPHSystem(ic; smoothing_kernel=kernel,
+                                                    smoothing_length=h,
+                                                    reference_density=rho,
+                                                    time_step=dt, viscosity)
+            eos = StateEquationCole(sound_speed=5.0, reference_density=rho, exponent=1)
+            wall = make_wall(2, calculator; state_equation=eos, wall_viscosity=viscosity)
+            other_wall = make_wall(3, PressureZeroing())
+            systems = wall_first ? (wall, other_wall, fluid) : (fluid, wall, other_wall)
+            semi = Semidiscretization(systems...; parallelization_backend=SerialBackend())
+            ode = semidiscretize(semi, (0.0, 0.01))
+            v, u = ode.u0.x
+            dv = zero(v)
+            model = wall.boundary_model
+
+            function wall_rhs()
+                TrixiParticles.kick!(dv, v, u, ode.p, 0.0)
+                return (; fluid_pressure=fluid.pressure[1], wall_pressure=model.pressure[1],
+                        wall_density=model.cache.density[1],
+                        predicted_y=fluid.advection_velocity[2, 1],
+                        dv=copy(TrixiParticles.wrap_v(dv, fluid, ode.p.semi)))
+            end
+
+            baseline = wall_rhs()
+            @test baseline.wall_pressure > calculator.pressure_offset
+            @test baseline.wall_density > rho
+            @test eos(baseline.wall_density) ≈ baseline.wall_pressure
+            @test baseline.dv[2, 1] > 0
+            @test baseline.predicted_y ≈ dt * baseline.dv[2, 1]
+            @test wall_rhs() == baseline
+
+            fluid.pressure[1] = 1234.0
+            model.cache.density[1] = 2rho
+            model.pressure[1] = -1234.0
+            fill!(model.cache.wall_velocity, 1234.0)
+            @test wall_rhs() == baseline
+
+            # Simulate a rejected trial evaluation and restore the exact ODE state.
+            coords = TrixiParticles.wrap_u(u, fluid, ode.p.semi)
+            coords[1, 1] = 0.025
+            @test wall_rhs() != baseline
+            coords[1, 1] = 0.0
+            @test wall_rhs() == baseline
+        end
+    end
+
     # Validate helper routines that build the IISPH linear system and update pressures
     @trixi_testset "Solver helper calculations" begin
         smoothing_kernel = Val(:smoothing_kernel)

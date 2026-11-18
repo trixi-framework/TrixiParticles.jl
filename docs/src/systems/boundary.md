@@ -185,6 +185,17 @@ v_w = 2 v_a - \frac{\sum_b v_b W_{ab}}{\sum_b W_{ab}},
 ```
 where the sum is over all fluid particles.
 
+For IISPH with an equation of state on an Adami or Bernoulli wall, the wall pressure
+and density are first extrapolated with zero fluid pressure; hydrostatic, dynamic, and
+pressure-offset terms still apply. IISPH then performs a provisional pressure solve and
+extrapolates the wall pressure and density again from that result. It holds both values
+fixed through the final advection prediction, pressure solve, and force evaluation.
+The density prediction uses the physical wall velocity; viscosity uses the no-slip ghost
+velocity.
+
+This is a lagged approximation. To include wall pressure as an unknown in the pressure
+solve, use [`PressureBoundaries`](@ref).
+
 By choosing the viscosity model [`ViscosityAdami`](@ref) for `viscosity`, a no-slip
 condition is imposed. It is recommended to choose `nu` in the order of either the kinematic
 viscosity parameter of the adjacent fluid or the equivalent from the artificial parameter

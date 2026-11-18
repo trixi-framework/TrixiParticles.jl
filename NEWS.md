@@ -31,6 +31,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   a boundary density predicted from the current fluid state (#1368).
 - Updated Zhang open-boundary pressures before dummy-wall pressure extrapolation so
   the wall uses the current inlet or outlet pressure regardless of system order (#1368).
+- Fixed history-dependent wall density in IISPH with EOS-backed Adami or Bernoulli
+  walls. A provisional pressure solve supplies the wall density used by both the final
+  prediction and the viscous forces (#1394).
 - Fixed `KernelCorrection` to fall back to uncorrected gradients for invalid normalization
   coefficients and preserve Float32 boundary correction caches (#1291).
 - Fixed gradient correction matrices to use raw kernel gradients, scale-independent

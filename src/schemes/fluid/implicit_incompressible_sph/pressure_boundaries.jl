@@ -111,6 +111,11 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
+@propagate_inbounds function predicted_velocity(system::WallBoundarySystem, particle)
+    # The density prediction uses the physical wall velocity, not the no-slip ghost velocity.
+    return current_velocity(nothing, system, particle)
+end
+
 @propagate_inbounds function d_ii(system::AbstractBoundarySystem, particle)
     return zero(SVector{ndims(system), eltype(system)})
 end
