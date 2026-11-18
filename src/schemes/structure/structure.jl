@@ -80,8 +80,8 @@ end
 # fluid kernels. The TLSPH kernel for solid mechanics may differ.
 # Note that this is only a restriction for `BoundaryModelDummyParticles`, since
 # `BoundaryModelMonaghanKajtar` always uses the compact support of the fluid.
-function check_smoothing_kernel_fsi(system, boundary_model::BoundaryModelDummyParticles,
-                                    neighbor_system::AbstractFluidSystem)
+function check_boundary_model_fsi(system, boundary_model::BoundaryModelDummyParticles,
+                                  neighbor_system::AbstractFluidSystem)
     smoothing_kernel_structure = boundary_model.smoothing_kernel
     smoothing_kernel_fluid = system_smoothing_kernel(neighbor_system)
     smoothing_length_structure = initial_smoothing_length(boundary_model)
@@ -95,30 +95,24 @@ function check_smoothing_kernel_fsi(system, boundary_model::BoundaryModelDummyPa
                             "as those of the fluid system `$(nameof(typeof(neighbor_system)))`."))
     end
 
-    return system
-end
-
-check_smoothing_kernel_fsi(system, boundary_model, neighbor_system) = system
-
-# The correction values of a boundary particle are sums over its complete hydrodynamic
-# neighborhood in the current configuration, including the particles of its own structure
-# within the compact support of the boundary model. The neighborhood searches of structures
-# don't provide this neighborhood (the TLSPH self-interaction uses the TLSPH kernel in the
-# initial configuration and rigid bodies only search for contact), so corrections of the
-# boundary model of a structure are not supported yet.
-# Without correction, the kernel gradient of the boundary model also vanishes at zero
-# distance (see `interact_structure_fluid!`).
-function check_boundary_model_correction(system,
-                                         boundary_model::BoundaryModelDummyParticles)
-    if !isnothing(boundary_model.correction)
-        throw(ArgumentError("the boundary model of a `$(nameof(typeof(system)))` does " *
-                            "not support corrections yet. Use `correction=nothing`."))
+    boundary_correction = system_correction(boundary_model)
+    if !isnothing(boundary_correction) &&
+       boundary_correction != system_correction(neighbor_system)
+        throw(ArgumentError("the correction of the boundary model of the " *
+                            "`$(nameof(typeof(system)))` must be `nothing` or match " *
+                            "the correction of the fluid system " *
+                            "`$(nameof(typeof(neighbor_system)))`, including its settings."))
     end
 
     return system
 end
 
-check_boundary_model_correction(system, boundary_model) = system
+check_boundary_model_fsi(system, boundary_model, neighbor_system) = system
+
+function check_boundary_model_fsi(system, ::Nothing, ::AbstractFluidSystem)
+    throw(ArgumentError("a boundary model for `$(nameof(typeof(system)))` must be specified " *
+                        "when simulating a fluid-structure interaction."))
+end
 
 function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
                                    v_neighbor_system, u_neighbor_system,
@@ -137,7 +131,7 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
                            points=eachparticle) do particle, neighbor, pos_diff, distance
         # Skip neighbors with (almost) the same position if the fluid gradient vanishes,
         # because computing it would divide by zero (see `almostzero`). The boundary
-        # gradient also vanishes in this case (see `check_boundary_model_correction`).
+        # gradient also vanishes in this case (see `check_boundary_model_fsi`).
         # Note that `return` only exits the closure, i.e., skips the current neighbor.
         if skip_zero_distance(neighbor_system) && distance < almostzero(h)
             return
@@ -199,55 +193,40 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         dv_particle = -dv_fluid
 
         accumulate_structure_fluid_pair!(dv, dv_particle, particle_system, particle, m_b)
-
-        drho_particle = add_continuity_equation(zero(rho_a),
-                                                particle_system, neighbor_system,
-                                                particle, neighbor, pos_diff, distance,
-                                                m_b, rho_a, rho_b, v_a, v_b,
-                                                grad_kernel_fluid, grad_kernel_boundary)
-
-        @inbounds write_drho_particle!(dv, particle_system, drho_particle, particle)
+        @inbounds add_structure_continuity!(dv, particle_system, neighbor_system,
+                                            particle, pos_diff, distance,
+                                            m_b, rho_a, rho_b, v_a, v_b,
+                                            grad_kernel_boundary)
     end
 
     return dv
 end
 
-@inline function add_continuity_equation(drho_particle,
-                                         particle_system::AbstractStructureSystem,
-                                         neighbor_system::AbstractFluidSystem,
-                                         particle, neighbor, pos_diff, distance,
-                                         m_b, rho_a, rho_b, v_a, v_b, grad_kernel_fluid,
-                                         grad_kernel_boundary)
-    return drho_particle
+@inline function add_structure_continuity!(dv, particle_system, neighbor_system,
+                                           particle, pos_diff, distance,
+                                           m_b, rho_a, rho_b, v_a, v_b,
+                                           grad_kernel_boundary)
+    return dv
 end
 
 # `grad_kernel_boundary` is the kernel gradient of the boundary model at the structure
 # particle if it has already been computed for the pressure acceleration, or `nothing`.
-@inline function add_continuity_equation(drho_particle,
-                                         particle_system::RigidBodySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
-                                         neighbor_system::AbstractFluidSystem,
-                                         particle, neighbor, pos_diff, distance,
-                                         m_b, rho_a, rho_b, v_a, v_b, grad_kernel_fluid,
-                                         grad_kernel_boundary)
-    # The boundary model is uncorrected and its kernel and smoothing length match the
-    # fluid's (see `check_boundary_model_correction` and `check_smoothing_kernel_fsi`).
-    # If the fluid uses an asymmetric corrected gradient, reuse the boundary gradient
-    # computed for the pressure acceleration. Otherwise, reverse the fluid gradient.
-    grad_kernel = isnothing(grad_kernel_boundary) ? -grad_kernel_fluid :
+@propagate_inbounds function add_structure_continuity!(dv,
+                                                       particle_system::RigidBodySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
+                                                       neighbor_system, particle,
+                                                       pos_diff, distance, m_b,
+                                                       rho_a, rho_b, v_a, v_b,
+                                                       grad_kernel_boundary)
+    # Use the boundary model's gradient even if the smoothing lengths only match up to rounding.
+    grad_kernel = isnothing(grad_kernel_boundary) ?
+                  smoothing_kernel_grad(particle_system.boundary_model, pos_diff,
+                                        distance, particle) :
                   grad_kernel_boundary
 
-    return add_continuity_equation(drho_particle,
-                                   density_calculator(neighbor_system),
-                                   m_b, rho_a, rho_b, v_a, v_b, grad_kernel, particle)
-end
-
-@inline function write_drho_particle!(dv, ::AbstractSystem, drho_particle, particle)
-    return dv
-end
-
-@propagate_inbounds function write_drho_particle!(dv,
-                                                  ::RigidBodySystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
-                                                  drho_particle, particle)
+    drho_particle = add_continuity_equation(zero(rho_a),
+                                            density_calculator(neighbor_system),
+                                            m_b, rho_a, rho_b, v_a, v_b, grad_kernel,
+                                            particle)
     dv[end, particle] += drho_particle
 
     return dv
