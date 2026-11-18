@@ -18,6 +18,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   `TotalLagrangianSPHSystem` or `RigidBodySystem` interacting with a fluid. The boundary
   density was never computed for structures, so this combination behaved like
   `PressureZeroing`, which can be used instead (#1341).
+- The `correction` of a `BoundaryModelDummyParticles` of a `TotalLagrangianSPHSystem` or
+  `RigidBodySystem` must now be `nothing`. Previously, it was ignored or caused an error
+  (#1342).
 
 ### Features
 
@@ -41,6 +44,14 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   order of the systems in the `Semidiscretization`. The densities and predicted velocities
   of systems that are updated later in the same step were taken from the previous update.
   This affected `PressureBoundaries` and simulations with multiple IISPH systems (#1341).
+- Fixed the fluid–structure pressure acceleration of fluids with `KernelCorrection`,
+  `GradientCorrection`, `BlendedGradientCorrection` or `MixedKernelGradientCorrection` to use
+  the smoothing kernel and smoothing length of the boundary model at the structure particles
+  instead of those of the `TotalLagrangianSPHSystem`. Also fixed the assembly of the
+  correction matrix, which made `GradientCorrection` have no effect and
+  `BlendedGradientCorrection` depend on the order of the neighbors, so results with these
+  corrections change. `DensityDiffusionAntuono` now always uses the uncorrected kernel
+  gradient (#1342).
 - Fixed structure-fluid reaction forces with asymmetric corrected fluid kernel
   gradients by evaluating the fluid-first gradient directly. The continuity equation
   of `RigidBodySystem` boundaries with `ContinuityDensity` now uses the kernel gradient
