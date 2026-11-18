@@ -225,7 +225,7 @@ function update_implicit_sph!(semi, v_ode, u_ode, t)
                                                                                      v_ode,
                                                                                      u_ode)
 
-    # Wall densities and ghost velocities are ready for viscosity in the prediction.
+    # Wall densities and no-slip wall velocities are ready for viscosity in the prediction.
     # Predict every fluid velocity before computing coefficients that use neighboring
     # predictions, including those of `PressureBoundaries`, regardless of system order.
     @trixi_timeit timer() "predict advection" begin

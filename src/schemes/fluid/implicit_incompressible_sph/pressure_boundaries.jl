@@ -112,8 +112,8 @@ end
 end
 
 @propagate_inbounds function predicted_velocity(system::WallBoundarySystem, particle)
-    # The continuity equation uses the physical wall velocity, not the ghost velocity
-    # of the no-slip condition. Prescribed wall velocities are stored in the system cache.
+    # The continuity equation uses the physical wall velocity. The no-slip wall velocity
+    # is used for viscosity. Prescribed wall velocities are stored in the system cache.
     return current_velocity(nothing, system, particle)
 end
 

@@ -709,13 +709,14 @@
             viscosity = ViscosityAdami(nu=0.1)
             fluid = create_fluid_system("WCSPH", (0.0, 0.0), fluid_density + 1,
                                         viscosity)
-            ghost_neighbor = create_fluid_system("WCSPH", (0.0, 1.0), fluid_density + 9,
-                                                 viscosity)
+            velocity_only_neighbor = create_fluid_system("WCSPH", (0.0, 1.0),
+                                                         fluid_density + 9,
+                                                         viscosity)
             wall = create_structure_system(WallBoundarySystem, viscosity;
                                            boundary_density=calculator, velocity=(0.0, 1.0))
             matrix = [true false true; false true true;
                       calculator isa AdamiPressureExtrapolation false true]
-            semi = Semidiscretization(fluid, ghost_neighbor, wall;
+            semi = Semidiscretization(fluid, velocity_only_neighbor, wall;
                                       interaction_matrix=matrix,
                                       parallelization_backend=SerialBackend())
             ode = semidiscretize(semi, (0.0, 0.01))
@@ -723,21 +724,22 @@
             dv = zero(v)
             TrixiParticles.kick!(dv, v, u, ode.p, 0.0)
 
-            # Both fluid particles contribute equal weights to the ghost velocity. Only
+            # Both fluid particles contribute equal weights to the no-slip wall velocity. Only
             # the first is eligible to contribute its pressure for extrapolation.
             model = wall.boundary_model
             @test model.cache.wall_velocity[:, 1] ≈ SVector(0.0, 1.5)
             expected_pressure = calculator isa PressureZeroing ? 0.0 :
                                 state_equation(fluid_density + 1)
             @test model.pressure[1] ≈ expected_pressure
-            @test TrixiParticles.wrap_v(dv, ghost_neighbor, ode.p.semi)[2, 1] > 0
+            @test TrixiParticles.wrap_v(dv, velocity_only_neighbor, ode.p.semi)[2, 1] > 0
         end
 
-        @testset "Ghost velocity at different length scales: $T, h=$h" for T in
-                                                                           (Float32,
-                                                                            Float64),
-                                                                           h in
-                                                                           (T(1), T(1e5))
+        @testset "No-slip wall velocity at different length scales: $T, h=$h" for T in
+                                                                                  (Float32,
+                                                                                   Float64),
+                                                                                  h in
+                                                                                  (T(1),
+                                                                                   T(1e5))
 
             kernel = SchoenbergCubicSplineKernel{3}()
             rho = T(1000)

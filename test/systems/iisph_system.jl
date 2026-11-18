@@ -343,7 +343,7 @@
         TrixiParticles.update_systems_and_nhs(ode.u0.x..., ode.p.semi, 0.0)
 
         # The density increment uses the relative physical velocity. The last velocity
-        # pair distinguishes this from using the no-slip ghost velocity in the PPE.
+        # pair distinguishes this from using the no-slip wall velocity in the PPE.
         pair_gradient = SVector(15 / (56pi), 0.0)
         advection_velocity = SVector{2}(fluid.advection_velocity[:, 1])
         density_increment = time_step * mass *

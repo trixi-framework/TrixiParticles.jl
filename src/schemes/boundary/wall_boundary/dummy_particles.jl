@@ -102,7 +102,7 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
 
     # The correction values use the same element type as the fluid's correction values,
     # so that the kernel gradients at the boundary particles don't change the precision.
-    cache = (; create_wall_velocity_cache(viscosity, float(ELTYPE), n_particles, NDIMS)...,
+    cache = (; create_cache_model(viscosity, float(ELTYPE), n_particles, NDIMS)...,
              create_cache_model(initial_density, density_calculator, NDIMS)...,
              create_cache_correction(correction, initial_density, NDIMS, n_particles)...)
 
@@ -310,9 +310,9 @@ function create_cache_model(initial_density::AbstractVector,
     return (; density, volume)
 end
 
-@inline create_wall_velocity_cache(::Nothing, ELTYPE, n_particles, n_dims) = (;)
+@inline create_cache_model(::Nothing, ELTYPE, n_particles, n_dims) = (;)
 
-function create_wall_velocity_cache(viscosity, ELTYPE, n_particles, n_dims)
+function create_cache_model(viscosity, ELTYPE, n_particles, n_dims)
     wall_velocity = zeros(ELTYPE, n_dims, n_particles)
     wall_velocity_weight = zeros(ELTYPE, n_particles)
 
@@ -526,17 +526,22 @@ end
     boundary_model.pressure[particle] = 0
 end
 
-function compute_pressure!(boundary_model, calculator::PressureExtrapolation,
+function compute_pressure!(boundary_model, ::PressureExtrapolation,
                            system, v, u, v_ode, u_ode, semi)
-    (; pressure, cache, viscosity) = boundary_model
-    (; allow_loop_flipping) = calculator
+    # IISPH computes the no-slip wall velocity before the advection prediction.
+    viscosity = has_iisph_neighbor(system, semi) ? nothing : boundary_model.viscosity
+    return extrapolate_boundary_pressure!(boundary_model, viscosity, system, v, u,
+                                          v_ode, u_ode, semi)
+end
 
-    # IISPH already interpolated the ghost velocity before the advection prediction.
-    interpolate_velocity = !isnothing(viscosity) && !has_iisph_neighbor(system, semi)
+function extrapolate_boundary_pressure!(boundary_model, viscosity, system, v, u,
+                                        v_ode, u_ode, semi)
+    (; pressure, cache, density_calculator) = boundary_model
+    (; allow_loop_flipping) = density_calculator
 
     set_zero!(pressure)
     set_zero!(cache.volume)
-    interpolate_velocity && reset_wall_velocity!(cache)
+    isnothing(viscosity) || reset_wall_velocity!(cache)
 
     system_coords = current_coordinates(u, system)
 
@@ -544,15 +549,23 @@ function compute_pressure!(boundary_model, calculator::PressureExtrapolation,
         foreach_system(semi) do neighbor_system
             neighbor_system isa BoundaryInterpolationNeighbor || return
             extrapolate_pressure = has_system_interaction(system, neighbor_system, semi)
-            interpolate_velocity_ = interpolate_velocity &&
-                                    (extrapolate_pressure ||
-                                     has_system_interaction(neighbor_system, system, semi))
-            (extrapolate_pressure || interpolate_velocity_) || return
+            (extrapolate_pressure || (!isnothing(viscosity) &&
+              has_system_interaction(neighbor_system, system, semi))) || return
 
             v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
             u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
 
             neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
+            if !extrapolate_pressure
+                # A fluid can use the wall velocity even if it does not contribute to
+                # extrapolated wall pressure.
+                interpolate_wall_velocity_from_neighbor!(boundary_model, system,
+                                                         neighbor_system, system_coords,
+                                                         neighbor_coords, v_neighbor_system,
+                                                         semi)
+                return
+            end
 
             # This is an optimization for simulations with large and complex boundaries.
             # Especially in 3D simulations with large and/or complex structures outside
@@ -569,62 +582,16 @@ function compute_pressure!(boundary_model, calculator::PressureExtrapolation,
             condition_boundary = n_boundary_particles < speedup * n_fluid_particles
             parallelize = is_gpu || condition_boundary || !allow_loop_flipping
 
-            if parallelize
-                interpolate_enabled_boundary_terms!(Val(true), extrapolate_pressure,
-                                                    interpolate_velocity_, boundary_model,
-                                                    system, neighbor_system, system_coords,
-                                                    neighbor_coords, v, v_neighbor_system,
-                                                    semi)
-            else
-                interpolate_enabled_boundary_terms!(Val(false), extrapolate_pressure,
-                                                    interpolate_velocity_, boundary_model,
-                                                    system, neighbor_system, system_coords,
-                                                    neighbor_coords, v, v_neighbor_system,
-                                                    semi)
-            end
+            boundary_pressure_extrapolation!(Val(parallelize), boundary_model, viscosity,
+                                             system, neighbor_system, system_coords,
+                                             neighbor_coords, v, v_neighbor_system, semi)
         end
     end
 
-    @trixi_timeit timer() "finalize boundary extrapolation" begin
-        if interpolate_velocity
-            finalize_extrapolation!(Val(true), boundary_model, system, v, semi)
-        else
-            finalize_extrapolation!(Val(false), boundary_model, system, v, semi)
-        end
-    end
-end
-
-# Pick the interpolation mode once per system pair so the neighbor loop specializes
-# on which quantities to accumulate without dynamic dispatch or per-neighbor branches.
-@inline function interpolate_enabled_boundary_terms!(parallel, pressure, velocity, model,
-                                                     system, neighbor, coords,
-                                                     neighbor_coords,
-                                                     v, v_neighbor, semi)
-    if pressure
-        if velocity
-            interpolate_boundary_neighbors!(parallel, Val(true), Val(true), model, system,
-                                            neighbor, coords, neighbor_coords, v,
-                                            v_neighbor,
-                                            semi)
-        else
-            interpolate_boundary_neighbors!(parallel, Val(true), Val(false), model, system,
-                                            neighbor, coords, neighbor_coords, v,
-                                            v_neighbor,
-                                            semi)
-        end
-    else
-        interpolate_boundary_neighbors!(parallel, Val(false), Val(true), model, system,
-                                        neighbor, coords, neighbor_coords, v, v_neighbor,
-                                        semi)
-    end
-end
-
-function finalize_extrapolation!(::Val{V}, boundary_model, system, v, semi) where {V}
-    @threaded semi for particle in eachparticle(system)
+    @trixi_timeit timer() "inverse state equation" @threaded semi for particle in
+                                                                      eachparticle(system)
         compute_adami_density!(boundary_model, particle)
-        if V
-            compute_wall_velocity!(system, v, particle)
-        end
+        compute_wall_velocity!(viscosity, system, v, particle)
     end
 end
 
@@ -673,7 +640,7 @@ function interpolate_wall_velocity!(boundary_model::BoundaryModelDummyParticles,
     isnothing(viscosity) && return boundary_model
 
     # Fuse velocity interpolation with pressure extrapolation unless IISPH needs the
-    # ghost velocity earlier, before the advection prediction.
+    # no-slip wall velocity earlier, before the advection prediction.
     if density_calculator isa PressureExtrapolation && !has_iisph_neighbor(system, semi)
         return boundary_model
     end
@@ -683,8 +650,9 @@ function interpolate_wall_velocity!(boundary_model::BoundaryModelDummyParticles,
 
     foreach_system(semi) do neighbor_system
         neighbor_system isa BoundaryInterpolationNeighbor || return
-        # Either direction can consume the ghost velocity, including the reaction force
-        # on a structure. Pressure extrapolation only uses the wall-to-fluid direction.
+        # Viscous forces in either direction use the no-slip wall velocity, including the
+        # reaction force on a structure. Pressure extrapolation only uses the wall's
+        # interaction row.
         (has_system_interaction(system, neighbor_system, semi) ||
          has_system_interaction(neighbor_system, system, semi)) || return
 
@@ -692,40 +660,52 @@ function interpolate_wall_velocity!(boundary_model::BoundaryModelDummyParticles,
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-        interpolate_boundary_neighbors!(Val(true), Val(false), Val(true), boundary_model,
-                                        system, neighbor_system, system_coords,
-                                        neighbor_coords, v, v_neighbor_system, semi)
+        interpolate_wall_velocity_from_neighbor!(boundary_model, system, neighbor_system,
+                                                 system_coords, neighbor_coords,
+                                                 v_neighbor_system, semi)
     end
 
-    finalize_wall_velocity!(system, v, semi)
-    return boundary_model
-end
-
-function finalize_wall_velocity!(system, v, semi)
     @threaded semi for particle in eachparticle(system)
-        compute_wall_velocity!(system, v, particle)
+        compute_wall_velocity!(viscosity, system, v, particle)
     end
+
+    return boundary_model
 end
 
 # Wall interpolation includes the active fluid particles carried by Zhang open boundaries.
 const BoundaryInterpolationNeighbor = Union{AbstractFluidSystem,
                                             OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}}
 
-@inline function interpolate_boundary_neighbors!(::Val{true}, extrapolate_pressure,
-                                                 interpolate_velocity, boundary_model,
-                                                 system, neighbor_system, system_coords,
-                                                 neighbor_coords, v, v_neighbor_system,
-                                                 semi)
+@inline function interpolate_wall_velocity_from_neighbor!(boundary_model, system,
+                                                          neighbor_system, system_coords,
+                                                          neighbor_coords,
+                                                          v_neighbor_system,
+                                                          semi)
+    (; cache, viscosity) = boundary_model
+
+    foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
+                           points=eachparticle(system)) do particle, neighbor,
+                                                           pos_diff, distance
+        kernel_weight = smoothing_kernel(boundary_model, distance, particle)
+        @inbounds interpolate_fluid_velocity!(cache, viscosity, neighbor_system,
+                                              v_neighbor_system, kernel_weight,
+                                              particle, neighbor)
+    end
+end
+
+@inline function boundary_pressure_extrapolation!(::Val{true}, boundary_model, viscosity,
+                                                  system, neighbor_system, system_coords,
+                                                  neighbor_coords, v, v_neighbor_system,
+                                                  semi)
     @boundscheck checkbounds(boundary_model.pressure, eachparticle(system))
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
                            points=eachparticle(system)) do particle, neighbor,
                                                            pos_diff, distance
-        @inbounds interpolate_boundary_pair!(extrapolate_pressure, interpolate_velocity,
-                                             boundary_model, system, neighbor_system, v,
-                                             v_neighbor_system, particle, neighbor,
-                                             pos_diff, distance)
+        @inbounds boundary_pressure_inner!(boundary_model, viscosity, system,
+                                           neighbor_system, v, v_neighbor_system,
+                                           particle, neighbor, pos_diff, distance)
     end
 end
 
@@ -733,11 +713,10 @@ end
 # to extrapolate fluid pressure to the boundaries.
 # Note that this needs to be serial, as we are writing into the same
 # pressure entry from different loop iterations.
-@inline function interpolate_boundary_neighbors!(::Val{false}, extrapolate_pressure,
-                                                 interpolate_velocity, boundary_model,
-                                                 system, neighbor_system, system_coords,
-                                                 neighbor_coords, v, v_neighbor_system,
-                                                 semi)
+@inline function boundary_pressure_extrapolation!(::Val{false}, boundary_model, viscosity,
+                                                  system, neighbor_system, system_coords,
+                                                  neighbor_coords, v, v_neighbor_system,
+                                                  semi)
     @boundscheck checkbounds(boundary_model.pressure, eachparticle(system))
 
     # This needs to be serial to avoid race conditions when writing into `system`
@@ -747,36 +726,16 @@ end
                                                                        pos_diff, distance
         # Since neighbor and particle are switched
         pos_diff = -pos_diff
-        @inbounds interpolate_boundary_pair!(extrapolate_pressure, interpolate_velocity,
-                                             boundary_model, system, neighbor_system, v,
-                                             v_neighbor_system, particle, neighbor,
-                                             pos_diff, distance)
+        @inbounds boundary_pressure_inner!(boundary_model, viscosity, system,
+                                           neighbor_system, v, v_neighbor_system,
+                                           particle, neighbor, pos_diff, distance)
     end
 end
 
-@propagate_inbounds function interpolate_boundary_pair!(::Val{P}, ::Val{V}, boundary_model,
-                                                        system, neighbor_system, v,
-                                                        v_neighbor_system, particle,
-                                                        neighbor, pos_diff,
-                                                        distance) where {P, V}
-    kernel_weight = smoothing_kernel(boundary_model, distance, particle)
-
-    if P
-        accumulate_boundary_pressure!(boundary_model, system, neighbor_system, v,
-                                      v_neighbor_system, particle, neighbor, pos_diff,
-                                      distance, kernel_weight)
-    end
-    if V
-        interpolate_fluid_velocity!(boundary_model.cache, neighbor_system,
-                                    v_neighbor_system, kernel_weight, particle, neighbor)
-    end
-end
-
-@propagate_inbounds function accumulate_boundary_pressure!(boundary_model, system,
-                                                           neighbor_system, v,
-                                                           v_neighbor_system, particle,
-                                                           neighbor, pos_diff, distance,
-                                                           kernel_weight)
+@propagate_inbounds function boundary_pressure_inner!(boundary_model, viscosity, system,
+                                                      neighbor_system, v, v_neighbor_system,
+                                                      particle, neighbor, pos_diff,
+                                                      distance)
     (; density_calculator, cache, pressure) = boundary_model
     (; pressure_offset) = density_calculator
 
@@ -800,8 +759,12 @@ end
     sum_pressures = pressure_offset + fluid_pressure + dynamic_pressure_ +
                     hydrostatic_pressure
 
+    kernel_weight = smoothing_kernel(boundary_model, distance, particle)
     pressure[particle] += sum_pressures * kernel_weight
     cache.volume[particle] += kernel_weight
+
+    interpolate_fluid_velocity!(cache, viscosity, neighbor_system, v_neighbor_system,
+                                kernel_weight, particle, neighbor)
 end
 
 @inline function dynamic_pressure(boundary_density_calculator, v,
@@ -839,8 +802,14 @@ end
            dot(normal_velocity, normal_velocity) / 2
 end
 
+@inline function interpolate_fluid_velocity!(cache, viscosity::Nothing, neighbor_system,
+                                             v_neighbor_system, kernel_weight,
+                                             particle, neighbor)
+    return cache
+end
+
 # Accumulate the numerator and denominator of the kernel-weighted fluid velocity.
-@propagate_inbounds function interpolate_fluid_velocity!(cache, neighbor_system,
+@propagate_inbounds function interpolate_fluid_velocity!(cache, viscosity, neighbor_system,
                                                          v_neighbor_system, kernel_weight,
                                                          particle, neighbor)
     v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
@@ -853,7 +822,9 @@ end
     return cache
 end
 
-@inline function compute_wall_velocity!(system, v, particle)
+@inline compute_wall_velocity!(::Nothing, system, v, particle) = nothing
+
+@inline function compute_wall_velocity!(viscosity, system, v, particle)
     (; wall_velocity_weight, wall_velocity) = system.boundary_model.cache
     weight = @inbounds wall_velocity_weight[particle]
 
