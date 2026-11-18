@@ -131,7 +131,7 @@ end
     semi = integrator.p.semi
 
     # When particles are sorted, copy all arrays to system order (see `particle_sorting.jl`).
-    v_ode, u_ode = sorted_ode_arrays!(integrator.u.x..., semi)
+    v_ode, u_ode = sorted_ode_arrays(integrator.u.x..., semi)
     dv_ode, du_ode = sorted_copies(dv_ode_, du_ode_, semi)
 
     # Calculate kinetic energy

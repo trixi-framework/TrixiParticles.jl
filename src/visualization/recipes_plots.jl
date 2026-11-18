@@ -13,7 +13,7 @@ RecipesBase.@recipe function f(sol::TrixiParticlesODESolution)
 
     # When particles are sorted, copy the integration arrays to system order
     # (see `particle_sorting.jl`).
-    v_ode, u_ode = sorted_ode_arrays!(sol.u[end].x..., semi)
+    v_ode, u_ode = sorted_ode_arrays(sol.u[end].x..., semi)
 
     # Redirect everything to the next recipe.
     return v_ode, u_ode, semi
@@ -24,7 +24,7 @@ RecipesBase.@recipe function f(system::AbstractSystem, sol::TrixiParticlesODESol
 
     # When particles are sorted, copy the integration arrays to system order
     # (see `particle_sorting.jl`).
-    v_ode, u_ode = sorted_ode_arrays!(sol.u[end].x..., semi)
+    v_ode, u_ode = sorted_ode_arrays(sol.u[end].x..., semi)
 
     # Redirect everything to the single-system recipe.
     return system, v_ode, u_ode, semi

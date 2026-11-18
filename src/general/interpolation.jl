@@ -61,7 +61,7 @@ function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_syst
     filter_no_neighbors = true
     # When particles are sorted, copy the integration arrays to system order
     # (see `particle_sorting.jl`).
-    v_ode, u_ode = sorted_ode_arrays!(sol.u[end].x..., semi)
+    v_ode, u_ode = sorted_ode_arrays(sol.u[end].x..., semi)
 
     results, _,
     _ = interpolate_plane_2d(min_corner, max_corner, resolution,
@@ -148,7 +148,7 @@ function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_
                                   output_directory="out", filename="plane")
     # When particles are sorted, copy the integration arrays to system order
     # (see `particle_sorting.jl`).
-    v_ode, u_ode = sorted_ode_arrays!(sol.u[end].x..., semi)
+    v_ode, u_ode = sorted_ode_arrays(sol.u[end].x..., semi)
 
     interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_system,
                              v_ode, u_ode; clip_negative_pressure, include_wall_velocity,
@@ -291,7 +291,7 @@ function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_syst
                               cut_off_bnd=true, clip_negative_pressure=false)
     # When particles are sorted, copy the integration arrays to system order
     # (see `particle_sorting.jl`).
-    v_ode, u_ode = sorted_ode_arrays!(sol.u[end].x..., semi)
+    v_ode, u_ode = sorted_ode_arrays(sol.u[end].x..., semi)
 
     interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system,
                          v_ode, u_ode; smoothing_length, cut_off_bnd, include_wall_velocity,
@@ -390,7 +390,7 @@ function interpolate_line(start, end_, n_points, semi, ref_system, sol::ODESolut
                           cut_off_bnd=true, clip_negative_pressure=false)
     # When particles are sorted, copy the integration arrays to system order
     # (see `particle_sorting.jl`).
-    v_ode, u_ode = sorted_ode_arrays!(sol.u[end].x..., semi)
+    v_ode, u_ode = sorted_ode_arrays(sol.u[end].x..., semi)
 
     interpolate_line(start, end_, n_points, semi, ref_system, v_ode, u_ode; endpoint,
                      smoothing_length, cut_off_bnd, clip_negative_pressure,
@@ -480,7 +480,7 @@ results = interpolate_points(points, semi, ref_system, sol)
                                     include_wall_velocity=false)
     # When particles are sorted, copy the integration arrays to system order
     # (see `particle_sorting.jl`).
-    v_ode, u_ode = sorted_ode_arrays!(sol.u[end].x..., semi)
+    v_ode, u_ode = sorted_ode_arrays(sol.u[end].x..., semi)
 
     interpolate_points(point_coords, semi, ref_system, v_ode, u_ode; include_wall_velocity,
                        smoothing_length, cut_off_bnd, clip_negative_pressure)

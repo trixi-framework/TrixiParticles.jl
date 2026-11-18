@@ -675,7 +675,7 @@ end
 # === Neighborhood search updates (per-system) ===
 # Update the neighborhood searches with the current coordinates in `u_ode`.
 # When `ParticleSorting` is used, this also sorts the particles, and `v_ode` and `u_ode`
-# must be the sorted copies returned by `sorted_ode_arrays!`, which are reordered
+# must be the sorted copies returned by `sorted_ode_arrays`, which are reordered
 # here together with the particles (see `particle_sorting.jl`).
 function update_nhs!(semi, v_ode, u_ode)
     update_nhs!(semi, semi.neighborhood_search_handler, v_ode, u_ode)

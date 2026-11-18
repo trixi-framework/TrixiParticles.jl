@@ -476,7 +476,7 @@ function restart_with!(semi, sol; reset_threads=true)
     initialize_neighborhood_searches!(semi)
 
     # When particles are sorted, copy the integration arrays to system order.
-    v_ode, u_ode = sorted_ode_arrays!(sol.u[end].x..., semi)
+    v_ode, u_ode = sorted_ode_arrays(sol.u[end].x..., semi)
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         restart_with!(system, v, u)
     end

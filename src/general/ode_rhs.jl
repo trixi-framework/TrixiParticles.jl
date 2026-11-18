@@ -115,13 +115,13 @@ end
 # before calling `interact!` to compute forces.
 # `v_ode_integration` and `u_ode_integration` must be the integration arrays
 # (in integration order, see `particle_sorting.jl`), not the sorted copies returned by
-# `sorted_ode_arrays!` or by this function.
+# `sorted_ode_arrays` or by this function.
 # When `ParticleSorting` is used, this copies the integration arrays to arrays in system order,
 # sorts the particles, and returns the sorted copies (see `particle_sorting.jl`).
 # Otherwise, this returns the integration arrays.
 # All following operations have to use the returned sorted arrays.
 function update_systems_and_nhs(v_ode_integration, u_ode_integration, semi, t)
-    v_ode, u_ode = sorted_ode_arrays!(v_ode_integration, u_ode_integration, semi)
+    v_ode, u_ode = sorted_ode_arrays(v_ode_integration, u_ode_integration, semi)
 
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the TLSPH system)

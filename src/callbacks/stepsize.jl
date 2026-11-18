@@ -73,7 +73,7 @@ function (stepsize_callback::StepsizeCallback)(integrator)
 
     # When particles are sorted, copy the integration arrays to system order
     # (see `particle_sorting.jl`).
-    v_ode, u_ode = sorted_ode_arrays!(integrator.u.x..., semi)
+    v_ode, u_ode = sorted_ode_arrays(integrator.u.x..., semi)
 
     dt = @trixi_timeit timer() "calculate dt" calculate_dt(v_ode, u_ode, cfl_number, semi)
 
