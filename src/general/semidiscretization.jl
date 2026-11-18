@@ -399,17 +399,19 @@ function semidiscretize(semi, tspan; reset_threads=true, restart_with=nothing)
         semi_ = @set semi.systems = systems
 
         # Re-link systems that link to other systems (see above).
-        semi_new_ = @set semi_.systems = set_system_links.(semi_.systems, Ref(semi_))
-
-        # Now set the `particle_sorting` field of the new `Semidiscretization`.
-        particle_sorting = create_particle_sorting(semi_new_, v0_ode, u0_ode)
-        semi_new = @set semi_new_.particle_sorting = particle_sorting
+        semi_new = @set semi_.systems = set_system_links.(semi_.systems, Ref(semi_))
 
         @info "To sort particles, `semidiscretize` creates a deep copy of the passed " *
               "`Semidiscretization`. Use `semi = ode.p.semi` to access simulation data."
     else
         semi_new = semi
     end
+
+    # Sort the particles if the neighborhood search sorts points.
+    # This has to be done before initializing the systems, which might already use
+    # the neighborhood search. See `particle_sorting.jl` for more details.
+    particle_sorting = create_particle_sorting(semi_new, v0_ode, u0_ode)
+    semi_new = @set semi_new.particle_sorting = particle_sorting
 
     # Initialize all particle systems
     initialize!(semi_new, restart_with)

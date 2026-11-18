@@ -209,7 +209,7 @@ function create_particle_sorting(semi, v_ode, u_ode)
     # with the unsorted particles. Systems whose cell lists are never updated are never
     # sorted again. There are no sorted copies of the integration arrays to be reordered yet.
     foreach_system(semi_new) do system
-        sort_particles_by_nhs!(system, particle_sorting(semi), nothing, nothing, semi_new)
+        sort_particles_by_nhs!(system, sorting, nothing, nothing, semi_new)
     end
 
     return sorting
