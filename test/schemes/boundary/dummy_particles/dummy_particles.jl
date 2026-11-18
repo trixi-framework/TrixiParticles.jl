@@ -67,6 +67,34 @@
         @test boundary_model_adami_no_clip.pressure[1] == -1
     end
 
+    # The correction values must have the element type of the density. Otherwise, the
+    # kernel gradients at the boundary particles would change the precision of the
+    # pressure acceleration of a `Float32` simulation, e.g., on GPUs.
+    @testset "Correction Cache Element Type `$(nameof(typeof(correction)))`" for correction in
+                                                                                 (ShepardKernelCorrection(),
+                                                                                  KernelCorrection(),
+                                                                                  GradientCorrection(),
+                                                                                  BlendedGradientCorrection(0.5f0),
+                                                                                  MixedKernelGradientCorrection())
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        boundary_model = BoundaryModelDummyParticles([1000.0f0, 1000.0f0], [1.0f0, 1.0f0],
+                                                     AdamiPressureExtrapolation(),
+                                                     smoothing_kernel, 0.1f0; correction)
+        (; cache) = boundary_model
+
+        for field in (:kernel_correction_coefficient, :dw_gamma, :correction_matrix)
+            haskey(cache, field) || continue
+            @test eltype(getproperty(cache, field)) == Float32
+            fill!(getproperty(cache, field), 1)
+        end
+
+        pos_diff = SVector(0.05f0, 0.02f0)
+        grad_kernel = TrixiParticles.smoothing_kernel_grad(boundary_model, pos_diff,
+                                                           norm(pos_diff), 1)
+        @test eltype(grad_kernel) == Float32
+        @test !iszero(grad_kernel)
+    end
+
     @testset "Bernoulli dynamic pressure" begin
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
         smoothing_length = 1.0
