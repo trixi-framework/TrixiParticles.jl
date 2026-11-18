@@ -249,6 +249,8 @@ function update_boundary_interpolation!(system::WallBoundarySystem, v, u, v_ode,
     (; boundary_model) = system
 
     isnothing(boundary_model) && return system
+    # The final IISPH predictor used these wall values. Keep them frozen for the RHS.
+    uses_iisph_wall_density_prediction(system, semi) && return system
 
     # Note that `update_pressure!(::WallBoundarySystem, ...)` is empty,
     # so no pressure is updated in the previous update steps.

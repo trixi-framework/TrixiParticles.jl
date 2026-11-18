@@ -125,7 +125,6 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     # Other checks might be added here later.
     check_configuration(systems, neighborhood_search)
     check_pressure_acceleration_configuration(systems, interaction_matrix)
-    check_iisph_wall_viscosity(systems, interaction_matrix)
 
     sizes_u = [u_nvariables(system) * n_integrated_particles(system)
                for system in systems]

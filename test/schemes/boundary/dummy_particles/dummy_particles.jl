@@ -77,9 +77,13 @@
                                                                                   BlendedGradientCorrection(0.5f0),
                                                                                   MixedKernelGradientCorrection())
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        correction_kwargs = correction isa ShepardKernelCorrection ?
+                            (; density_correction=correction) :
+                            (; gradient_correction=correction)
         boundary_model = BoundaryModelDummyParticles([1000.0f0, 1000.0f0], [1.0f0, 1.0f0],
                                                      AdamiPressureExtrapolation(),
-                                                     smoothing_kernel, 0.1f0; correction)
+                                                     smoothing_kernel, 0.1f0;
+                                                     correction_kwargs...)
         (; cache) = boundary_model
 
         for field in (:kernel_correction_coefficient, :dw_gamma, :correction_matrix)

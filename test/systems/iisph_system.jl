@@ -379,9 +379,10 @@
         raw_density = weights * masses
         corrected_density = raw_density ./ (weights * (masses ./ raw_density))
 
-        function make_fluid()
+        function make_fluid(; velocity=(0.0, 0.0))
             ic = InitialCondition(; coordinates=zeros(2, 1), density=rho, mass=masses[1],
-                                  particle_spacing=h)
+                                  particle_spacing=h,
+                                  velocity=reshape(collect(velocity), 2, 1))
             return ImplicitIncompressibleSPHSystem(ic; smoothing_kernel=kernel,
                                                    smoothing_length=h,
                                                    reference_density=rho,
@@ -436,22 +437,53 @@
             end
         end
 
-        @testset "Extrapolating wall equations of state" begin
+        @testset "IISPH wall EOS is history independent: $calculator, wall_first=$wall_first" for calculator in
+                                                                                                  (AdamiPressureExtrapolation(pressure_offset=50.0),
+                                                                                                   BernoulliPressureExtrapolation(pressure_offset=50.0)),
+                                                                                                  wall_first in
+                                                                                                  (false,
+                                                                                                   true)
+
             eos = StateEquationCole(sound_speed=5.0, reference_density=rho, exponent=1)
-            for calculator in
-                (AdamiPressureExtrapolation(), BernoulliPressureExtrapolation())
-                fluid = make_fluid()
-                wall = make_wall(2, calculator; state_equation=eos)
-                @test_throws ArgumentError("IISPH with a viscous Adami or Bernoulli pressure extrapolation wall requires `state_equation=nothing` to keep the wall density fixed in the predictor and RHS. Use `PressureBoundaries` to solve for wall pressure in the PPE.") Semidiscretization(fluid,
-                                                                                                                                                                                                                                                                                                wall)
-                @test Semidiscretization(fluid, wall;
-                                         interaction_matrix=[true false; true true]) isa
-                      Semidiscretization
-                @test Semidiscretization(fluid,
-                                         make_wall(2, calculator; state_equation=eos,
-                                                   wall_viscosity=nothing)) isa
-                      Semidiscretization
+            fluid = make_fluid(; velocity=(0.005, 0.0))
+            wall = make_wall(2, calculator; state_equation=eos)
+            other_wall = make_wall(3, PressureZeroing(); wall_viscosity=nothing)
+            systems = wall_first ? (wall, other_wall, fluid) : (fluid, wall, other_wall)
+            semi = Semidiscretization(systems...; parallelization_backend=SerialBackend())
+            ode = semidiscretize(semi, (0.0, 0.01))
+            v, u = ode.u0.x
+            dv = zero(v)
+            model = wall.boundary_model
+
+            function wall_rhs()
+                TrixiParticles.kick!(dv, v, u, ode.p, 0.0)
+                return (; fluid_pressure=fluid.pressure[1],
+                        wall_pressure=model.pressure[1],
+                        wall_density=model.cache.density[1],
+                        predicted_y=fluid.advection_velocity[2, 1],
+                        dv=copy(TrixiParticles.wrap_v(dv, fluid, ode.p.semi)))
             end
+
+            baseline = wall_rhs()
+            @test baseline.wall_pressure > calculator.pressure_offset
+            @test baseline.wall_density > rho
+            @test eos(baseline.wall_density) ≈ baseline.wall_pressure
+            @test baseline.dv[2, 1] > 0
+            @test baseline.predicted_y ≈ dt * baseline.dv[2, 1]
+            @test wall_rhs() == baseline
+
+            # Hold the fluid warm start fixed and vary the incoming wall cache.
+            fluid.pressure[1] = 0.0
+            model.cache.density[1] = 2rho
+            model.pressure[1] = -1234.0
+            @test wall_rhs() == baseline
+
+            # Simulate a rejected trial evaluation and restore the exact ODE state.
+            coords = TrixiParticles.wrap_u(u, fluid, ode.p.semi)
+            coords[1, 1] = 0.025
+            @test wall_rhs() != baseline
+            coords[1, 1] = 0.0
+            @test wall_rhs() == baseline
         end
 
         @testset "Physical wall velocity without wall viscosity" begin

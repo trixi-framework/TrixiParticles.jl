@@ -306,12 +306,11 @@ p_i^{l+1} = (1 - \omega) p_i^l + \omega \frac{1}{a_{ii}} &\left( \rho_0 - \rho_i
 ### Pressure Extrapolation
 The density calculators [`AdamiPressureExtrapolation`](@ref) and [`BernoulliPressureExtrapolation`](@ref)
 can also be used with IISPH.
-When using one of these pressure extrapolation methods the calculation of the PPE is exactly
-the same as when using pressure zeroing.
-So within the linear system the boundary pressures are treated as zero (``p_b=0``), exactly
-as in pressure zeroing. Only in the pressure acceleration, the extrapolated
-pressure values are used for the boundary particles. For more information on these two methods,
-refer to the docs for the [boundary models](@ref boundary_models).
+Neither method adds a wall pressure unknown to the PPE. The linear system treats wall
+pressure as zero (``p_b=0``), while the final pressure acceleration uses the extrapolated
+wall pressure. If the wall has an equation of state, the extrapolation also supplies wall
+density for the final advection prediction and force evaluation. That density is computed
+from a provisional solve and held fixed, as described under [boundary models](@ref boundary_models).
 
 ### Pressure Boundaries
 The [`PressureBoundaries`](@ref) density calculator was introduced by

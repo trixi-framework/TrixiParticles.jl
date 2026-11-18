@@ -230,12 +230,53 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
     return system
 end
 
-function update_implicit_sph!(semi, v_ode, u_ode, t)
+@inline uses_iisph_wall_density_prediction(system, semi) = false
+
+@inline function uses_iisph_wall_density_prediction(wall::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureExtrapolation}},
+                                                    semi)
+    return pressure_density_boundary(wall) && has_iisph_neighbor(wall, semi)
+end
+
+function seed_iisph_wall_densities!(semi, v_ode, u_ode)
+    # Start the provisional solve from the current ODE state, never from cached pressure
+    # left by a previous evaluation. The zero-pressure extrapolation retains hydrostatic,
+    # dynamic, and offset terms that are already known at the current state.
+    foreach_system(semi) do system
+        if system isa ImplicitIncompressibleSPHSystem ||
+           system isa
+           WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}
+            set_zero!(current_pressure(nothing, system))
+        end
+    end
+    extrapolate_iisph_wall_density!(semi, v_ode, u_ode)
+end
+
+function extrapolate_iisph_wall_density!(semi, v_ode, u_ode)
+    foreach_system_wrapped(semi, v_ode, u_ode) do wall, v, u
+        uses_iisph_wall_density_prediction(wall, semi) || return
+        update_pressure!(wall.boundary_model, wall, v, u, v_ode, u_ode, semi)
+    end
+end
+
+function update_implicit_sph!(semi, v_ode, u_ode, predict_wall_density::Bool)
     # This check is performed statically by the compiler and has no overhead
     if !any(system -> system isa ImplicitIncompressibleSPHSystem, semi.systems)
         return semi
     end
 
+    if predict_wall_density
+        # A single deferred correction: use provisional fluid pressures for the wall
+        # extrapolation, then keep the wall state fixed in the final solve and RHS.
+        @trixi_timeit timer() "provisional IISPH pressure" begin
+            predict_and_solve_iisph!(semi, v_ode, u_ode)
+            extrapolate_iisph_wall_density!(semi, v_ode, u_ode)
+        end
+    end
+
+    return predict_and_solve_iisph!(semi, v_ode, u_ode)
+end
+
+function predict_and_solve_iisph!(semi, v_ode, u_ode)
     # Wall densities and ghost velocities are ready for viscosity in the prediction.
     # Predict every fluid velocity before computing coefficients that use neighboring
     # predictions, including those of `PressureBoundaries`, regardless of system order.
@@ -794,24 +835,6 @@ function check_configuration(system::ImplicitIncompressibleSPHSystem, systems, n
                         `ImplicitIncompressibleSPHSystem` parameters"))
                     end
                 end
-            end
-        end
-    end
-end
-
-function check_iisph_wall_viscosity(systems, interaction_matrix)
-    for (i, fluid) in pairs(systems)
-        fluid isa ImplicitIncompressibleSPHSystem || continue
-        for (j, wall) in pairs(systems)
-            wall isa WallBoundarySystem || continue
-            model = wall.boundary_model
-            model isa BoundaryModelDummyParticles{<:PressureExtrapolation} || continue
-            is_enabled_interaction(interaction_matrix[i, j]) || continue
-            if !isnothing(model.viscosity) && !isnothing(model.state_equation)
-                throw(ArgumentError("IISPH with a viscous Adami or Bernoulli pressure " *
-                                    "extrapolation wall requires `state_equation=nothing` " *
-                                    "to keep the wall density fixed in the predictor and RHS. " *
-                                    "Use `PressureBoundaries` to solve for wall pressure in the PPE."))
             end
         end
     end
