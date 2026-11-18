@@ -30,8 +30,8 @@ Boundary model for [`WallBoundarySystem`](@ref).
                                 uses a correction with an asymmetric kernel gradient
                                 (see [Corrections](@ref boundary_corrections)).
                                 For a [`TotalLagrangianSPHSystem`](@ref) or a [`RigidBodySystem`](@ref),
-                                [`KernelCorrection`](@ref) and [`MixedKernelGradientCorrection`](@ref)
-                                require all fluid systems to use one of these corrections as well.
+                                it must be `nothing` or match the correction (including its settings)
+                                of every fluid system.
 - `viscosity`:                  Slip (default) or no-slip condition. See description below for further
                                 information.
 - `clip_negative_pressure=false`: Clip negative boundary pressures to avoid sticking

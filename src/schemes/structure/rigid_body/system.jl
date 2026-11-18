@@ -629,12 +629,7 @@ function check_configuration(system::RigidBodySystem, systems, nhs)
     end
 
     foreach_system(systems) do neighbor
-        if neighbor isa AbstractFluidSystem && boundary_model === nothing
-            throw(ArgumentError("a boundary model for `RigidBodySystem` must be specified " *
-                                "when simulating a fluid-structure interaction."))
-        end
-
-        check_smoothing_kernel_fsi(system, boundary_model, neighbor)
+        check_boundary_model_fsi(system, boundary_model, neighbor)
 
         if neighbor isa AbstractFluidSystem &&
            neighbor.surface_normal_method isa ColorfieldSurfaceNormal

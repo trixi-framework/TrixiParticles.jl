@@ -14,9 +14,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - The smoothing kernel and smoothing length of a `BoundaryModelDummyParticles` of a
   `TotalLagrangianSPHSystem` or `RigidBodySystem` must now be the same as those of all
   fluid systems in the simulation (#1338, #1348).
-- A `BoundaryModelDummyParticles` of a `TotalLagrangianSPHSystem` or `RigidBodySystem` with
-  `KernelCorrection` or `MixedKernelGradientCorrection` now requires all fluid systems to
-  use one of these corrections as well (#1342, #1351).
+- The `BoundaryModelDummyParticles` of a `TotalLagrangianSPHSystem` or `RigidBodySystem`
+  must use `correction=nothing` or the same correction and settings as all fluid systems
+  in the simulation (#1342, #1351).
 
 ### Features
 

@@ -843,13 +843,6 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
     end
 
     foreach_system(systems) do neighbor
-        if neighbor isa AbstractFluidSystem && boundary_model === nothing
-            throw(ArgumentError("a boundary model for `TotalLagrangianSPHSystem` must be " *
-                                "specified when simulating a fluid-structure interaction."))
-        end
-    end
-
-    foreach_system(systems) do neighbor
-        check_smoothing_kernel_fsi(system, boundary_model, neighbor)
+        check_boundary_model_fsi(system, boundary_model, neighbor)
     end
 end

@@ -211,34 +211,29 @@
                 end
             end
 
-            # The correction of the boundary model may differ from the fluid correction.
-            # Only a boundary gradient that doesn't vanish at zero distance requires a fluid
-            # gradient that doesn't vanish there either (fluid, boundary, compatible).
-            correction_configurations = ((KernelCorrection(), nothing, true),
-                                         (nothing, GradientCorrection(), true),
+            # A structure's boundary can be uncorrected or match the fluid exactly.
+            correction_configurations = ((nothing, nothing, true),
+                                         (KernelCorrection(), nothing, true),
                                          (KernelCorrection(), KernelCorrection(), true),
-                                         (MixedKernelGradientCorrection(),
-                                          KernelCorrection(), true),
-                                         (KernelCorrection(), GradientCorrection(), true),
                                          (BlendedGradientCorrection(0.3),
-                                          BlendedGradientCorrection(0.7), true),
+                                          BlendedGradientCorrection(0.3), true),
+                                         (nothing, GradientCorrection(), false),
                                          (nothing, KernelCorrection(), false),
-                                         (GradientCorrection(),
-                                          MixedKernelGradientCorrection(), false),
-                                         (ShepardKernelCorrection(), KernelCorrection(),
-                                          false))
+                                         (MixedKernelGradientCorrection(),
+                                          KernelCorrection(), false),
+                                         (KernelCorrection(), GradientCorrection(), false),
+                                         (BlendedGradientCorrection(0.3),
+                                          BlendedGradientCorrection(0.7), false))
             @testset "Corrections, $structure_type" for structure_type in
                                                         (TotalLagrangianSPHSystem,
                                                          RigidBodySystem)
                 for (correction, boundary_correction, compatible) in
                     correction_configurations
 
-                    # `ShepardKernelCorrection` requires `SummationDensity`
-                    density_calculator = correction isa ShepardKernelCorrection ?
-                                         SummationDensity() : ContinuityDensity()
                     fluid = WeaklyCompressibleSPHSystem(ic; smoothing_kernel,
                                                         smoothing_length, state_equation,
-                                                        density_calculator, correction)
+                                                        density_calculator=ContinuityDensity(),
+                                                        correction)
                     boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
                                                                  AdamiPressureExtrapolation(),
                                                                  smoothing_kernel,
@@ -247,10 +242,9 @@
                                                                  correction=boundary_correction)
                     structure = create_structure_system(structure_type, boundary_model)
                     error_str = "the correction of the boundary model of the " *
-                                "`$structure_type` requires the fluid system " *
-                                "`WeaklyCompressibleSPHSystem` to use `KernelCorrection` " *
-                                "or `MixedKernelGradientCorrection`, since its kernel " *
-                                "gradient does not vanish at zero distance."
+                                "`$structure_type` must be `nothing` or match the correction " *
+                                "of the fluid system `WeaklyCompressibleSPHSystem`, " *
+                                "including its settings."
                     if compatible
                         @test_nowarn Semidiscretization(fluid, structure;
                                                         neighborhood_search=nothing)

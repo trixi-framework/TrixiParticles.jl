@@ -210,13 +210,9 @@ i.e., over all particles of fluids, boundaries and structures, including the str
 within the compact support of the boundary model, using their hydrodynamic masses and
 densities.
 
-The correction of the boundary model may differ from the correction of the fluid.
-However, pairs of a fluid particle and a structure particle at the same position
-are skipped when the kernel gradient of the fluid vanishes at zero distance.
-Then, the kernel gradient of the boundary model must also vanish at zero distance.
-Therefore, a boundary model with [`KernelCorrection`](@ref) or
-[`MixedKernelGradientCorrection`](@ref) requires all fluid systems to use one of these
-two corrections as well.
+The boundary model of a structure can use `correction=nothing`, whether or not the fluid
+uses a correction. If the boundary model uses a correction, every fluid system must use
+the same correction with the same settings.
 These requirements are checked when constructing the [`Semidiscretization`](@ref).
 
 ## Repulsive Particles

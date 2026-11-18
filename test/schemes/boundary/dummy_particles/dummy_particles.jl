@@ -140,16 +140,13 @@
                                   density_calculator=PressureMirroring())
             fluid_ic = InitialCondition(; coordinates=zeros(2, 1), mass=1100.0,
                                         density=1005.0, particle_spacing=1.0)
-            # The kernel gradients of these boundary corrections don't vanish at zero
-            # distance, which requires such a correction for the fluid as well
-            # (see `check_boundary_model_fsi`). It doesn't affect the boundary caches.
-            fluid_correction = correction isa Union{KernelCorrection,
-                                     MixedKernelGradientCorrection} ?
-                               KernelCorrection() : nothing
+            # `ShepardKernelCorrection` requires `SummationDensity` for the fluid.
+            fluid_density_calculator = correction isa ShepardKernelCorrection ?
+                                       SummationDensity() : ContinuityDensity()
             fluid = WeaklyCompressibleSPHSystem(fluid_ic; smoothing_kernel=kernel,
                                                 smoothing_length=1.0, state_equation,
-                                                density_calculator=ContinuityDensity(),
-                                                correction=fluid_correction)
+                                                density_calculator=fluid_density_calculator,
+                                                correction)
             n = size(coordinates, 2)
             structure_ic = InitialCondition(; coordinates, density=2000.0,
                                             mass=2100.0 .+ 300.0 .* (0:(n - 1)),
@@ -206,8 +203,9 @@
                                                                        configurations
 
             semi, ode = correction_setup(structure_type, correction, search, handler)
-            structure = semi.systems[2]
+            fluid, structure = semi.systems
             v_ode, u_ode = ode.u0.x
+            v_fluid = TrixiParticles.wrap_v(v_ode, fluid, semi)
             u = TrixiParticles.wrap_u(u_ode, structure, semi)
             cache = structure.boundary_model.cache
             # Move a neighbor outside and back inside hydrodynamic support, then
@@ -221,7 +219,8 @@
                 TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
                 displacements = [SVector(1.5, 0.0), SVector(0.0, 0.0),
                     SVector(1.5 - x, 0.0), SVector(0.0, -1.0)]
-                volumes = [include_fluid ? 1100.0 / 1005.0 : 0.0;
+                fluid_density = TrixiParticles.current_density(v_fluid, fluid, 1)
+                volumes = [include_fluid ? 1100.0 / fluid_density : 0.0;
                            [700.0, 750.0, 800.0] / 950.0]
                 values = W.(norm.(displacements))
                 gradients = grad_W.(displacements)
@@ -400,8 +399,7 @@
         # With `SummationDensity`, the density of the boundary model of a structure is the
         # density summation with the hydrodynamic masses over the current hydrodynamic
         # neighborhood, using the kernel of the boundary model. It is recomputed in every
-        # update. `ShepardKernelCorrection` normalizes the summed density once per update,
-        # so repeated updates must not change it.
+        # update. `ShepardKernelCorrection` must normalize the new sum exactly once per update.
         @testset "Summation density, $structure_type / $(nameof(typeof(correction)))" for structure_type in
                                                                                           (TotalLagrangianSPHSystem,
                                                                                            RigidBodySystem),
@@ -414,7 +412,8 @@
                                    GridNeighborhoodSearch{2}(), PairsNHSHandler;
                                    density_calculator=SummationDensity())
             v_ode, u_ode = ode.u0.x
-            structure = semi.systems[2]
+            fluid, structure = semi.systems
+            v_fluid = TrixiParticles.wrap_v(v_ode, fluid, semi)
             u = TrixiParticles.wrap_u(u_ode, structure, semi)
 
             positions = [SVector(0.0, 0.0), SVector(1.5, 0.0), SVector(2.5, 0.0),
@@ -428,17 +427,19 @@
 
                 summation = [sum(masses[k] * W(distance(j + 1, k)) for k in 1:4)
                              for j in 1:3]
-                expected = if isnothing(correction)
-                    summation
-                else
-                    # The volumes of the structure particles use the summed densities
-                    volumes = [1100.0 / 1005.0; masses[2:4] ./ summation]
-                    [summation[j] / sum(volumes[k] * W(distance(j + 1, k)) for k in 1:4)
-                     for j in 1:3]
-                end
-
                 for _ in 1:3
                     TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
+                    expected = if isnothing(correction)
+                        summation
+                    else
+                        # The structure volumes use the summed densities; the fluid's
+                        # density has already been corrected by this point.
+                        fluid_density = TrixiParticles.current_density(v_fluid, fluid, 1)
+                        volumes = [masses[1] / fluid_density; masses[2:4] ./ summation]
+                        [summation[j] /
+                         sum(volumes[k] * W(distance(j + 1, k)) for k in 1:4)
+                         for j in 1:3]
+                    end
                     @test structure.boundary_model.cache.density ≈ expected
                 end
             end
