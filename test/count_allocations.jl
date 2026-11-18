@@ -13,7 +13,7 @@ end
 end
 
 # No update.
-function TrixiParticles.update_nhs!(semi, handler::NoUpdateNHSHandler, u_ode)
+function TrixiParticles.update_nhs!(semi, handler::NoUpdateNHSHandler, v_ode, u_ode)
     return semi
 end
 

@@ -3,9 +3,12 @@ function drift!(du_ode, v_ode, u_ode, p, t)
 
     @trixi_timeit timer() "drift!" begin
         foreach_system(semi) do system
-            du = wrap_u(du_ode, system, semi)
-            v = wrap_v(v_ode, system, semi)
-            u = wrap_u(u_ode, system, semi)
+            # `drift!` works directly with the integration arrays. When particles are sorted,
+            # these are not in system order, so `set_velocity!` has to map the particle
+            # indices with `integration_particle` (see `particle_sorting.jl`).
+            du = wrap_u_unchecked(du_ode, system, semi)
+            v = wrap_v_unchecked(v_ode, system, semi)
+            u = wrap_u_unchecked(u_ode, system, semi)
 
             set_velocity!(du, v, u, system, semi, t)
         end
@@ -14,12 +17,13 @@ function drift!(du_ode, v_ode, u_ode, p, t)
     return du_ode
 end
 
-# Generic fallback for all systems that don't define this function
+# Generic fallback for all systems that don't define this function.
+# Note that `du`, `v` and `u` are in integration order (see `drift!`).
 function set_velocity!(du, v, u, system, semi, t)
     set_velocity_default!(du, v, u, system, semi, t)
 end
 
-# Only set velocity for TLSPH systems if they are integrated
+# Only set velocity for TLSPH systems if they are integrated.
 function set_velocity!(du, v, u, system::TotalLagrangianSPHSystem, semi, t)
     if semi.integrate_tlsph[]
         set_velocity_default!(du, v, u, system, semi, t)
@@ -30,19 +34,22 @@ function set_velocity!(du, v, u, system::TotalLagrangianSPHSystem, semi, t)
     return du
 end
 
-# Solid wall boundary system doesn't integrate the particle positions
+# Solid wall boundary system doesn't integrate the particle positions.
 function set_velocity!(du, v, u, system::WallBoundarySystem, semi, t)
-    # Note that `du` is of length zero, so we don't have to set it to zero
+    # Note that `du` is of length zero, so we don't have to set it to zero.
     return du
 end
 
-# Fluid systems integrate the particle positions and can have a shifting velocity
+# Fluid systems integrate the particle positions and can have a shifting velocity.
 function set_velocity!(du, v, u, system::AbstractFluidSystem, semi, t)
+    index = integration_index(system, semi)
+
     @threaded semi for particle in each_integrated_particle(system)
         delta_v_ = @inbounds delta_v(system, particle)
+        j = @inbounds integration_particle(index, particle)
 
         for i in 1:ndims(system)
-            @inbounds du[i, particle] = v[i, particle] + delta_v_[i]
+            @inbounds du[i, j] = v[i, j] + delta_v_[i]
         end
     end
 
@@ -50,9 +57,13 @@ function set_velocity!(du, v, u, system::AbstractFluidSystem, semi, t)
 end
 
 function set_velocity_default!(du, v, u, system, semi, t)
+    index = integration_index(system, semi)
+
     @threaded semi for particle in each_integrated_particle(system)
+        j = @inbounds integration_particle(index, particle)
+
         for i in 1:ndims(system)
-            @inbounds du[i, particle] = v[i, particle]
+            @inbounds du[i, j] = v[i, j]
         end
     end
 
@@ -76,15 +87,25 @@ function kick!(dv_ode, v_ode, u_ode, p, t)
         # Check that the `UpdateCallback` is used if required
         check_update_callback(semi)
 
-        @trixi_timeit timer() "reset ∂v/∂t" set_zero!(dv_ode)
+        # When particles are sorted, this returns copies of `v_ode` and `u_ode`
+        # in system order (see `particle_sorting.jl`).
+        # Otherwise, this returns the original arrays.
+        @trixi_timeit timer() "update systems and nhs" begin
+            v_ode_, u_ode_ = update_systems_and_nhs(v_ode, u_ode, semi, t)
+        end
 
-        @trixi_timeit timer() "update systems and nhs" update_systems_and_nhs(v_ode, u_ode,
-                                                                              semi, t)
+        # When particles are sorted, `kick!` writes to a buffer in system order.
+        dv_ode_ = sorted_dv_buffer(dv_ode, semi)
 
-        @trixi_timeit timer() "system interaction" system_interaction!(dv_ode, v_ode, u_ode,
-                                                                       semi)
+        @trixi_timeit timer() "reset ∂v/∂t" set_zero!(dv_ode_)
 
-        add_source_terms!(dv_ode, v_ode, u_ode, semi, t)
+        @trixi_timeit timer() "system interaction" system_interaction!(dv_ode_, v_ode_,
+                                                                       u_ode_, semi)
+
+        add_source_terms!(dv_ode_, v_ode_, u_ode_, semi, t)
+
+        # Copy `dv_ode_` back to the order of the integration array if particles are sorted.
+        unsort_dv!(dv_ode, dv_ode_, semi)
     end
 
     return dv_ode
@@ -92,15 +113,25 @@ end
 
 # Update the systems and neighborhood searches (NHS) for a simulation
 # before calling `interact!` to compute forces.
-function update_systems_and_nhs(v_ode, u_ode, semi, t)
+# `v_ode_integration` and `u_ode_integration` must be the integration arrays
+# (in integration order, see `particle_sorting.jl`), not the sorted copies returned by
+# `sorted_ode_arrays!` or by this function.
+# When `ParticleSorting` is used, this copies the integration arrays to arrays in system order,
+# sorts the particles, and returns the sorted copies (see `particle_sorting.jl`).
+# Otherwise, this returns the integration arrays.
+# All following operations have to use the returned sorted arrays.
+function update_systems_and_nhs(v_ode_integration, u_ode_integration, semi, t)
+    v_ode, u_ode = sorted_ode_arrays!(v_ode_integration, u_ode_integration, semi)
+
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the TLSPH system)
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_positions!(system, v, u, v_ode, u_ode, semi, t)
     end
 
-    # Update NHS
-    @trixi_timeit timer() "update nhs" update_nhs!(semi, u_ode)
+    # Update NHS. When `ParticleSorting` is used, this also re-sorts the particles
+    # and the sorted copies `v_ode` and `u_ode`.
+    @trixi_timeit timer() "update nhs" update_nhs!(semi, v_ode, u_ode)
 
     # Second update step.
     # This is used to calculate density and pressure of the fluid systems
@@ -127,6 +158,8 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_final!(system, v, u, v_ode, u_ode, semi, t)
     end
+
+    return v_ode, u_ode
 end
 
 # Some systems accumulate pairwise interaction state outside `dv_ode`. Reset that state once

@@ -69,8 +69,11 @@ end
 function (stepsize_callback::StepsizeCallback)(integrator)
     (; cfl_number) = stepsize_callback
 
-    v_ode, u_ode = integrator.u.x
     semi = integrator.p.semi
+
+    # When particles are sorted, copy the integration arrays to system order
+    # (see `particle_sorting.jl`).
+    v_ode, u_ode = sorted_ode_arrays!(integrator.u.x..., semi)
 
     dt = @trixi_timeit timer() "calculate dt" calculate_dt(v_ode, u_ode, cfl_number, semi)
 

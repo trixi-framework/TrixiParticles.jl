@@ -73,6 +73,23 @@ end
     size(system.coordinates, 2)
 end
 
+# See `particle_sorting.jl`.
+# Wall boundaries are only sorted when they are moving.
+# Otherwise, they are only sorted once at the beginning of the simulation.
+# Therefore, we have to reorder all arrays of the system when sorting is applied.
+function particle_arrays_to_sort(system::WallBoundarySystem)
+    n = nparticles(system)
+
+    return (system.coordinates, per_particle_arrays(system.cache, n)...,
+            particle_arrays_to_sort(system.boundary_model, n)...)
+end
+
+function update_particle_indices!(system::WallBoundarySystem, compute_new_index!, semi)
+    update_moving_particles!(system.prescribed_motion, system, compute_new_index!, semi)
+
+    return system
+end
+
 # No particle positions are advanced for wall boundary systems,
 # except when using `BoundaryModelDummyParticles` with `ContinuityDensity`.
 @inline function n_integrated_particles(system::WallBoundarySystem)
