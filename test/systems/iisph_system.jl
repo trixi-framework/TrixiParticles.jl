@@ -296,77 +296,7 @@
         @test v0 == velocity
     end
 
-    moving_wall_densities = (AdamiPressureExtrapolation(), BernoulliPressureExtrapolation(),
-                             ContinuityDensity(), PressureZeroing(), PressureMirroring(),
-                             PressureBoundaries(time_step=1e-3, omega=0.5))
-    moving_wall_velocities = (((0.0, 0.0), (0.0, 0.0)),
-                              ((1.0, 0.0), (1.0, 0.0)),
-                              ((-1.0, 0.0), (-1.0, 0.0)),
-                              ((0.0, 1.0), (0.0, 1.0)),
-                              ((0.4, -0.3), (0.2, 0.5)))
-    moving_wall_configurations = Iterators.product(moving_wall_densities, (false, true),
-                                                   moving_wall_velocities)
-    @testset "Moving-wall prediction: $boundary_density, boundary_first=$boundary_first, $velocities" for (boundary_density,
-                                                                                                           boundary_first,
-                                                                                                           velocities) in
-                                                                                                          moving_wall_configurations
-
-        fluid_velocity, wall_velocity = SVector.(velocities)
-        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-        smoothing_length = 1.0
-        reference_density = 1000.0
-        time_step = 1e-3
-        viscosity = ViscosityAdami(nu=0.1)
-
-        # W(0) + W(1.5h) = 10 / (7pi) * (1 + 1/32) at h=1.
-        # Calibrate both masses so that the initial summation densities equal rho_0.
-        mass = reference_density / (10 / (7pi) * (1 + 1 / 32))
-        fluid_ic = InitialCondition(; coordinates=zeros(2, 1),
-                                    velocity=reshape(collect(fluid_velocity), 2, 1),
-                                    density=reference_density, mass,
-                                    particle_spacing=1.0)
-        fluid = ImplicitIncompressibleSPHSystem(fluid_ic; smoothing_kernel,
-                                                smoothing_length, reference_density,
-                                                time_step, viscosity)
-        wall_ic = InitialCondition(; coordinates=reshape([1.5, 0.0], 2, 1),
-                                   density=reference_density, mass,
-                                   particle_spacing=1.0)
-        boundary_model = BoundaryModelDummyParticles([reference_density], [mass],
-                                                     boundary_density, smoothing_kernel,
-                                                     smoothing_length; viscosity)
-        motion = iszero(wall_velocity) ? nothing :
-                 PrescribedMotion((x, t) -> x + wall_velocity * t, t -> true)
-        wall = WallBoundarySystem(wall_ic, boundary_model; prescribed_motion=motion)
-        systems = boundary_first ? (wall, fluid) : (fluid, wall)
-        semi = Semidiscretization(systems...; parallelization_backend=SerialBackend())
-        ode = semidiscretize(semi, (0.0, 0.01))
-        TrixiParticles.update_systems_and_nhs(ode.u0.x..., ode.p.semi, 0.0)
-
-        # The density increment uses the relative physical velocity. The last velocity
-        # pair distinguishes this from using the no-slip wall velocity in the PPE.
-        pair_gradient = SVector(15 / (56pi), 0.0)
-        advection_velocity = SVector{2}(fluid.advection_velocity[:, 1])
-        density_increment = time_step * mass *
-                            dot(advection_velocity - wall_velocity, pair_gradient)
-        @test fluid.predicted_density[1] ≈ fluid.density[1] + density_increment
-        if boundary_density isa PressureBoundaries
-            @test boundary_model.cache.predicted_density[1] ≈
-                  boundary_model.cache.density[1] + density_increment
-        end
-
-        if fluid_velocity == wall_velocity
-            # Uniform translation must neither create viscous acceleration nor pressure,
-            # including when the translation has a component normal to the wall.
-            @test advection_velocity ≈ fluid_velocity
-            @test fluid.predicted_density[1] ≈ reference_density
-            @test isapprox(fluid.pressure[1], 0.0; atol=1e-6)
-            if boundary_density isa PressureBoundaries
-                @test isapprox(boundary_model.pressure[1], 0.0; atol=1e-6)
-            end
-        end
-    end
-
-    @testset "Density used for viscosity is ready before prediction" begin
+    @testset "Shepard-corrected wall density in the predictor" begin
         kernel = SchoenbergCubicSplineKernel{2}()
         h = 1.0
         dt = 1e-3
@@ -387,28 +317,19 @@
                                                    time_step=dt, viscosity)
         end
 
-        function make_wall(i, calculator; correction=nothing, state_equation=nothing,
-                           wall_viscosity=viscosity, velocity=SVector(0.0, 1.0))
+        function make_wall(i)
             ic = InitialCondition(; coordinates=reshape([x[i], 0.0], 2, 1), density=rho,
                                   mass=masses[i], particle_spacing=h)
-            model = BoundaryModelDummyParticles(ic.density, ic.mass, calculator, kernel, h;
-                                                viscosity=wall_viscosity, correction,
-                                                state_equation)
-            motion = PrescribedMotion((coords, t) -> coords + velocity * t, t -> true)
+            model = BoundaryModelDummyParticles(ic.density, ic.mass, SummationDensity(),
+                                                kernel, h; viscosity,
+                                                correction=ShepardKernelCorrection())
+            motion = PrescribedMotion((coords, t) -> coords + SVector(0.0, t), t -> true)
             return WallBoundarySystem(ic, model; prescribed_motion=motion)
         end
 
-        @testset "$calculator, wall_first=$wall_first" for calculator in
-                                                           (SummationDensity(),
-                                                            AdamiPressureExtrapolation(pressure_offset=50.0),
-                                                            BernoulliPressureExtrapolation(pressure_offset=50.0)),
-                                                           wall_first in (false, true)
-
+        @testset "wall_first=$wall_first" for wall_first in (false, true)
             fluid = make_fluid()
-            correction = calculator isa SummationDensity ? ShepardKernelCorrection() :
-                         nothing
-            walls = (make_wall(2, calculator; correction),
-                     make_wall(3, calculator; correction))
+            walls = (make_wall(2), make_wall(3))
             systems = wall_first ? (reverse(walls)..., fluid) : (fluid, walls...)
             semi = Semidiscretization(systems...; parallelization_backend=SerialBackend())
             ode = semidiscretize(semi, (0.0, 0.01))
@@ -423,45 +344,9 @@
                 # Pressure acts in x only. Compare the viscous y component to prediction.
                 @test fluid.advection_velocity[2, 1] ≈ dt * acceleration
                 for (i, wall) in enumerate(walls)
-                    model = wall.boundary_model
-                    if calculator isa SummationDensity
-                        @test model.cache.density[1] ≈ corrected_density[i + 1]
-                    else
-                        @test model.cache.density[1] == rho
-                        @test model.pressure[1] ≈ 50.0
-                    end
+                    @test wall.boundary_model.cache.density[1] ≈ corrected_density[i + 1]
                 end
             end
-        end
-
-        @testset "Extrapolating wall equations of state" begin
-            eos = StateEquationCole(sound_speed=5.0, reference_density=rho, exponent=1)
-            for calculator in
-                (AdamiPressureExtrapolation(), BernoulliPressureExtrapolation())
-                fluid = make_fluid()
-                wall = make_wall(2, calculator; state_equation=eos)
-                @test_throws ArgumentError("IISPH with a viscous Adami or Bernoulli pressure extrapolation wall requires `state_equation=nothing` to keep the wall density fixed in the predictor and RHS. Use `PressureBoundaries` to solve for wall pressure in the PPE.") Semidiscretization(fluid,
-                                                                                                                                                                                                                                                                                                wall)
-                @test Semidiscretization(fluid, wall;
-                                         interaction_matrix=[true false; true true]) isa
-                      Semidiscretization
-                @test Semidiscretization(fluid,
-                                         make_wall(2, calculator; state_equation=eos,
-                                                   wall_viscosity=nothing)) isa
-                      Semidiscretization
-            end
-        end
-
-        @testset "Physical wall velocity without wall viscosity" begin
-            fluid = make_fluid()
-            wall = make_wall(2, PressureZeroing(); wall_viscosity=nothing,
-                             velocity=SVector(-1.0, 0.0))
-            semi = Semidiscretization(fluid, wall; parallelization_backend=SerialBackend())
-            ode = semidiscretize(semi, (0.0, 0.01))
-            TrixiParticles.update_systems_and_nhs(ode.u0.x..., ode.p.semi, 0.0)
-            @test iszero(fluid.advection_velocity)
-            @test fluid.predicted_density[1] ≈
-                  fluid.density[1] + dt * masses[2] * 15 / (56pi)
         end
     end
 

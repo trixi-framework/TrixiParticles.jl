@@ -130,43 +130,46 @@
         @test dynamic_pressure == 24.0
     end
 
-    @testset verbose=true "Viscosity Adami/Bernoulli: Wall Velocity" begin
-        particle_spacing = 0.1
+    @testset verbose=true "Wall Velocity: $T, length scale $scale" for (T, scale) in
+                                                                       ((Float64, 1),
+                                                                        (Float32, 10^9))
+        # Use the same geometry at a scale where valid kernel weights are below eps().
+        particle_spacing = T(0.1) * scale
 
         # Boundary particles in fluid compact support
         boundary_1 = RectangularShape(particle_spacing,
                                       (10, 1),
-                                      (0.0, 0.2),
-                                      density=257.0)
+                                      (zero(T), 2particle_spacing),
+                                      density=T(257))
         boundary_2 = RectangularShape(particle_spacing,
                                       (10, 1),
-                                      (0.0, 0.1),
-                                      density=257.0)
+                                      (zero(T), particle_spacing),
+                                      density=T(257))
 
         # Boundary particles out of fluid compact support
         boundary_3 = RectangularShape(particle_spacing,
                                       (10, 1),
-                                      (0.0, 0.0),
-                                      density=257.0)
+                                      (zero(T), zero(T)),
+                                      density=T(257))
 
         boundary = union(boundary_1, boundary_2, boundary_3)
-        v_boundary = zeros(2, TrixiParticles.nparticles(boundary))
+        v_boundary = zeros(T, 2, TrixiParticles.nparticles(boundary))
 
         particles_in_compact_support = length(boundary_1.mass) + length(boundary_2.mass)
 
         # Define fluid particles
         fluid = RectangularShape(particle_spacing,
                                  (16, 5),
-                                 (-0.3, 0.3),
-                                 density=257.0,
+                                 (-3particle_spacing, 3particle_spacing),
+                                 density=T(257),
                                  loop_order=:x_first)
 
         # Simulation parameters
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-        smoothing_length = 1.2 * particle_spacing
-        viscosity = ViscosityAdami(nu=1e-6)
-        state_equation = StateEquationCole(sound_speed=10.0,
-                                           reference_density=257.0,
+        smoothing_length = T(1.2) * particle_spacing
+        viscosity = ViscosityAdami(nu=1, epsilon=1)
+        state_equation = StateEquationCole(sound_speed=T(10),
+                                           reference_density=T(257),
                                            exponent=7)
 
         # Define pressure extrapolation methods to test
@@ -198,6 +201,11 @@
                                      poisson_ratio=0.3,
                                      boundary_model=boundary_model_bernoulli)
         ]
+        zero_pressure = BoundaryModelDummyParticles(boundary.density, boundary.mass,
+                                                    PressureZeroing(), smoothing_kernel,
+                                                    smoothing_length; state_equation,
+                                                    viscosity)
+        push!(boundary_systems, WallBoundarySystem(boundary, zero_pressure))
 
         # Create fluid system
         fluid_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel,
@@ -221,10 +229,12 @@
                                  typeof |> nameof
             @testset "$system_name with $density_calculator" begin
                 boundary_model = boundary_system.boundary_model
+                @test eltype(boundary_model.cache.wall_velocity) === T
+                @test eltype(boundary_model.cache.wall_velocity_weight) === T
 
                 @testset "Wall Velocity $v_fluid" for v_fluid in velocities
                     TrixiParticles.reset_wall_velocity!(boundary_model.cache)
-                    fluid_velocities = v_fluid .* ones(size(fluid.coordinates))
+                    fluid_velocities = T.(v_fluid) .* ones(T, size(fluid.coordinates))
                     TrixiParticles.interpolate_wall_velocity_from_neighbor!(boundary_model,
                                                                             boundary_system,
                                                                             fluid_system,
@@ -240,7 +250,7 @@
                     end
 
                     # Expected wall velocities
-                    v_wall = zeros(size(boundary.coordinates))
+                    v_wall = zeros(T, size(boundary.coordinates))
                     v_wall[:, 1:particles_in_compact_support] .= -v_fluid
 
                     @test isapprox(boundary_model.cache.wall_velocity,
@@ -255,7 +265,7 @@
                 # for a variable velocity profile.
                 @testset "Wall Velocity Staggered: Factor $scale" for scale in scale_factors
                     # Create a staggered velocity profile
-                    v_fluid = zeros(size(fluid.coordinates))
+                    v_fluid = zeros(T, size(fluid.coordinates))
                     for i in TrixiParticles.eachparticle(fluid_system)
                         if mod(i, 2) == 1
                             v_fluid[:, i] .= scale
@@ -277,7 +287,7 @@
                     end
 
                     # Expected wall velocities
-                    v_wall = zeros(size(boundary.coordinates))
+                    v_wall = zeros(T, size(boundary.coordinates))
 
                     # First boundary row
                     for i in 1:length(boundary_1.mass)
@@ -410,6 +420,7 @@
         end
 
         @testset "Interaction Matrix Filters Boundary Pressure" begin
+            viscosity = ViscosityAdami(nu=0.1)
             density_low = 260
             density_high = 320
             tank_low = RectangularTank(particle_spacing, (width, height), (width, height),
@@ -437,7 +448,7 @@
                                                                   AdamiPressureExtrapolation(),
                                                                   smoothing_kernel,
                                                                   smoothing_length;
-                                                                  state_equation)
+                                                                  state_equation, viscosity)
             filtered_boundary_system = WallBoundarySystem(tank_low.boundary,
                                                           filtered_boundary_model)
 
@@ -446,7 +457,7 @@
                                                                   AdamiPressureExtrapolation(),
                                                                   smoothing_kernel,
                                                                   smoothing_length;
-                                                                  state_equation)
+                                                                  state_equation, viscosity)
             included_boundary_system = WallBoundarySystem(tank_low.boundary,
                                                           included_boundary_model)
 
@@ -475,6 +486,8 @@
                     TrixiParticles.compute_pressure!(fluid_system, v_fluid_system,
                                                      semi_local)
                 end
+                v_high = TrixiParticles.wrap_v(v_ode, fluid_high, semi_local)
+                v_high[2, :] .= 1
 
                 v_boundary = TrixiParticles.wrap_v(v_ode, boundary_system, semi_local)
                 u_boundary = TrixiParticles.wrap_u(u_ode, boundary_system, semi_local)
@@ -505,6 +518,10 @@
             @test !all(isapprox.(all_enabled_pressure, fluid_low.pressure[1],
                                  atol=1.0e-12))
             @test all(isapprox.(filtered_pressure, fluid_low.pressure[1], atol=1.0e-12))
+            # The fluid systems have the same coordinates. The high-pressure fluid is
+            # excluded from pressure extrapolation but still contributes half the velocity.
+            @test filtered_boundary_model.cache.wall_velocity[2, :] ≈
+                  fill(-0.5, nparticles(filtered_boundary_system))
         end
 
         @testset "Interaction Matrix Filters Boundary Density" begin
