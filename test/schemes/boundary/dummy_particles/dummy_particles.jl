@@ -60,11 +60,39 @@
         for model in (boundary_model_adami_clip, boundary_model_adami_no_clip)
             model.cache.volume[1] = 1
             model.pressure[1] = -1
-            TrixiParticles.compute_adami_density!(model, nothing, nothing, 1)
+            TrixiParticles.compute_adami_density!(model, 1)
         end
 
         @test boundary_model_adami_clip.pressure[1] == 0
         @test boundary_model_adami_no_clip.pressure[1] == -1
+    end
+
+    # The correction values must have the element type of the density. Otherwise, the
+    # kernel gradients at the boundary particles would change the precision of the
+    # pressure acceleration of a `Float32` simulation, e.g., on GPUs.
+    @testset "Correction Cache Element Type `$(nameof(typeof(correction)))`" for correction in
+                                                                                 (ShepardKernelCorrection(),
+                                                                                  KernelCorrection(),
+                                                                                  GradientCorrection(),
+                                                                                  BlendedGradientCorrection(0.5f0),
+                                                                                  MixedKernelGradientCorrection())
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        boundary_model = BoundaryModelDummyParticles([1000.0f0, 1000.0f0], [1.0f0, 1.0f0],
+                                                     AdamiPressureExtrapolation(),
+                                                     smoothing_kernel, 0.1f0; correction)
+        (; cache) = boundary_model
+
+        for field in (:kernel_correction_coefficient, :dw_gamma, :correction_matrix)
+            haskey(cache, field) || continue
+            @test eltype(getproperty(cache, field)) == Float32
+            fill!(getproperty(cache, field), 1)
+        end
+
+        pos_diff = SVector(0.05f0, 0.02f0)
+        grad_kernel = TrixiParticles.smoothing_kernel_grad(boundary_model, pos_diff,
+                                                           norm(pos_diff), 1)
+        @test eltype(grad_kernel) == Float32
+        @test !iszero(grad_kernel)
     end
 
     @testset "Bernoulli dynamic pressure" begin
@@ -195,34 +223,21 @@
                 boundary_model = boundary_system.boundary_model
 
                 @testset "Wall Velocity $v_fluid" for v_fluid in velocities
-                    viscosity = boundary_model.viscosity
-                    pressure = boundary_model.pressure
-                    volume = boundary_model.cache.volume
+                    TrixiParticles.reset_wall_velocity!(boundary_model.cache)
+                    TrixiParticles.interpolate_boundary_neighbors!(Val(true), Val(false),
+                                                                   Val(true),
+                                                                   boundary_model,
+                                                                   boundary_system,
+                                                                   fluid_system,
+                                                                   boundary.coordinates,
+                                                                   fluid.coordinates,
+                                                                   v_boundary,
+                                                                   v_fluid .*
+                                                                   ones(size(fluid.coordinates)),
+                                                                   semi)
 
-                    # Reset cache and perform pressure extrapolation
-                    TrixiParticles.reset_cache!(boundary_model.cache,
-                                                boundary_model.viscosity)
-                    TrixiParticles.boundary_pressure_extrapolation!(Val(true),
-                                                                    boundary_model,
-                                                                    boundary_system,
-                                                                    fluid_system,
-                                                                    boundary.coordinates,
-                                                                    fluid.coordinates,
-                                                                    v_boundary,
-                                                                    v_fluid .*
-                                                                    ones(size(fluid.coordinates)),
-                                                                    semi)
-
-                    # Compute wall velocities
-                    for particle in TrixiParticles.eachparticle(boundary_system)
-                        if volume[particle] > eps()
-                            pressure[particle] /= volume[particle]
-                            TrixiParticles.compute_wall_velocity!(viscosity,
-                                                                  boundary_system,
-                                                                  v_boundary,
-                                                                  particle)
-                        end
-                    end
+                    TrixiParticles.finalize_wall_velocity!(boundary_system, v_boundary,
+                                                           semi)
 
                     # Expected wall velocities
                     v_wall = zeros(size(boundary.coordinates))
@@ -239,10 +254,6 @@
                 # With a staggered velocity profile, we can test the smoothed velocity field
                 # for a variable velocity profile.
                 @testset "Wall Velocity Staggered: Factor $scale" for scale in scale_factors
-                    viscosity = boundary_model.viscosity
-                    pressure = boundary_model.pressure
-                    volume = boundary_model.cache.volume
-
                     # Create a staggered velocity profile
                     v_fluid = zeros(size(fluid.coordinates))
                     for i in TrixiParticles.eachparticle(fluid_system)
@@ -251,27 +262,19 @@
                         end
                     end
 
-                    # Reset cache and perform pressure extrapolation
-                    TrixiParticles.reset_cache!(boundary_model.cache,
-                                                boundary_model.viscosity)
-                    TrixiParticles.boundary_pressure_extrapolation!(Val(true),
-                                                                    boundary_model,
-                                                                    boundary_system,
-                                                                    fluid_system,
-                                                                    boundary.coordinates,
-                                                                    fluid.coordinates,
-                                                                    v_boundary, v_fluid,
-                                                                    semi)
+                    TrixiParticles.reset_wall_velocity!(boundary_model.cache)
+                    TrixiParticles.interpolate_boundary_neighbors!(Val(true), Val(false),
+                                                                   Val(true),
+                                                                   boundary_model,
+                                                                   boundary_system,
+                                                                   fluid_system,
+                                                                   boundary.coordinates,
+                                                                   fluid.coordinates,
+                                                                   v_boundary, v_fluid,
+                                                                   semi)
 
-                    # Compute wall velocities
-                    for particle in TrixiParticles.eachparticle(boundary_system)
-                        if volume[particle] > eps()
-                            pressure[particle] /= volume[particle]
-                            TrixiParticles.compute_wall_velocity!(viscosity,
-                                                                  boundary_system,
-                                                                  v_boundary, particle)
-                        end
-                    end
+                    TrixiParticles.finalize_wall_velocity!(boundary_system, v_boundary,
+                                                           semi)
 
                     # Expected wall velocities
                     v_wall = zeros(size(boundary.coordinates))
@@ -328,7 +331,6 @@
                                                      state_equation)
 
         boundary_system = WallBoundarySystem(tank1.boundary, boundary_model)
-        viscosity = boundary_system.boundary_model.viscosity
 
         semi = DummySemidiscretization()
 
@@ -346,21 +348,20 @@
             TrixiParticles.compute_pressure!(fluid_system1, v_fluid, semi)
 
             TrixiParticles.set_zero!(boundary_model.pressure)
-            TrixiParticles.reset_cache!(boundary_system.boundary_model.cache,
-                                        viscosity)
+            TrixiParticles.set_zero!(boundary_model.cache.volume)
 
-            TrixiParticles.boundary_pressure_extrapolation!(Val(true), boundary_model,
-                                                            boundary_system,
-                                                            fluid_system1,
-                                                            tank1.boundary.coordinates,
-                                                            tank1.fluid.coordinates,
-                                                            v_fluid,
-                                                            nothing, # Not used
-                                                            semi)
+            TrixiParticles.interpolate_boundary_neighbors!(Val(true), Val(true), Val(false),
+                                                           boundary_model,
+                                                           boundary_system,
+                                                           fluid_system1,
+                                                           tank1.boundary.coordinates,
+                                                           tank1.fluid.coordinates,
+                                                           v_fluid,
+                                                           nothing, # Not used
+                                                           semi)
 
             for particle in TrixiParticles.eachparticle(boundary_system)
-                TrixiParticles.compute_adami_density!(boundary_model, boundary_system,
-                                                      tank1.boundary.coordinates, particle)
+                TrixiParticles.compute_adami_density!(boundary_model, particle)
             end
 
             @test all(boundary_system.boundary_model.pressure .== 0.0)
@@ -385,21 +386,20 @@
             TrixiParticles.compute_pressure!(fluid_system2, v_fluid, semi)
 
             TrixiParticles.set_zero!(boundary_model.pressure)
-            TrixiParticles.reset_cache!(boundary_system.boundary_model.cache,
-                                        viscosity)
+            TrixiParticles.set_zero!(boundary_model.cache.volume)
 
-            TrixiParticles.boundary_pressure_extrapolation!(Val(true), boundary_model,
-                                                            boundary_system,
-                                                            fluid_system2,
-                                                            tank2.boundary.coordinates,
-                                                            tank2.fluid.coordinates,
-                                                            v_fluid,
-                                                            nothing, # Not used
-                                                            semi)
+            TrixiParticles.interpolate_boundary_neighbors!(Val(true), Val(true), Val(false),
+                                                           boundary_model,
+                                                           boundary_system,
+                                                           fluid_system2,
+                                                           tank2.boundary.coordinates,
+                                                           tank2.fluid.coordinates,
+                                                           v_fluid,
+                                                           nothing, # Not used
+                                                           semi)
 
             for particle in TrixiParticles.eachparticle(boundary_system)
-                TrixiParticles.compute_adami_density!(boundary_model, boundary_system,
-                                                      tank2.boundary.coordinates, particle)
+                TrixiParticles.compute_adami_density!(boundary_model, particle)
             end
 
             # Test that pressure of the fluid is indeed constant
@@ -625,23 +625,21 @@
                 TrixiParticles.compute_pressure!(fluid_system3, v_fluid, semi)
 
                 TrixiParticles.set_zero!(boundary_model.pressure)
-                TrixiParticles.reset_cache!(boundary_system.boundary_model.cache,
-                                            viscosity)
+                TrixiParticles.set_zero!(boundary_model.cache.volume)
 
-                TrixiParticles.boundary_pressure_extrapolation!(flipped_condition,
-                                                                boundary_model,
-                                                                boundary_system,
-                                                                fluid_system3,
-                                                                tank3.boundary.coordinates,
-                                                                tank3.fluid.coordinates,
-                                                                v_fluid,
-                                                                nothing, # Not used
-                                                                semi)
+                TrixiParticles.interpolate_boundary_neighbors!(flipped_condition,
+                                                               Val(true), Val(false),
+                                                               boundary_model,
+                                                               boundary_system,
+                                                               fluid_system3,
+                                                               tank3.boundary.coordinates,
+                                                               tank3.fluid.coordinates,
+                                                               v_fluid,
+                                                               nothing, # Not used
+                                                               semi)
 
                 for particle in TrixiParticles.eachparticle(boundary_system)
-                    TrixiParticles.compute_adami_density!(boundary_model, boundary_system,
-                                                          tank3.boundary.coordinates,
-                                                          particle)
+                    TrixiParticles.compute_adami_density!(boundary_model, particle)
                 end
 
                 width_reference = particle_spacing * (n_particles + 2 * n_layers)

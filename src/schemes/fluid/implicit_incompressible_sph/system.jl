@@ -219,7 +219,7 @@ end
 
 @inline density_calculator(system::ImplicitIncompressibleSPHSystem) = nothing
 
-# Calculates the pressure values by solving a linear system with a relaxed Jacobi scheme
+# Compute density before the prediction and pressure solve in `update_implicit_sph!`.
 function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
     (; density) = system
@@ -227,8 +227,7 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
     # Compute density by kernel summation
     summation_density!(system, semi, u, u_ode, density)
 
-    @trixi_timeit timer() "predict advection" predict_advection!(system, v, u, v_ode, u_ode,
-                                                                 semi)
+    return system
 end
 
 function update_implicit_sph!(semi, v_ode, u_ode, t)
@@ -237,23 +236,22 @@ function update_implicit_sph!(semi, v_ode, u_ode, t)
         return semi
     end
 
+    # Wall densities and ghost velocities are ready for viscosity in the prediction.
+    # Predict every fluid velocity before computing coefficients that use neighboring
+    # predictions, including those of `PressureBoundaries`, regardless of system order.
+    @trixi_timeit timer() "predict advection" begin
+        foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+            calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi)
+        end
+        foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+            calculate_diagonal_elements_and_predicted_density!(system, v, u, v_ode, u_ode,
+                                                               semi)
+        end
+    end
+
     @trixi_timeit timer() "pressure solver" pressure_solve!(semi, v_ode, u_ode)
 
     return semi
-end
-
-function update_inter_system_quantities!(semi, v_ode, u_ode, t)
-    return update_implicit_sph!(semi, v_ode, u_ode, t)
-end
-
-function predict_advection!(system::Union{ImplicitIncompressibleSPHSystem,
-                                          WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}},
-                            v, u, v_ode, u_ode, semi)
-    calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi)
-
-    calculate_diagonal_elements_and_predicted_density!(system, v, u, v_ode, u_ode, semi)
-
-    return system
 end
 
 function calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi)
@@ -779,7 +777,13 @@ function check_configuration(system::ImplicitIncompressibleSPHSystem, systems, n
         end
         if neighbor isa WallBoundarySystem
             if neighbor.boundary_model isa BoundaryModelDummyParticles
-                if neighbor.boundary_model.correction !== nothing
+                (; correction, density_calculator) = neighbor.boundary_model
+                shepard_summation = density_calculator isa SummationDensity &&
+                                    correction_density(correction) isa
+                                    ShepardKernelCorrection &&
+                                    isnothing(correction_gradient(correction)) &&
+                                    isnothing(correction_force(correction))
+                if correction !== nothing && !shepard_summation
                     throw(ArgumentError("`ImplicitIncompressibleSPHSystem` cannot be used with corrected dummy boundaries"))
                 end
                 if neighbor.boundary_model.density_calculator isa PressureBoundaries
@@ -790,6 +794,24 @@ function check_configuration(system::ImplicitIncompressibleSPHSystem, systems, n
                         `ImplicitIncompressibleSPHSystem` parameters"))
                     end
                 end
+            end
+        end
+    end
+end
+
+function check_iisph_wall_viscosity(systems, interaction_matrix)
+    for (i, fluid) in pairs(systems)
+        fluid isa ImplicitIncompressibleSPHSystem || continue
+        for (j, wall) in pairs(systems)
+            wall isa WallBoundarySystem || continue
+            model = wall.boundary_model
+            model isa BoundaryModelDummyParticles{<:PressureExtrapolation} || continue
+            is_enabled_interaction(interaction_matrix[i, j]) || continue
+            if !isnothing(model.viscosity) && !isnothing(model.state_equation)
+                throw(ArgumentError("IISPH with a viscous Adami or Bernoulli pressure " *
+                                    "extrapolation wall requires `state_equation=nothing` " *
+                                    "to keep the wall density fixed in the predictor and RHS. " *
+                                    "Use `PressureBoundaries` to solve for wall pressure in the PPE."))
             end
         end
     end

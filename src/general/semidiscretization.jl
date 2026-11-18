@@ -125,6 +125,7 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     # Other checks might be added here later.
     check_configuration(systems, neighborhood_search)
     check_pressure_acceleration_configuration(systems, interaction_matrix)
+    check_iisph_wall_viscosity(systems, interaction_matrix)
 
     sizes_u = [u_nvariables(system) * n_integrated_particles(system)
                for system in systems]
@@ -210,6 +211,15 @@ end
 
 @inline function has_system_interaction(system, neighbor_system, semi::Semidiscretization)
     return is_enabled_interaction(system_interaction(system, neighbor_system, semi))
+end
+
+@inline has_iisph_neighbor(system, semi) = false
+
+@inline function has_iisph_neighbor(system::WallBoundarySystem, semi::Semidiscretization)
+    return any(semi.systems) do neighbor
+        neighbor isa ImplicitIncompressibleSPHSystem &&
+            has_system_interaction(neighbor, system, semi)
+    end
 end
 
 @inline function system_interaction(system, neighbor_system, semi::Semidiscretization)
@@ -521,7 +531,7 @@ end
     return reshape(view(array, range), Int.(size))
 end
 
-function check_configuration(systems,
+function check_configuration(systems::Union{Tuple, AbstractVector},
                              nhs::Union{Nothing, AbstractNeighborhoodSearch})
     foreach_system(systems) do system
         check_configuration(system, systems, nhs)

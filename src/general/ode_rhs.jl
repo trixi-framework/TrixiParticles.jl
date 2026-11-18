@@ -110,8 +110,6 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
         update_quantities!(system, v, u, v_ode, u_ode, semi, t)
     end
 
-    update_implicit_sph!(semi, v_ode, u_ode, t)
-
     prepare_density_boundary_values!(semi, v_ode, u_ode, t)
 
     # Correction moments can use densities from every interacting system. Assemble every
@@ -123,6 +121,8 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_density_correction!(system, v, u, v_ode, u_ode, semi, t)
     end
+
+    update_implicit_sph!(semi, v_ode, u_ode, t)
 
     # Fluid pressure must be available before boundary pressure interpolation.
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u

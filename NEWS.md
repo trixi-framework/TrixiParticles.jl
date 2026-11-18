@@ -23,6 +23,11 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Removed RHS-history dependence from Shepard-filtered WCSPH summation density at
   EOS-backed pressure boundaries by predicting boundary densities from current raw
   fluid pressure before normalization.
+- Fixed viscous ghost velocities for dummy-particle walls using `SummationDensity`,
+  `ContinuityDensity`, `PressureZeroing`, or `PressureBoundaries` (#1361). IISPH uses
+  the physical wall velocity for density prediction and the reflected ghost velocity
+  for viscosity. Viscous Adami and Bernoulli walls coupled to IISPH require fixed
+  wall density (`state_equation=nothing`).
 - Fixed SPH correction updates to apply density corrections before pressure and update
   boundary, gradient, and surface quantities in consistent phases across fluid and
   structure systems (#1284).

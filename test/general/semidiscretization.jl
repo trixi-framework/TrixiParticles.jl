@@ -169,6 +169,7 @@
 
                 # Missing boundary model.
                 structure = create_structure_system(structure_type, nothing)
+                @test_nowarn Semidiscretization(structure; neighborhood_search=nothing)
                 error_str = "a boundary model for `$structure_type` must be specified " *
                             "when simulating a fluid-structure interaction."
                 @test_throws ArgumentError(error_str) Semidiscretization(fluid_system,
@@ -188,18 +189,30 @@
                                                                          fluid_system;
                                                                          neighborhood_search=nothing)
 
-                if structure_type === TotalLagrangianSPHSystem
-                    boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
-                                                                 ContinuityDensity(),
-                                                                 smoothing_kernel,
-                                                                 smoothing_length)
-                    structure = create_structure_system(structure_type, boundary_model)
-                    error_str = "`BoundaryModelDummyParticles` with density calculator " *
-                                "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"
-                    @test_throws ArgumentError(error_str) Semidiscretization(structure,
-                                                                             fluid_system;
-                                                                             neighborhood_search=nothing)
+                # Summation density is unsupported for both structure types.
+                boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
+                                                             SummationDensity(),
+                                                             smoothing_kernel,
+                                                             smoothing_length;
+                                                             state_equation)
+                structure = create_structure_system(structure_type, boundary_model)
+                error_str = "`BoundaryModelDummyParticles` with density calculator " *
+                            "`SummationDensity` is not supported for a `$structure_type`"
+                @test_throws ArgumentError(error_str) Semidiscretization(structure;
+                                                                         neighborhood_search=nothing)
+                for systems in ((structure, fluid_system), (fluid_system, structure))
+                    # The boundary model is unsupported even with FSI disabled.
+                    for interaction_matrix in ([true false; false true],
+                         [true true; false true],
+                         [true false; true true])
+                        @test_throws ArgumentError(error_str) Semidiscretization(systems...;
+                                                                                 neighborhood_search=nothing,
+                                                                                 interaction_matrix)
+                    end
                 end
+                @test_throws ArgumentError(error_str) Semidiscretization(structure,
+                                                                         fluid_system;
+                                                                         neighborhood_search=nothing)
 
                 @testset "$name" for (name, boundary_kernel, boundary_length,
                                       compatible) in boundary_configurations
@@ -221,6 +234,47 @@
                                                                                  structure;
                                                                                  neighborhood_search=nothing)
                     end
+                end
+            end
+
+            # Corrections at the boundary particles of structures are not supported yet,
+            # independently of the fluid correction and of whether a fluid is present.
+            boundary_corrections = (ShepardKernelCorrection(),
+                                    AkinciFreeSurfaceCorrection(1000.0),
+                                    KernelCorrection(), GradientCorrection(),
+                                    BlendedGradientCorrection(0.3),
+                                    MixedKernelGradientCorrection())
+            @testset "Corrections, $structure_type" for structure_type in
+                                                        (TotalLagrangianSPHSystem,
+                                                         RigidBodySystem)
+                fluid = WeaklyCompressibleSPHSystem(ic; smoothing_kernel,
+                                                    smoothing_length, state_equation,
+                                                    density_calculator=ContinuityDensity(),
+                                                    correction=KernelCorrection())
+                boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
+                                                             AdamiPressureExtrapolation(),
+                                                             smoothing_kernel,
+                                                             smoothing_length;
+                                                             state_equation)
+                structure = create_structure_system(structure_type, boundary_model)
+                @test_nowarn Semidiscretization(fluid, structure;
+                                                neighborhood_search=nothing)
+
+                error_str = "the boundary model of a `$structure_type` does not " *
+                            "support corrections yet. Use `correction=nothing`."
+                for boundary_correction in boundary_corrections
+                    boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
+                                                                 AdamiPressureExtrapolation(),
+                                                                 smoothing_kernel,
+                                                                 smoothing_length;
+                                                                 state_equation,
+                                                                 correction=boundary_correction)
+                    structure = create_structure_system(structure_type, boundary_model)
+                    @test_throws ArgumentError(error_str) Semidiscretization(fluid,
+                                                                             structure;
+                                                                             neighborhood_search=nothing)
+                    @test_throws ArgumentError(error_str) Semidiscretization(structure;
+                                                                             neighborhood_search=nothing)
                 end
             end
         end
@@ -329,7 +383,7 @@
                                             particle_spacing=1.0)
             boundary_model = BoundaryModelDummyParticles(structure_ic.density,
                                                          structure_ic.mass,
-                                                         SummationDensity(), kernel,
+                                                         PressureZeroing(), kernel,
                                                          smoothing_length;
                                                          state_equation)
             structure = TotalLagrangianSPHSystem(structure_ic;

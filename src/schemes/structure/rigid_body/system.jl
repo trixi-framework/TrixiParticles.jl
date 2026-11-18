@@ -405,6 +405,7 @@ end
 
 function update_boundary_interpolation!(boundary_model, system::RigidBodySystem, v, u,
                                         v_ode, u_ode, semi, t)
+    interpolate_wall_velocity!(boundary_model, system, v, u, v_ode, u_ode, semi)
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
     return system
 end

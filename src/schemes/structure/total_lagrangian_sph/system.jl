@@ -601,6 +601,7 @@ function update_boundary_interpolation!(system::TotalLagrangianSPHSystem, v, u,
                                         v_ode, u_ode, semi, t)
     (; boundary_model) = system
 
+    interpolate_wall_velocity!(boundary_model, system, v, u, v_ode, u_ode, semi)
     # Only update boundary model
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
 end
