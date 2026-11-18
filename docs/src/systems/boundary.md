@@ -177,9 +177,19 @@ Pressure extrapolation still uses only neighbors enabled in the wall's interacti
 
 With IISPH, viscosity uses the ghost velocity during the advection prediction, but the
 density prediction uses the physical wall velocity, even when `viscosity=nothing`.
-With wall viscosity and `AdamiPressureExtrapolation` or `BernoulliPressureExtrapolation`,
-set `state_equation=nothing` to keep the wall density fixed. To include the wall pressure
-in the IISPH pressure solve, use [`PressureBoundaries`](@ref).
+With `AdamiPressureExtrapolation` or `BernoulliPressureExtrapolation`,
+`state_equation=nothing` keeps the wall density fixed. If an equation of state is supplied
+and the wall acts on an IISPH fluid, IISPH uses two pressure solves per RHS evaluation:
+
+1. Set the initial fluid pressure to zero and extrapolate the initial wall pressure and
+   density. Hydrostatic, dynamic, and pressure-offset terms still apply as configured.
+   Use these wall values for the provisional pressure solve.
+2. Extrapolate wall pressure and density from the provisional fluid pressure. Keep both
+   wall values fixed through the final advection prediction, pressure solve, and forces.
+
+This is a lagged approximation: the reported wall pressure comes from the provisional
+fluid pressure, not the final fluid pressure. To include wall pressure as an unknown in
+the pressure solve, use [`PressureBoundaries`](@ref).
 
 By choosing the viscosity model [`ViscosityAdami`](@ref) for `viscosity`, a no-slip
 condition is imposed. It is recommended to choose `nu` in the order of either the kinematic

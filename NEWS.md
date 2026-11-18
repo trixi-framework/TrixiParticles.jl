@@ -26,8 +26,10 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Fixed viscous ghost velocities for dummy-particle walls using `SummationDensity`,
   `ContinuityDensity`, `PressureZeroing`, or `PressureBoundaries` (#1361). IISPH uses
   the physical wall velocity for density prediction and the reflected ghost velocity
-  for viscosity. Viscous Adami and Bernoulli walls coupled to IISPH require fixed
-  wall density (`state_equation=nothing`).
+  for viscosity.
+- IISPH with an equation of state on an Adami or Bernoulli wall now predicts wall
+  pressure and density from a provisional solve, with no dependence on the previous
+  RHS evaluation. The final predictor and forces use the same wall density.
 - Fixed SPH correction updates to apply density corrections before pressure and update
   boundary, gradient, and surface quantities in consistent phases across fluid and
   structure systems (#1284).
