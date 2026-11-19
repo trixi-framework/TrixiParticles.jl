@@ -229,25 +229,6 @@ function unique_arrays(arrays)
                  if !any(other -> other === array, arrays[1:(i - 1)]))
 end
 
-# Call `f(system, arrays, buffers)` for each system, where `arrays` are the arrays
-# to be reordered when the particles are sorted and `buffers` the corresponding buffers.
-# When particles are not sorted, `arrays` and `buffers` are `nothing`.
-@inline function foreach_system_sorting_arrays(f, semi)
-    foreach_system_sorting_arrays(f, semi, particle_sorting(semi))
-end
-
-@inline function foreach_system_sorting_arrays(f, semi, ::Nothing)
-    foreach_system(system -> f(system, nothing, nothing), semi)
-end
-
-@inline function foreach_system_sorting_arrays(f, semi, sorting::ParticleSorting)
-    foreach_noalloc_zip(semi.systems,
-                        zip_tuples(sorting.arrays_to_sort,
-                                   sorting.array_buffers)) do (system, (arrays, buffers))
-        f(system, arrays, buffers)
-    end
-end
-
 @inline zip_tuples(a, b) = map(tuple, a, b)
 
 # `semi.particle_sorting` is `nothing` -> particles are not sorted.
