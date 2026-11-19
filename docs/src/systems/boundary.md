@@ -212,6 +212,10 @@ Corrections at the boundary particles of these structures are not supported yet,
 so the boundary model's `correction` must be `nothing`.
 These requirements are checked when constructing the [`Semidiscretization`](@ref).
 
+When the fluid correction requires a separate neighbor-side gradient, the
+[Transport Velocity Formulation](@ref transport_velocity_formulation) also uses the
+dummy-particle boundary model's smoothing kernel and smoothing length for that gradient.
+
 ## Repulsive Particles
 
 Boundaries modeled as boundary particles which exert forces on the fluid particles ([Monaghan, Kajtar, 2009](@cite Monaghan2009)).
@@ -234,6 +238,8 @@ dimensions (see [Monaghan & Kajtar, 2009](@cite Monaghan2009), Equation (3.1) an
 The implemented repulsive acceleration ``\tilde{\bm{f}}_{ab}`` does not depend on the particle masses.
 The denominator ``\Vert \bm{r}_{ab} \Vert - d`` is clipped from below by ``d/100`` in the
 implementation to avoid the singularity at ``\Vert \bm{r}_{ab} \Vert = d``.
+At coincident or numerically indistinguishable positions, the radial direction is undefined
+and the repulsive acceleration is set to zero.
 Here, ``\Phi`` denotes the 1D Wendland C4 kernel, normalized to ``1.77`` for ``q=0``
 ([Monaghan & Kajtar, 2009](@cite Monaghan2009), Section 4), with ``\Phi(r, h) = w(r/h)`` and
 ```math
@@ -258,6 +264,13 @@ where ``g`` is the gravitational acceleration and ``D`` is the depth of the flui
 The viscosity ``\Pi_{ab}`` is calculated according to the viscosity used in the
 simulation. When a boundary density is needed, it is computed from the boundary
 hydrodynamic mass and boundary particle spacing as ``m_b / d^n``.
+[EDAC](@ref edac) uses the fluid smoothing length to regularize pressure diffusion at these
+particles, since they have no hydrodynamic smoothing length of their own.
+
+With the [Transport Velocity Formulation](@ref transport_velocity_formulation), repulsion
+contributes only to the physical momentum equation. The tensor term and background-pressure
+shifting use the fluid's SPH kernel gradient instead. If a correction requires a second
+gradient, the fluid-side gradient is negated to supply it.
 
 ### No-slip condition
 

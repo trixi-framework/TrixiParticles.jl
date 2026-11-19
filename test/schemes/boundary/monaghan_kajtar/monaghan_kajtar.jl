@@ -1,5 +1,5 @@
 
-@testset verbose=true "Monghan-Kajtar Repulsive Particles" begin
+@testset verbose=true "Monaghan-Kajtar Repulsive Particles" begin
     @testset "`show`" begin
         boundary_model = BoundaryModelMonaghanKajtar(10.0, 3.0, 0.1, [1.0])
 

@@ -36,8 +36,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
-- Fixed double-counted Monaghan-Kajtar repulsion in TVF momentum and
-  background-pressure shifting operators (#1344).
+- Apply Monaghan-Kajtar repulsion once in the momentum equation and compute TVF shifting
+  from the background-pressure gradient. Correct the TVF tensor term's sign and use an
+  arithmetic tensor average with the volume-weighted pressure formulation (#1344).
 - Fixed pressure mirroring for TLSPH and rigid-body neighbors and for EDAC momentum,
   pressure diffusion, and average-pressure reduction at walls and structures.
   With a boundary viscosity, `PressureMirroring` now computes the wall velocity of the

@@ -242,11 +242,14 @@ Here, ``\tilde{p}_{ab}`` is the density-weighted pressure
 with ``\rho_a``, ``\rho_b`` and ``p_a``, ``p_b`` denoting the densities and pressures
 of particles ``a`` and ``b``, respectively.
 
-TrixiParticles.jl evaluates this additional term with the selected pressure-acceleration
-operator. For the default [`ContinuityDensity`](@ref) pressure acceleration, this gives
+TrixiParticles.jl uses the arithmetic tensor average shown above with the volume-weighted
+pressure formulation (the default for [EDAC](@ref edac)). For other pressure formulations,
+it reuses the pair weights with the sign reversed to approximate the positive tensor
+divergence. For the default [`ContinuityDensity`](@ref) pressure acceleration in WCSPH and
+antisymmetric kernel gradients, this gives
 ```math
 \left.\frac{\tilde{\mathrm{d}} v_a}{\mathrm{d}t}\right|_{\bm{A}}
-= - \sum_b \frac{m_b}{\rho_a \rho_b}
+= \sum_b \frac{m_b}{\rho_a \rho_b}
 \left(\bm{A}_a + \bm{A}_b \right) \cdot \nabla_a W_{ab}.
 ```
 Here, for example,

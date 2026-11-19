@@ -93,13 +93,14 @@ end
     return -volume_term * pressure_tilde * W_a
 end
 
+const AsymmetricKernelGradientCorrection = Union{KernelCorrection, GradientCorrection,
+                                                 BlendedGradientCorrection,
+                                                 MixedKernelGradientCorrection}
+
 function choose_pressure_acceleration_formulation(pressure_acceleration,
                                                   density_calculator, NDIMS, ELTYPE,
                                                   correction)
-    if correction isa KernelCorrection ||
-       correction isa GradientCorrection ||
-       correction isa BlendedGradientCorrection ||
-       correction isa MixedKernelGradientCorrection
+    if correction isa AsymmetricKernelGradientCorrection
         if isempty(methods(pressure_acceleration,
                            (ELTYPE, ELTYPE, ELTYPE, ELTYPE, ELTYPE, ELTYPE,
                             SVector{NDIMS, ELTYPE}, SVector{NDIMS, ELTYPE})))
@@ -143,46 +144,33 @@ end
 
 @inline pressure_acceleration_formulation(system) = system.pressure_acceleration_formulation
 
-# Boundary laws can specialize this wrapper without changing the inter-particle
-# operator used by transport-velocity corrections.
+# Boundary laws can specialize physical pressure without affecting the TVF operators.
 @inline function pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
                                        m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
                                        distance, W_a, correction)
-    return pressure_acceleration_interparticle(particle_system, neighbor_system,
-                                               particle, neighbor, m_a, m_b, p_a, p_b,
-                                               rho_a, rho_b, pos_diff, distance, W_a,
-                                               correction)
+    formulation = pressure_acceleration_formulation(particle_system)
+    return pressure_acceleration_interparticle(formulation, neighbor_system, neighbor,
+                                               m_a, m_b, p_a, p_b, rho_a, rho_b,
+                                               pos_diff, distance, W_a, correction)
 end
 
-# The inter-particle operator is also used for transport-velocity terms. It must
-# bypass boundary repulsion laws, which are physical forces rather than tensor
-# divergence or background-pressure operators.
-@inline function pressure_acceleration_interparticle(particle_system, neighbor_system,
-                                                     particle, neighbor,
-                                                     m_a, m_b, p_a, p_b, rho_a, rho_b,
-                                                     pos_diff, distance, W_a, correction)
-    # Without correction or with `AkinciFreeSurfaceCorrection`, the kernel gradient is
-    # symmetric, so call the symmetric version of the pressure acceleration formulation.
-    return pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
-                                                              p_a, p_b, W_a)
+# Evaluate the inter-particle formulation without dispatching to a physical boundary
+# force. TVF uses this for background pressure and tensor divergence.
+@inline function pressure_acceleration_interparticle(formulation::F, neighbor_system,
+                                                     neighbor, m_a, m_b, value_a, value_b,
+                                                     rho_a, rho_b, pos_diff, distance,
+                                                     W_a, correction) where {F}
+    # The gradients are antisymmetric, so the formulation only needs W_a.
+    return formulation(m_a, m_b, rho_a, rho_b, value_a, value_b, W_a)
 end
 
-# Formulation using asymmetric gradient formulation for corrections depending on local neighborhood.
-@inline function pressure_acceleration_interparticle(particle_system, neighbor_system,
-                                                     particle, neighbor,
-                                                     m_a, m_b, p_a, p_b, rho_a, rho_b,
-                                                     pos_diff,
-                                                     distance, W_a,
-                                                     correction::Union{KernelCorrection,
-                                                                       GradientCorrection,
-                                                                       BlendedGradientCorrection,
-                                                                       MixedKernelGradientCorrection})
+@inline function pressure_acceleration_interparticle(formulation::F, neighbor_system,
+                                                     neighbor, m_a, m_b, value_a, value_b,
+                                                     rho_a, rho_b, pos_diff, distance,
+                                                     W_a,
+                                                     ::AsymmetricKernelGradientCorrection) where {F}
     W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
-
-    # With correction, the kernel gradient is not necessarily symmetric, so call the
-    # asymmetric version of the pressure acceleration formulation.
-    return pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
-                                                              p_a, p_b, W_a, W_b)
+    return formulation(m_a, m_b, rho_a, rho_b, value_a, value_b, W_a, W_b)
 end
 
 # The last argument is the kernel gradient `W_b` of the neighbor if it has already been
@@ -193,4 +181,14 @@ end
     return pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
                                  m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff, distance,
                                  W_a, correction)
+end
+
+# The structure RHS has already computed the neighbor-side gradient from the
+# boundary model. Reuse it here instead of evaluating it again.
+@inline function pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
+                                       m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
+                                       distance, W_a, ::AsymmetricKernelGradientCorrection,
+                                       W_b::AbstractVector)
+    return pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
+                                                              p_a, p_b, W_a, W_b)
 end

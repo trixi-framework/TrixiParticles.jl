@@ -603,26 +603,51 @@ end
     A_a = rho_a * v_a * permutedims(delta_v_a)
     A_b = rho_b * v_b * permutedims(delta_v_b)
 
-    # The following term depends on the pressure acceleration formulation.
-    # See the large comment below. In the original paper (Adami et al., 2013), this is
-    #   (V_a^2 + V_b^2) / m_a * ((A_a + A_b) / 2) * ∇W_ab.
-    # With the most common pressure acceleration formulation, this is
-    #   m_b * (A_a + A_b) / (ρ_a * ρ_b) * ∇W_ab.
-    # In order to obtain this, we pass `p_a = A_a` and `p_b = A_b` to the
-    # inter-particle pressure operator, bypassing physical boundary repulsion.
-    dv_particle += pressure_acceleration_interparticle(system, neighbor_system, particle,
-                                                       neighbor,
-                                                       m_a, m_b, A_a, A_b, rho_a, rho_b,
-                                                       pos_diff, distance, grad_kernel,
-                                                       correction)
+    formulation = tvf_tensor_divergence_formulation(pressure_acceleration_formulation(system))
+    dv_particle += pressure_acceleration_interparticle(formulation, neighbor_system,
+                                                       neighbor, m_a, m_b, A_a, A_b,
+                                                       rho_a, rho_b, pos_diff, distance,
+                                                       grad_kernel, correction)
 
     return dv_particle
 end
 
-# The function above misuses the pressure acceleration function by passing a Matrix as `p_a`.
-# This doesn't work with `tensile_instability_control`, so we disable TIC in this case.
-@inline function tensile_instability_control(m_a, m_b, rho_a, rho_b, p_a::SMatrix, p_b, W_a)
-    return pressure_acceleration_continuity_density(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
+# Reuse the pair weights of the selected pressure discretization, but take the
+# positive divergence of A rather than the negative pressure gradient.
+struct TVFTensorDivergence{F}
+    pressure_formulation::F
+end
+
+@inline function (divergence::TVFTensorDivergence)(m_a, m_b, rho_a, rho_b, A_a, A_b, W_a)
+    return -divergence.pressure_formulation(m_a, m_b, rho_a, rho_b, A_a, A_b, W_a)
+end
+
+@inline function (divergence::TVFTensorDivergence)(m_a, m_b, rho_a, rho_b, A_a, A_b, W_a,
+                                                   W_b)
+    return -divergence.pressure_formulation(m_a, m_b, rho_a, rho_b, A_a, A_b, W_a, W_b)
+end
+
+@inline function tvf_tensor_divergence_formulation(pressure_formulation::F) where {F}
+    return TVFTensorDivergence(pressure_formulation)
+end
+
+@inline function tvf_tensor_divergence_formulation(::typeof(tensile_instability_control))
+    # Tensile instability control modifies scalar pressure only.
+    return tvf_tensor_divergence_formulation(pressure_acceleration_continuity_density)
+end
+
+@inline function tvf_tensor_divergence_formulation(::typeof(inter_particle_averaged_pressure))
+    return tvf_tensor_divergence_volume_weighted
+end
+
+@inline function tvf_tensor_divergence_volume_weighted(m_a, m_b, rho_a, rho_b, A_a, A_b,
+                                                       W_a)
+    # Adami et al. (2013), Eq. (8); Ramachandran & Puri (2019), Eq. (12).
+    # Unlike the pressure, the tensors use an arithmetic mean.
+    volume_a = m_a / rho_a
+    volume_b = m_b / rho_b
+    scale = (volume_a^2 + volume_b^2) / (2 * m_a)
+    return scale * ((A_a + A_b) * W_a)
 end
 
 @propagate_inbounds function continuity_equation_shifting_term(v_diff,
@@ -679,47 +704,16 @@ function update_shifting_inner!(system, shifting::TransportVelocityAdami,
 
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
-            # In the original paper (Adami et al., 2013), the transport velocity is applied
-            # as follows:
-            #   v_{1/2} = v_0 + Δt/2 * a,
-            # where a is the regular SPH acceleration term (pressure, viscosity, etc.).
-            #   r_1 = r_0 + Δt * (v_{1/2},
-            # where ̃v_{1/2} = v_{1/2} + Δt/2 * p_0 / m_a * \sum_b[ (V_a^2 + V_b^2) * ∇W_ab ]
-            # is the transport velocity.
-            # We call δv_{1/2} = ̃v_{1/2} - v_{1/2} the shifting velocity.
-            # We will call δv_{1/2} the shifting velocity, which is given by
-            #   δv = -Δt/2 * p_0 / m_a * \sum_b[ (V_a^2 + V_b^2) * ∇W_ab ],
-            # where p_0 is the background pressure, V_a = m_a / ρ_a, V_b = m_b / ρ_b.
-            # This term depends on the pressure acceleration formulation.
-            # In Zhang et al. (2017), the pressure acceleration term
-            #   m_b * (p_a / ρ_a^2 + p_b / ρ_b^2) * ∇W_ab
-            # is used. They consequently changed the shifting velocity to
-            #   δv = -Δt/2 * p_0 * \sum_b[ m_b * (1 / ρ_a^2 + 1 / ρ_b^2) * ∇W_ab ].
-            # We therefore use the inter-particle pressure operator to compute the
-            # shifting velocity according to the used pressure acceleration formulation.
-            # In most cases, this will be
-            #   δv = -Δt/2 * p_0 * \sum_b[ m_b * (1 + 1) / (ρ_a * ρ_b) * ∇W_ab ].
-            #
-            # In these papers, the shifting velocity is scaled by the time step Δt.
-            # We generally want the spatial discretization to be independent of the time step.
-            # Scaling the shifting velocity by the time step would lead to less shifting
-            # when very small time steps are used for testing/debugging purposes.
-            # This is especially problematic in TrixiParticles.jl, as the time step can vary
-            # significantly between different time integration methods (low vs high order).
-            # In order to eliminate the time step from the shifting velocity, we apply the
-            # CFL condition used in Adami et al. (2013):
-            #   Δt <= 0.25 * h / c,
-            # where h is the smoothing length and c is the sound speed.
-            # Applying this equation as equality yields the shifting velocity
-            #   δv = -p_0 / 8 * h / c * \sum_b[ m_b * (1 + 1) / (ρ_a * ρ_b) * ∇W_ab ].
-            # The last part is achieved by passing `p_a = 1` and `p_b = 1` to the
-            # inter-particle pressure operator, bypassing physical boundary repulsion.
+            # Adami et al. (2013) scale the background-pressure acceleration by Δt/2.
+            # Use their CFL estimate Δt = h/(4c) to make the shifting velocity independent
+            # of the integrator's time step. Apply the chosen pressure formulation at unit
+            # pressure and scale by p_0 * h/(8c), bypassing physical boundary repulsion.
+            formulation = pressure_acceleration_formulation(system)
             delta_v_ = background_pressure / 8 * h / sound_speed *
-                       pressure_acceleration_interparticle(system, neighbor_system,
-                                                           particle, neighbor,
-                                                           m_a, m_b, 1, 1, rho_a, rho_b,
-                                                           pos_diff,
-                                                           distance, grad_kernel,
+                       pressure_acceleration_interparticle(formulation, neighbor_system,
+                                                           neighbor, m_a, m_b, one(rho_a),
+                                                           one(rho_b), rho_a, rho_b,
+                                                           pos_diff, distance, grad_kernel,
                                                            system_correction(system))
 
             # Write into the buffer

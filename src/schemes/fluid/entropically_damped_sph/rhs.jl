@@ -162,9 +162,10 @@ end
     eta_b = rho_b * nu_edac
     eta_tilde = 2 * eta_a * eta_b / (eta_a + eta_b)
 
-    smoothing_length_average = (smoothing_length(particle_system, particle) +
-                                smoothing_length(neighbor_system, neighbor)) / 2
-    tmp = eta_tilde / (distance^2 + smoothing_length_average^2 / 100)
+    smoothing_length_diffusion = pressure_diffusion_smoothing_length(particle_system,
+                                                                     neighbor_system,
+                                                                     particle, neighbor)
+    tmp = eta_tilde / (distance^2 + smoothing_length_diffusion^2 / 100)
 
     # This formulation was introduced by Hu and Adams (2006). https://doi.org/10.1016/j.jcp.2005.09.001
     # They argued that the formulation is more flexible because of the possibility to formulate
@@ -183,4 +184,18 @@ end
     dv[ndims(particle_system) + 1, particle] += artificial_eos + damping_term
 
     return dv
+end
+
+@inline function pressure_diffusion_smoothing_length(particle_system, neighbor_system,
+                                                     particle, neighbor)
+    return (smoothing_length(particle_system, particle) +
+            smoothing_length(neighbor_system, neighbor)) / 2
+end
+
+@inline function pressure_diffusion_smoothing_length(particle_system,
+                                                     neighbor_system::Union{WallBoundarySystem{<:BoundaryModelMonaghanKajtar},
+                                                                            TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
+                                                     particle, neighbor)
+    # Repulsive particles have no hydrodynamic smoothing length of their own.
+    return smoothing_length(particle_system, particle)
 end

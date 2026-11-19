@@ -53,6 +53,11 @@ end
                                        particle, neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
                                        pos_diff, distance, grad_kernel, correction)
     (; K, beta, boundary_particle_spacing) = neighbor_system.boundary_model
+    h = smoothing_length(particle_system, particle)
+
+    # A coincident pair has no radial direction. A corrected fluid gradient can
+    # still be nonzero there, so only skip the repulsive acceleration.
+    distance < almostzero(h) && return zero(pos_diff)
 
     # This is `distance - boundary_particle_spacing` in the paper. This factor makes
     # the force grow infinitely close to the boundary, with a singularity where
@@ -68,23 +73,18 @@ end
 
     return K / beta^(ndims(particle_system) - 1) * pos_diff /
            (distance * distance_from_singularity) *
-           boundary_kernel(distance, smoothing_length(particle_system, particle))
+           boundary_kernel(distance, h)
 end
 
-# Repulsive particles have no hydrodynamic kernel of their own. Transport
-# operators use the reversed fluid gradient, not an elastic structure kernel or
-# the Monaghan-Kajtar repulsion law.
-@inline function pressure_acceleration_interparticle(particle_system,
+@inline function pressure_acceleration_interparticle(formulation::F,
                                                      neighbor_system::Union{WallBoundarySystem{<:BoundaryModelMonaghanKajtar},
                                                                             TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
-                                                     particle, neighbor, m_a, m_b, p_a, p_b,
+                                                     neighbor, m_a, m_b, value_a, value_b,
                                                      rho_a, rho_b, pos_diff, distance, W_a,
-                                                     correction::Union{KernelCorrection,
-                                                                       GradientCorrection,
-                                                                       BlendedGradientCorrection,
-                                                                       MixedKernelGradientCorrection})
-    return pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
-                                                              p_a, p_b, W_a, -W_a)
+                                                     ::AsymmetricKernelGradientCorrection) where {F}
+    # Repulsive particles have no hydrodynamic kernel. Use the reversed fluid gradient.
+    W_b = -W_a
+    return formulation(m_a, m_b, rho_a, rho_b, value_a, value_b, W_a, W_b)
 end
 
 @fastpow @inline function boundary_kernel(r, h)
