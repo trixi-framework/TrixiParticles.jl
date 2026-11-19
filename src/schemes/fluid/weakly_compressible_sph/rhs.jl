@@ -65,9 +65,8 @@ function interact!(dv, v_particle_system, u_particle_system,
 
             # The following call is equivalent to
             #     `p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)`
-            # Only when the neighbor system is a `WallBoundarySystem`
-            # or a `TotalLagrangianSPHSystem` with the boundary model `PressureMirroring`,
-            # this will return `p_b = p_a`, which is the pressure of the fluid particle.
+            # For boundaries and structures using `PressureMirroring`, this returns
+            # `p_b = p_a`, which is the pressure of the fluid particle.
             p_b = @inbounds neighbor_pressure(v_neighbor_system, neighbor_system,
                                               neighbor, p_a)
 
@@ -124,13 +123,16 @@ end
 # Note that this function is also used for the structure-fluid interaction to compute
 # the exact opposite pair force. When adding new terms here, make sure that they are
 # also valid for structure neighbors.
+# `grad_kernel_neighbor` is the kernel gradient of the neighbor for the asymmetric pressure
+# acceleration if it has already been computed, or `nothing` (see `pressure_acceleration`).
 @propagate_inbounds function add_momentum_equation(dv_particle,
                                                    particle_system::WeaklyCompressibleSPHSystem,
                                                    neighbor_system,
                                                    v_particle_system, v_neighbor_system,
                                                    particle, neighbor, pos_diff, distance,
                                                    grad_kernel, sound_speed, m_a, m_b,
-                                                   p_a, p_b, rho_a, rho_b, v_a, v_b)
+                                                   p_a, p_b, rho_a, rho_b, v_a, v_b,
+                                                   grad_kernel_neighbor=nothing)
     (; correction) = particle_system
 
     surface_tension_a = surface_tension_model(particle_system)
@@ -147,7 +149,8 @@ end
     dv_pressure = pressure_acceleration(particle_system, neighbor_system,
                                         particle, neighbor,
                                         m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                        distance, grad_kernel, correction)
+                                        distance, grad_kernel, correction,
+                                        grad_kernel_neighbor)
     dv_particle += dv_pressure * pressure_correction
 
     dv_particle = add_dv_viscosity(dv_particle, particle_system, neighbor_system,
@@ -175,7 +178,9 @@ end
 end
 
 @inline function neighbor_pressure(v_neighbor_system,
-                                   neighbor_system::WallBoundarySystem{<:BoundaryModelDummyParticles{PressureMirroring}},
+                                   neighbor_system::Union{WallBoundarySystem{<:BoundaryModelDummyParticles{PressureMirroring}},
+                                                          TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{PressureMirroring}},
+                                                          RigidBodySystem{<:BoundaryModelDummyParticles{PressureMirroring}}},
                                    neighbor, p_a)
     return p_a
 end
