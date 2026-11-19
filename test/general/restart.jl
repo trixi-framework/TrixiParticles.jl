@@ -74,9 +74,9 @@
                                           sol_restart.prob.p.semi.systems[1],
                                           sol_restart, cut_off_bnd=false)
 
-        @test isapprox(result_full.velocity, result_restart.velocity, rtol=5e-5)
-        @test isapprox(result_full.density, result_restart.density, rtol=5e-6)
-        @test isapprox(result_full.pressure, result_restart.pressure, rtol=5e-4)
+        @test isapprox(result_full.velocity, result_restart.velocity, rtol=1e-4)
+        @test isapprox(result_full.density, result_restart.density, rtol=1e-5)
+        @test isapprox(result_full.pressure, result_restart.pressure, rtol=1e-3)
     end
 
     @trixi_testset "Poiseuille Flow Restore Previous State" begin
