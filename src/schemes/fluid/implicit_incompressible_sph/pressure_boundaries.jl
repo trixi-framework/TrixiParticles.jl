@@ -111,6 +111,12 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
+@propagate_inbounds function predicted_velocity(system::WallBoundarySystem, particle)
+    # The continuity equation uses the physical wall velocity. The no-slip wall velocity
+    # is used for viscosity. Prescribed wall velocities are stored in the system cache.
+    return current_velocity(nothing, system, particle)
+end
+
 @propagate_inbounds function d_ii(system::AbstractBoundarySystem, particle)
     return zero(SVector{ndims(system), eltype(system)})
 end

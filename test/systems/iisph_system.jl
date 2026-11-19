@@ -296,6 +296,60 @@
         @test v0 == velocity
     end
 
+    @testset "Shepard-corrected wall density in the predictor" begin
+        kernel = SchoenbergCubicSplineKernel{2}()
+        h = 1.0
+        dt = 1e-3
+        rho = 1000.0
+        viscosity = ViscosityAdami(nu=0.1)
+        x = (0.0, 1.5, 1.75)
+        weights = [TrixiParticles.kernel(kernel, abs(a - b), h) for a in x, b in x]
+        masses = rho / (weights[1, 1] + 2weights[1, 2] + 3weights[1, 3]) .* [1, 2, 3]
+        raw_density = weights * masses
+        corrected_density = raw_density ./ (weights * (masses ./ raw_density))
+
+        function make_fluid()
+            ic = InitialCondition(; coordinates=zeros(2, 1), density=rho, mass=masses[1],
+                                  particle_spacing=h)
+            return ImplicitIncompressibleSPHSystem(ic; smoothing_kernel=kernel,
+                                                   smoothing_length=h,
+                                                   reference_density=rho,
+                                                   time_step=dt, viscosity)
+        end
+
+        function make_wall(i)
+            ic = InitialCondition(; coordinates=reshape([x[i], 0.0], 2, 1), density=rho,
+                                  mass=masses[i], particle_spacing=h)
+            model = BoundaryModelDummyParticles(ic.density, ic.mass, SummationDensity(),
+                                                kernel, h; viscosity,
+                                                correction=ShepardKernelCorrection())
+            motion = PrescribedMotion((coords, t) -> coords + SVector(0.0, t), t -> true)
+            return WallBoundarySystem(ic, model; prescribed_motion=motion)
+        end
+
+        @testset "wall_first=$wall_first" for wall_first in (false, true)
+            fluid = make_fluid()
+            walls = (make_wall(2), make_wall(3))
+            systems = wall_first ? (reverse(walls)..., fluid) : (fluid, walls...)
+            semi = Semidiscretization(systems...; parallelization_backend=SerialBackend())
+            ode = semidiscretize(semi, (0.0, 0.01))
+            v, u = ode.u0.x
+            dv = zero(v)
+
+            # Repeat the same ODE state to catch reuse of previously finalized wall data.
+            for _ in 1:2
+                TrixiParticles.kick!(dv, v, u, ode.p, 0.0)
+                acceleration = TrixiParticles.wrap_v(dv, fluid, ode.p.semi)[2, 1]
+                @test acceleration > 0
+                # Pressure acts in x only. Compare the viscous y component to prediction.
+                @test fluid.advection_velocity[2, 1] ≈ dt * acceleration
+                for (i, wall) in enumerate(walls)
+                    @test wall.boundary_model.cache.density[1] ≈ corrected_density[i + 1]
+                end
+            end
+        end
+    end
+
     # Validate helper routines that build the IISPH linear system and update pressures
     @trixi_testset "Solver helper calculations" begin
         smoothing_kernel = Val(:smoothing_kernel)

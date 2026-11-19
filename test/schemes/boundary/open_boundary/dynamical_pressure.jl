@@ -220,5 +220,23 @@
         @test !iszero(dv)
         @test dv ≈ interact_buffer_wall(p_buffer)
         @test dv ≈ interact_buffer_wall(2 * p_buffer)
+
+        # Reuse the same fluid and buffer geometry to check the no-slip wall velocity.
+        # The buffer and stationary fluid particle are at the same distance from the wall.
+        model = BoundaryModelDummyParticles(wall_ic.density, wall_ic.mass,
+                                            PressureZeroing(), smoothing_kernel,
+                                            smoothing_length; state_equation,
+                                            viscosity=ViscosityAdami(nu=0.1))
+        wall = WallBoundarySystem(wall_ic, model)
+        semi = Semidiscretization(fluid, wall, open_boundary;
+                                  parallelization_backend=SerialBackend())
+        ode = semidiscretize(semi, (0.0, 0.01))
+        v_ode, u_ode = ode.u0.x
+        (; semi) = ode.p
+        open_boundary = semi.systems[3]
+        v_open = TrixiParticles.wrap_v(v_ode, open_boundary, semi)
+        v_open[1:2, 1] .= (1.0, 0.5)
+        TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
+        @test model.cache.wall_velocity[:, 1] ≈ -SVector(1.0, 0.5) / 2
     end
 end

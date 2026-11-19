@@ -36,6 +36,13 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Fixed the no-slip wall velocity of `BoundaryModelDummyParticles` with `SummationDensity`,
+  `ContinuityDensity`, `PressureZeroing` and `PressureBoundaries`. Its previous zero value
+  gave incorrect shear at static and moving boundaries. IISPH now uses the no-slip wall
+  velocity for viscous forces and the physical wall velocity for density prediction, even
+  when wall viscosity is disabled. With wall viscosity and `AdamiPressureExtrapolation` or
+  `BernoulliPressureExtrapolation`, IISPH now requires `state_equation=nothing` to keep
+  the wall density fixed between prediction and the final force evaluation (#1361).
 - Fixed pressure mirroring for TLSPH and rigid-body neighbors and for EDAC momentum,
   pressure diffusion, and average-pressure reduction at walls and structures.
   With a boundary viscosity, `PressureMirroring` now computes the wall velocity of the

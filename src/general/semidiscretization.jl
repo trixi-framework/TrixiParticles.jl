@@ -124,6 +124,7 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
     # Other checks might be added here later.
     check_configuration(systems, neighborhood_search)
+    check_iisph_wall_viscosity(systems, interaction_matrix)
 
     sizes_u = [u_nvariables(system) * n_integrated_particles(system)
                for system in systems]
@@ -209,6 +210,15 @@ end
 
 @inline function has_system_interaction(system, neighbor_system, semi::Semidiscretization)
     return is_enabled_interaction(system_interaction(system, neighbor_system, semi))
+end
+
+@inline has_iisph_neighbor(system, semi) = false
+
+@inline function has_iisph_neighbor(system::WallBoundarySystem, semi::Semidiscretization)
+    return any(semi.systems) do neighbor
+        neighbor isa ImplicitIncompressibleSPHSystem &&
+            has_system_interaction(neighbor, system, semi)
+    end
 end
 
 @inline function system_interaction(system, neighbor_system, semi::Semidiscretization)
