@@ -218,7 +218,8 @@ and antisymmetric kernel gradients, the shift is
 \delta \bm{v}_a = - \frac{p_{\text{background}}}{8} \frac{h}{c_s}
 \sum_b \frac{2m_b}{\rho_a \rho_b} \nabla_a W_{ab},
 ```
-where ``h`` is the smoothing length and ``c_s`` is the speed of sound.
+where ``h`` is the smoothing length and ``c_s`` is the speed of sound. For the wall
+quadrature used with repulsive particles, see [Repulsive Particles](@ref).
 
 The inviscid momentum equation in conservative form, written with the transport velocity
 in the momentum flux, is
@@ -227,7 +228,9 @@ in the momentum flux, is
 = -\nabla p + \nabla\!\cdot\!\bm{A},
 ```
 where ``\bm{A} = \rho\bm{v}\otimes(\tilde{\bm{v}}-\bm{v})`` compensates for the use of
-``\tilde{\bm{v}}`` in place of ``\bm{v}`` in the momentum flux.
+``\tilde{\bm{v}}`` in place of ``\bm{v}`` in the momentum flux. The discrete tensor
+flux is zero across an impermeable wall or structure, including a moving one. Such
+neighbors can still contribute to the background-pressure shift.
 
 The volume-weighted discretization of the velocity equation used by
 [Ramachandran and Puri (2019)](@cite Ramachandran2019) (Eq. 12, omitting viscosity and body forces)

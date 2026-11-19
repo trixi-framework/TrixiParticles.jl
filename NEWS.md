@@ -38,7 +38,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Apply Monaghan-Kajtar repulsion once in the momentum equation and compute TVF shifting
   from the background-pressure gradient. Correct the TVF tensor term's sign and use an
-  arithmetic tensor average with the volume-weighted pressure formulation (#1344).
+  arithmetic tensor average with the volume-weighted pressure formulation. Impose zero
+  TVF momentum flux through solid walls, weight repulsive wall samples by surface area
+  for shifting, and exclude pressureless markers from the EDAC pressure average (#1344).
 - Fixed pressure mirroring for TLSPH and rigid-body neighbors and for EDAC momentum,
   pressure diffusion, and average-pressure reduction at walls and structures.
   With a boundary viscosity, `PressureMirroring` now computes the wall velocity of the

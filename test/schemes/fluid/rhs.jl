@@ -926,16 +926,13 @@
                 @test force_fluid ≈ first(expected_forces)
                 @test force_structure ≈ -sum(expected_forces)
 
-                # Prescribe a nonzero shift to check the signed tensor force independently
-                # of the background-pressure update above.
+                # No TVF momentum flux crosses the impermeable interface, even with
+                # a nonzero normal component of the shift and asymmetric gradients.
                 prescribed_shift = SVector(0.4, -0.3)
                 fluid.cache.delta_v .= prescribed_shift
                 shifted_fluid,
                 shifted_structure = pair_forces(fluid, structure, arrays, semi)
-                # With the structure at rest, the tensor force uses only the fluid gradient.
-                tensor_force = fluid.mass[1] * volume * velocity *
-                               dot(prescribed_shift, first(fluid_gradients))
-                @test shifted_fluid - force_fluid ≈ tensor_force
+                @test shifted_fluid == force_fluid
                 @test shifted_structure == force_structure
 
                 # The kernel gradient of the boundary model vanishes outside of its compact
@@ -959,8 +956,7 @@
         #
         # For rigid bodies, use `ContinuityDensity` and check that the boundary-density
         # derivative vanishes because it uses the uncorrected boundary gradient.
-        # For repulsive TLSPH particles, the radial force vanishes but TVF still uses
-        # the nonzero corrected fluid gradient for its tensor term.
+        # For repulsive TLSPH particles, both the radial force and wall tensor flux vanish.
         @testset "Coincident FSI pressure and boundary continuity" begin
             velocity = SVector(1.0, -0.5)
             density = 1005.0
@@ -1002,11 +998,8 @@
                     fluid.cache.kernel_correction_coefficient .= coefficient
                     fluid.cache.dw_gamma .= dw_gamma
                 end
-                # For repulsive pairs, a prescribed shift keeps the tensor force nonzero
-                # even though the physical force vanishes at overlap.
-                prescribed_shift = SVector(0.4, -0.3)
                 if monaghan_kajtar
-                    fluid.cache.delta_v .= prescribed_shift
+                    fluid.cache.delta_v .= SVector(0.4, -0.3)
                 end
                 (force_fluid, force_structure,
                  dv_structure) = pair_forces(fluid, structure, arrays, semi)
@@ -1018,12 +1011,7 @@
                 pressure_force = correction isa KernelCorrection && !monaghan_kajtar ?
                                  -pressure * volume^2 * fluid_gradient :
                                  zero(fluid_gradient)
-                tensor_force = monaghan_kajtar ?
-                               fluid.mass[1] * velocity *
-                               dot(prescribed_shift, fluid_gradient) :
-                               zero(fluid_gradient)
-                @test isapprox(force_fluid, pressure_force + tensor_force, rtol=1e-14,
-                               atol=1e-14)
+                @test isapprox(force_fluid, pressure_force, rtol=1e-14, atol=1e-14)
                 @test isapprox(force_structure, -pressure_force, rtol=1e-14, atol=1e-14)
 
                 if structure isa RigidBodySystem
@@ -1081,7 +1069,11 @@
 
                     fluid.cache.delta_v .= prescribed_shift
                     dv_shifted = fluid_pair_rhs(fluid, structure, arrays, semi)
-                    tensor_acceleration = dv_shifted[1:2, 1] - dv_unshifted[1:2, 1]
+                    if shifting_technique === tvf
+                        @test dv_shifted[1:2, 1] == dv_unshifted[1:2, 1]
+                    else # ParticleShiftingTechnique
+                        @test !isapprox(dv_shifted[1:2, 1], dv_unshifted[1:2, 1])
+                    end
 
                     if structure_type !== WallBoundarySystem
                         # Neither shifting technique may alter the structural load.
@@ -1117,13 +1109,6 @@
                                          grad_f
                         @test shift ≈ expected_shift
 
-                        # For WCSPH, the pair weight times rho_f is m_s/rho_s=1. For EDAC,
-                        # Eq. (12) of Ramachandran & Puri uses (A_f + A_s)/2, with A_s=0.
-                        tensor_scale = scheme == "WCSPH" ? 1.0 : volume_term * rho_f / 2
-                        @test tensor_acceleration ≈
-                              tensor_scale * velocity *
-                              dot(prescribed_shift, grad_f)
-
                         if scheme == "EDAC"
                             # The boundary has zero diffusive pressure flux. Only the acoustic
                             # contribution remains, independent of the fluid pressure offset.
@@ -1135,11 +1120,27 @@
                             @test fluid_pair_rhs(fluid, structure, arrays, semi) ≈
                                   dv_shifted
                         end
-                    else
-                        # Make sure the shifting terms act on the fluid for dummy particles.
-                        @test !isapprox(dv_shifted[1:2, 1], dv_unshifted[1:2, 1])
                     end
                 end
+            end
+        end
+
+        @testset "Net force under a common tangential velocity" begin
+            for speed in (0.0, 1.0)
+                velocity = SVector(0.0, speed)
+                fluid_system = create_fluid_system("WCSPH", velocity, fluid_density,
+                                                   nothing;
+                                                   shifting_technique=tvf)
+                solid_system = create_structure_system(TotalLagrangianSPHSystem, nothing;
+                                                       velocity, monaghan_kajtar=true)
+                fluid, solid, arrays, semi, _ = initialize(fluid_system, solid_system)
+                # The background-pressure shift is normal to the interface. A common
+                # tangential boost must not turn it into a tangential force.
+                @test !iszero(TrixiParticles.delta_v(fluid, 1)[1])
+                f, reaction, _ = pair_forces(fluid, solid, arrays, semi)
+                @test f[1] < 0
+                @test iszero(f[2])
+                @test f ≈ -reaction
             end
         end
     end

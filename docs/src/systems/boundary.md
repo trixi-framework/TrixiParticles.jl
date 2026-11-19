@@ -266,12 +266,51 @@ simulation. When a boundary density is needed, it is computed from the boundary
 hydrodynamic mass and boundary particle spacing as ``m_b / d^n``.
 Repulsive particles have no hydrodynamic pressure state. [EDAC](@ref edac) imposes zero
 normal pressure-diffusion flux at these particles and retains the acoustic contribution to
-the pressure evolution.
+the pressure evolution. It excludes them from both the sum and the count when computing
+the local average pressure.
 
 With the [Transport Velocity Formulation](@ref transport_velocity_formulation), repulsion
-contributes only to the physical momentum equation. The tensor term and background-pressure
-shifting use the fluid's SPH kernel gradient instead. If a correction requires a second
-gradient, the fluid-side gradient is negated to supply it.
+contributes only to the physical momentum equation. There is no transport of momentum
+across the impermeable wall. The background-pressure shift uses the fluid's kernel gradient
+(and its negative if the operator requires a second gradient).
+
+### Surface quadrature for the background-pressure shift
+
+The SPH pressure operator takes a **volume** per neighbor, but the repulsive markers
+sample a **surface**: a line in 2D or a surface patch in 3D. Let
+``\Delta x_{\mathrm{fluid}}=\beta d`` be the nominal fluid spacing. When the wall and
+fluid spacings match (``\beta=1``), the shift uses the marker's hydrodynamic mass ``m_b``
+and weight one. Refining only the wall keeps the volume in the pair operator fixed at
+``(\Delta x_{\mathrm{fluid}})^n`` and divides the weight among the markers sampling
+the same wall patch.
+
+`tvf_shifting_quadrature` returns two quantities. The first sets the neighbor volume *inside*
+the pair operator; the second weights its result in the surface sum:
+```math
+m_{\mathrm{ref}} = \rho_b (\Delta x_{\mathrm{fluid}})^n = \beta^n m_b, \qquad
+w_b = \left(\frac{d}{\Delta x_{\mathrm{fluid}}}\right)^{n-1} = \beta^{-(n-1)}.
+```
+The mass relation follows from ``\rho_b=m_b/d^n``. The weight is the ratio of the wall
+patch sampled by a marker to the patch sampled at matched spacing. For example,
+halving ``d`` at fixed fluid spacing in 3D puts four times as
+many markers on the same wall patch. At fixed density the reference mass stays the same,
+and each marker carries one quarter of its former weight.
+
+For the default volume-weighted EDAC operator, let ``V_a=m_a/\rho_a``. At unit pressure,
+the wall contribution to the pair sum is
+```math
+\bm{g}_{a,\mathrm{wall}}^{(1)} =
+-\sum_{b\in\mathrm{wall}} w_b\,\frac{V_a^2+(\Delta x_{\mathrm{fluid}})^{2n}}{m_a}\,\nabla_a W_{ab}
+= -\frac{V_a^2+(\Delta x_{\mathrm{fluid}})^{2n}}{m_a (\Delta x_{\mathrm{fluid}})^{n-1}}
+  \sum_{b\in\mathrm{wall}} \nabla_a W_{ab}\,d^{n-1}.
+```
+The last sum is a quadrature for the surface integral of the kernel gradient: at fixed
+fluid resolution, refining the wall changes the sampling, while the prefactor stays
+fixed. The wall contribution to the shifting velocity is
+``\delta\bm{v}_{a,\mathrm{wall}} = [p_{\mathrm{background}}h/(8c_s)]\bm{g}_{a,\mathrm{wall}}^{(1)}``.
+This example also explains why the helper returns two factors: passing ``w_b m_{\mathrm{ref}}``
+as the mass would leave the ``V_a^2`` term unweighted and scale the neighbor's squared
+volume by ``w_b^2`` instead of ``w_b``.
 
 ### No-slip condition
 

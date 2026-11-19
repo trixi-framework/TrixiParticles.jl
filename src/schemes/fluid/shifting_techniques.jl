@@ -618,6 +618,13 @@ end
                                              neighbor,
                                              m_a, m_b, rho_a, rho_b, v_a, v_b, pos_diff,
                                              distance, grad_kernel, correction)
+    # A is a flux of fluid momentum. Its normal flux through an impermeable
+    # interface is zero in the wall frame, including for a moving structure.
+    # Setting only A_b = 0 would still transport momentum through the wall via A_a.
+    if neighbor_system isa Union{AbstractBoundarySystem, AbstractStructureSystem}
+        return dv_particle
+    end
+
     delta_v_a = delta_v(system, particle)
     delta_v_b = delta_v(neighbor_system, neighbor)
 
@@ -701,6 +708,20 @@ function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
     end
 end
 
+"""
+    tvf_shifting_quadrature(neighbor_system, m_b) -> (quadrature_mass, weight)
+
+For the TVF background-pressure shift, evaluate the unit-pressure pair acceleration
+using `quadrature_mass` in the neighbor mass slot and the original neighbor density.
+Multiply the resulting vector by `weight`. For bulk neighbors, use their hydrodynamic
+mass `m_b` and weight one. For a Monaghan–Kajtar wall, the mass sets the nominal volume
+in the pair operator. The weight accounts for the wall length (2D) or area (3D)
+represented by the marker.
+The weight multiplies the whole pair acceleration because that acceleration need not
+be linear in the neighbor mass.
+"""
+@inline tvf_shifting_quadrature(neighbor_system, m_b) = (m_b, one(m_b))
+
 function update_shifting_inner!(system, shifting::TransportVelocityAdami,
                                 v, u, v_ode, u_ode, semi)
     (; delta_v) = system.cache
@@ -771,11 +792,13 @@ function update_shifting_inner!(system, shifting::TransportVelocityAdami,
             # The last part is achieved by passing `p_a = 1` and `p_b = 1` to
             # `pressure_acceleration_interparticle`, which bypasses physical boundary repulsion.
             formulation = pressure_acceleration_formulation(system)
-            delta_v_ = background_pressure / 8 * h / sound_speed *
+            quadrature_mass, weight = tvf_shifting_quadrature(neighbor_system, m_b)
+            delta_v_ = background_pressure / 8 * h / sound_speed * weight *
                        pressure_acceleration_interparticle(formulation, neighbor_system,
-                                                           neighbor, m_a, m_b, one(rho_a),
-                                                           one(rho_b), rho_a, rho_b,
-                                                           pos_diff, distance, grad_kernel,
+                                                           neighbor, m_a, quadrature_mass,
+                                                           one(rho_a), one(rho_b), rho_a,
+                                                           rho_b, pos_diff, distance,
+                                                           grad_kernel,
                                                            system_correction(system))
 
             # Write into the buffer
