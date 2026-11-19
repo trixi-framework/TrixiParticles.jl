@@ -21,31 +21,24 @@ end
 # of a fluid with an asymmetric corrected kernel gradient.
 # It is `nothing` when the pressure acceleration doesn't require it.
 @inline function boundary_pressure_kernel_grad(fluid_correction, particle_system,
-                                               pos_diff, distance, particle)
+                                               pos_diff, distance, particle, W_a)
     return nothing
 end
 
 @inline function boundary_pressure_kernel_grad(::AsymmetricKernelGradientCorrection,
                                                particle_system::Union{TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
                                                                       RigidBodySystem{<:BoundaryModelDummyParticles}},
-                                               pos_diff, distance, particle)
-    # Use the boundary model's kernel, smoothing length and correction, not the
-    # TLSPH kernel used for solid mechanics.
-    return smoothing_kernel_grad(particle_system.boundary_model, pos_diff, distance,
-                                 particle)
+                                               pos_diff, distance, particle, W_a)
+    return neighbor_pressure_kernel_grad(particle_system, pos_diff, distance, particle, W_a)
 end
 
-@inline function pressure_acceleration_interparticle(formulation::F,
-                                                     neighbor_system::Union{TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
-                                                                            RigidBodySystem{<:BoundaryModelDummyParticles}},
-                                                     neighbor, m_a, m_b, value_a, value_b,
-                                                     rho_a, rho_b, pos_diff, distance, W_a,
-                                                     correction::AsymmetricKernelGradientCorrection) where {F}
-    # W_a uses the fluid particle's kernel and correction. W_b is evaluated at the
-    # structure particle using its boundary model and the structure-first displacement.
-    W_b = boundary_pressure_kernel_grad(correction, neighbor_system, -pos_diff, distance,
-                                        neighbor)
-    return formulation(m_a, m_b, rho_a, rho_b, value_a, value_b, W_a, W_b)
+@inline function neighbor_pressure_kernel_grad(neighbor_system::Union{TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
+                                                                      RigidBodySystem{<:BoundaryModelDummyParticles}},
+                                               pos_diff, distance, neighbor, W_a)
+    # Use the boundary model's kernel, smoothing length and correction, not the
+    # TLSPH kernel used for solid mechanics.
+    return smoothing_kernel_grad(neighbor_system.boundary_model, pos_diff, distance,
+                                 neighbor)
 end
 
 # Both FSI directions must find the same particle pairs and use matching boundary and
@@ -168,7 +161,8 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         # passed to the boundary model in the fluid-structure interaction.
         grad_kernel_boundary = boundary_pressure_kernel_grad(system_correction(neighbor_system),
                                                              particle_system, pos_diff,
-                                                             distance, particle)
+                                                             distance, particle,
+                                                             grad_kernel_fluid)
 
         # Compute the acceleration of the fluid particle due to the structure particle
         # with the exact same function as in the fluid-structure interaction.

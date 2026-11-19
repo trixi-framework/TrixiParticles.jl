@@ -171,8 +171,14 @@ end
     # These corrections depend on the local neighborhood and can break gradient
     # antisymmetry. Call the asymmetric formulation with both gradients, evaluating
     # W_b at the neighbor with the reversed displacement.
-    W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
+    W_b = neighbor_pressure_kernel_grad(neighbor_system, -pos_diff, distance, neighbor,
+                                        W_a)
     return formulation(m_a, m_b, rho_a, rho_b, value_a, value_b, W_a, W_b)
+end
+
+@inline function neighbor_pressure_kernel_grad(neighbor_system, pos_diff, distance,
+                                               neighbor, W_a)
+    return smoothing_kernel_grad(neighbor_system, pos_diff, distance, neighbor)
 end
 
 # The last argument is the kernel gradient `W_b` of the neighbor if it has already been
