@@ -176,10 +176,8 @@ of a system that supports it.
 
 ## [Transport Velocity Formulation (TVF)](@id transport_velocity_formulation)
 
-An alternative formulation is the so-called Transport Velocity Formulation (TVF)
-by [Adami (2013)](@cite Adami2013).
-[Ramachandran (2019)](@cite Ramachandran2019) applied the TVF also for the [EDAC](@ref edac)
-scheme.
+[Adami et al. (2013)](@cite Adami2013) introduced the transport velocity formulation (TVF).
+[Ramachandran and Puri (2019)](@cite Ramachandran2019) adapted it for [EDAC](@ref edac).
 
 The transport velocity ``\tilde{v}_a`` of particle ``a`` is used to evolve the position
 of the particle ``r_a`` from one time step to the next by
@@ -192,43 +190,48 @@ and is obtained at every time step ``\Delta t`` from
 ```
 where ``\rho_a`` is the density of particle ``a`` and ``p_{\text{background}}``
 is a constant background pressure field.
-The tilde in the second term of the right-hand side indicates that the material derivative
-has an advection part.
+The tilde on the material derivative indicates advection with the transport velocity.
 
 In the literature, the discretized form of the last term is
 ```math
  -\frac{1}{\rho_a} \nabla p_{\text{background}} \approx  -\frac{p_{\text{background}}}{m_a} \sum_b \left(V_a^2 + V_b^2 \right) \nabla_a W_{ab},
 ```
 where ``V_a`` and ``V_b`` denote the particle volumes of particles ``a`` and ``b`` respectively.
-Note that although in the continuous case ``\nabla p_{\text{background}} = 0``,
-the discretization is not 0th-order consistent for non-uniform particle distributions.
-This means that a non-vanishing contribution appears only when the particles are disordered,
-so ``p_{\text{background}}`` acts as a prefactor that regularizes the trajectories and promotes
-more uniform particle distributions.
+Although ``\nabla p_{\text{background}} = 0`` in the continuum, the discrete gradient can
+be nonzero when the kernel-gradient contributions do not cancel. This can happen in a
+disordered particle distribution or where kernel support is incomplete near a boundary.
+The background pressure scales the resulting shift, which promotes a more uniform
+particle distribution.
 
-TrixiParticles.jl evaluates this term with the selected pressure-acceleration operator.
-For the default [`ContinuityDensity`](@ref) pressure acceleration and the CFL estimate
-used by [Adami et al. (2013)](@cite Adami2013),
+TrixiParticles.jl evaluates the selected inter-particle pressure operator at unit pressure,
+bypassing physical boundary forces. The shift in the half-step update of
+[Adami et al. (2013)](@cite Adami2013) is the background-pressure acceleration multiplied
+by ``\Delta t/2``. To make the shift independent of the integrator's time step, use the
+acoustic CFL estimate
 ```math
 \Delta t \leq \frac{1}{4} \frac{h}{c_s},
 ```
-used as an equality, this gives
+as an equality. This gives a prefactor of ``p_{\text{background}} h/(8c_s)`` for the
+unit-pressure operator. For the default [`ContinuityDensity`](@ref) pressure formulation
+and antisymmetric kernel gradients, the shift is
 ```math
 \delta \bm{v}_a = - \frac{p_{\text{background}}}{8} \frac{h}{c_s}
 \sum_b \frac{2m_b}{\rho_a \rho_b} \nabla_a W_{ab},
 ```
 where ``h`` is the smoothing length and ``c_s`` is the speed of sound.
 
-The inviscid momentum equation with an additional convection term for a particle
-moving with ``\tilde{v}`` is
+The inviscid momentum equation in conservative form, written with the transport velocity
+in the momentum flux, is
 ```math
-\frac{\tilde{\mathrm{d}} \left( \rho v \right)}{\mathrm{d}t} = -\nabla p +  \nabla \cdot \bm{A},
+\partial_t(\rho\bm{v}) + \nabla\!\cdot\!\left(\rho\bm{v}\otimes\tilde{\bm{v}}\right)
+= -\nabla p + \nabla\!\cdot\!\bm{A},
 ```
-where the tensor ``\bm{A} = \rho v\left(\tilde{v}-v\right)^T`` is a consequence
-of the modified advection velocity and can be interpreted as the convection of momentum
-with the relative velocity ``\tilde{v}-v``.
+where ``\bm{A} = \rho\bm{v}\otimes(\tilde{\bm{v}}-\bm{v})`` compensates for the use of
+``\tilde{\bm{v}}`` in place of ``\bm{v}`` in the momentum flux.
 
-The discretized form of the momentum equation for a particle ``a`` reads
+The volume-weighted discretization of the velocity equation used by
+[Ramachandran and Puri (2019)](@cite Ramachandran2019) (Eq. 12, omitting viscosity and body forces)
+is
 ```math
 \frac{\tilde{\mathrm{d}} v_a}{\mathrm{d}t}
 = \frac{1}{m_a} \sum_b \left(V_a^2 + V_b^2 \right)
@@ -258,7 +261,11 @@ Here, for example,
 ```
 
 To apply the TVF, use the keyword argument `shifting_technique` in the constructor
-of a system that supports it.
+of a system that supports it. With `TransportVelocityAdami`, a custom `pressure_acceleration`
+callable must also accept `SMatrix` arguments in both pressure slots, with the same gradient
+arguments as its scalar method. The tensor method must apply the pair weights linearly to
+those arguments and return an acceleration vector. Scalar-only operations such as pressure
+clipping must not be applied to the tensors.
 
 ```@autodocs
 Modules = [TrixiParticles]

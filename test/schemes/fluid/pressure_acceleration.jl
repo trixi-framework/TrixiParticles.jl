@@ -65,4 +65,38 @@
                                                                                                           correction_dict_2[correction_name])
         end
     end
+
+    @testset "Custom pressure formulations with TVF" begin
+        initial_condition = InitialCondition(coordinates=zeros(2, 1), density=1000.0,
+                                             particle_spacing=1.0)
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        sound_speed = 10.0
+        state_equation = StateEquationCole(; sound_speed, reference_density=1000.0,
+                                           exponent=1)
+        shifting_technique = TransportVelocityAdami(background_pressure=100.0)
+
+        linear_pressure(args...) = TrixiParticles.pressure_acceleration_continuity_density(args...)
+        scalar_pressure(m_a, m_b, rho_a, rho_b, p_a::Real, p_b::Real,
+                        gradients...) = linear_pressure(m_a, m_b, rho_a, rho_b, p_a, p_b,
+                                                        gradients...)
+
+        error = ArgumentError("`TransportVelocityAdami` requires a custom pressure " *
+                              "acceleration formulation to accept `SMatrix` tensors in " *
+                              "the pressure arguments for the selected correction.")
+        constructors = ((WeaklyCompressibleSPHSystem, (; state_equation)),
+                        (EntropicallyDampedSPHSystem, (; sound_speed)))
+        for (constructor, kwargs) in constructors,
+            correction in (nothing, GradientCorrection())
+            parameters = (; smoothing_kernel, smoothing_length=1.0, correction,
+                          density_calculator=ContinuityDensity(), kwargs...)
+            @test_nowarn constructor(initial_condition; parameters...,
+                                     pressure_acceleration=scalar_pressure)
+            @test_throws error constructor(initial_condition; parameters...,
+                                           pressure_acceleration=scalar_pressure,
+                                           shifting_technique)
+            @test_nowarn constructor(initial_condition; parameters...,
+                                     pressure_acceleration=linear_pressure,
+                                     shifting_technique)
+        end
+    end
 end

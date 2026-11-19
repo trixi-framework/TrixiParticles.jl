@@ -136,6 +136,8 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
                                                                      density_calculator,
                                                                      NDIMS, ELTYPE,
                                                                      correction)
+    check_tvf_pressure_formulation(shifting_technique, pressure_acceleration, NDIMS,
+                                   ELTYPE, correction)
 
     avg_pressure_reduction = Val(average_pressure_reduction)
 

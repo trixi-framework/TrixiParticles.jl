@@ -263,6 +263,50 @@
         end
     end
 
+    @testset "Signed TVF tensor force between fluid particles" begin
+        coordinates = [0.0 1.5; 0.0 0.0]
+        velocity = [2.0 0.5; -1.0 1.5]
+        mass = [900.0, 1350.0]
+        density = [900.0, 1200.0]
+        initial_condition = InitialCondition(; coordinates, velocity, mass, density,
+                                             particle_spacing=1.0)
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        sound_speed = 10.0
+        state_equation = StateEquationCole(; sound_speed, reference_density=1000.0,
+                                           exponent=1)
+        kwargs = (; smoothing_kernel, smoothing_length=1.0,
+                  density_calculator=ContinuityDensity(),
+                  shifting_technique=TransportVelocityAdami(background_pressure=100.0))
+        wcsph = WeaklyCompressibleSPHSystem(initial_condition; state_equation, kwargs...)
+        edac = EntropicallyDampedSPHSystem(initial_condition; sound_speed,
+                                           average_pressure_reduction=false, kwargs...)
+        wcsph.pressure .= 0.0
+        semi = DummySemidiscretization()
+        prescribed_shift = [0.4 -0.3; -0.2 0.5]
+
+        # The cubic-spline gradient points from particle 1 towards particle 2.
+        # Contract each tensor with that gradient; both contractions are nonzero.
+        grad_x = 15 / (56pi)
+        tensor_gradient = sum(density[b] * prescribed_shift[1, b] * grad_x * velocity[:, b]
+                              for b in 1:2)
+        wcsph_weight = prod(mass) / prod(density)
+        edac_weight = sum(abs2, mass ./ density) / 2
+
+        for (system, weight) in ((wcsph, wcsph_weight), (edac, edac_weight))
+            v = system isa EntropicallyDampedSPHSystem ?
+                vcat(velocity, zeros(1, 2), density') : vcat(velocity, density')
+            system.cache.delta_v .= prescribed_shift
+            dv = zero(v)
+            TrixiParticles.interact!(dv, v, coordinates, v, coordinates, system, system,
+                                     semi)
+
+            force_a = mass[1] * dv[1:2, 1]
+            force_b = mass[2] * dv[1:2, 2]
+            @test force_a ≈ weight * tensor_gradient
+            @test force_b ≈ -force_a
+        end
+    end
+
     # The force that a structure particle experiences from a fluid particle must be
     # exactly the opposite of the force that the fluid particle experiences from the
     # structure particle, except for the extra terms of shifting techniques in the momentum
@@ -1071,15 +1115,16 @@
                 @test dv_fluid[1:2, 1] - repulsion ≈ tensor_acceleration
 
                 if scheme == "EDAC"
-                    # Pressure diffusion at a repulsive particle uses the fluid length,
-                    # even when there is no neighbor kernel or its elastic length differs.
-                    viscosity = sound_speed * smoothing_length / 16
-                    eta = 2 * rho_f * fluid_density / (rho_f + fluid_density) * viscosity
+                    # The boundary has zero diffusive pressure flux. Only the acoustic
+                    # contribution remains, independent of the fluid pressure offset.
                     acoustic = rho_f * sound_speed^2 * dot(velocity, grad_f)
-                    diffusion = -volume_term * eta * state_equation(rho_f) * 1.5 *
-                                grad_f[1] /
-                                (1.5^2 + smoothing_length^2 / 100)
-                    @test dv_fluid[3, 1] ≈ acoustic + diffusion
+                    @test dv_fluid[3, 1] ≈ acoustic
+
+                    v_fluid[3, 1] += 100.0
+                    dv_offset = zero(v_fluid)
+                    TrixiParticles.interact!(dv_offset, v_fluid, u_fluid, v_structure,
+                                             u_structure, fluid, structure, semi)
+                    @test dv_offset ≈ dv_fluid
                 end
 
                 if structure_type === TotalLagrangianSPHSystem

@@ -26,10 +26,12 @@
     end
 
     @trixi_testset "Poiseuille Flow Half-Simulation Restart" begin
+        save_dt = 0.02
         # Run full simulation
         trixi_include(@__MODULE__,
                       joinpath(examples_dir(), "fluid", "poiseuille_flow_2d.jl"),
                       tspan=(0.0, 0.6), sound_speed_factor=10, particle_spacing=4e-5,
+                      saving_callback=SolutionSavingCallback(dt=save_dt),
                       info_callback=nothing, sol=nothing)
 
         sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
@@ -49,6 +51,7 @@
         trixi_include(@__MODULE__,
                       joinpath(examples_dir(), "fluid", "poiseuille_flow_2d.jl"),
                       tspan=(0.0, 0.3), sound_speed_factor=10, particle_spacing=4e-5,
+                      saving_callback=SolutionSavingCallback(dt=save_dt),
                       info_callback=nothing, sol=nothing)
 
         sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
@@ -64,8 +67,13 @@
                                      restart_with=(fluid_restart, open_boundary_restart,
                                                    boundary_restart))
 
-        sol_restart = solve(ode_restart, CarpenterKennedy2N54(williamson_condition=false),
-                            dt=1.0, save_everystep=false,
+        # The saving callback forces steps at these times in the full run. Match its
+        # step stops without writing another set of restart files.
+        t_start, t_end = ode_restart.tspan
+        save_times = save_dt .* (1:ceil(Int, t_end / save_dt))
+        tstops = filter(t -> t_start < t < t_end, save_times)
+        sol_restart = solve(ode_restart, CarpenterKennedy2N54(williamson_condition=false);
+                            dt=1.0, save_everystep=false, tstops,
                             callback=CallbackSet(UpdateCallback(),
                                                  StepsizeCallback(cfl=1.5)))
 

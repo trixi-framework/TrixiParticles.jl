@@ -589,6 +589,29 @@ struct TransportVelocityAdami{modify_continuity_equation, T <: Real} <:
     end
 end
 
+check_tvf_pressure_formulation(shifting, formulation, NDIMS, ELTYPE, correction) = nothing
+
+function check_tvf_pressure_formulation(::TransportVelocityAdami, formulation, NDIMS,
+                                        ELTYPE, correction)
+    tensor_formulation = tvf_tensor_divergence_formulation(formulation)
+    tensor_formulation isa TVFTensorDivergence || return nothing
+
+    tensor_type = SMatrix{NDIMS, NDIMS, ELTYPE, NDIMS^2}
+    gradient_type = SVector{NDIMS, ELTYPE}
+    arg_types = (ELTYPE, ELTYPE, ELTYPE, ELTYPE, tensor_type, tensor_type, gradient_type)
+    if correction isa AsymmetricKernelGradientCorrection
+        arg_types = (arg_types..., gradient_type)
+    end
+
+    if !hasmethod(tensor_formulation.pressure_formulation, Tuple{arg_types...})
+        throw(ArgumentError("`TransportVelocityAdami` requires a custom pressure " *
+                            "acceleration formulation to accept `SMatrix` tensors in " *
+                            "the pressure arguments for the selected correction."))
+    end
+
+    return nothing
+end
+
 @propagate_inbounds function add_dv_shifting(dv_particle, ::TransportVelocityAdami,
                                              system, neighbor_system,
                                              v_system, v_neighbor_system, particle,

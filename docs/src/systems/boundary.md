@@ -264,8 +264,9 @@ where ``g`` is the gravitational acceleration and ``D`` is the depth of the flui
 The viscosity ``\Pi_{ab}`` is calculated according to the viscosity used in the
 simulation. When a boundary density is needed, it is computed from the boundary
 hydrodynamic mass and boundary particle spacing as ``m_b / d^n``.
-[EDAC](@ref edac) uses the fluid smoothing length to regularize pressure diffusion at these
-particles, since they have no hydrodynamic smoothing length of their own.
+Repulsive particles have no hydrodynamic pressure state. [EDAC](@ref edac) imposes zero
+normal pressure-diffusion flux at these particles and retains the acoustic contribution to
+the pressure evolution.
 
 With the [Transport Velocity Formulation](@ref transport_velocity_formulation), repulsion
 contributes only to the physical momentum equation. The tensor term and background-pressure
