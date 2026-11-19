@@ -82,12 +82,11 @@ boundary_density_calculator = AdamiPressureExtrapolation()
 wall_viscosity = nu
 
 # Clip negative boundary pressure values to avoid sticking artifacts at the boundary.
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+boundary_model = BoundaryModelDummyParticles(tank.boundary;
+                                             fluid_system=sphere_surface_tension,
                                              boundary_density_calculator,
-                                             fluid_smoothing_kernel, fluid_smoothing_length;
                                              state_equation,
                                              viscosity=ViscosityAdami(nu=wall_viscosity),
-                                             reference_particle_spacing=fluid_particle_spacing,
                                              clip_negative_pressure=true)
 
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model;
