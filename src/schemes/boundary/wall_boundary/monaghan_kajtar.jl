@@ -87,9 +87,8 @@ end
     return -W_a
 end
 
-@inline function tvf_shifting_quadrature(system::Union{WallBoundarySystem{<:BoundaryModelMonaghanKajtar},
-                                                       TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
-                                         m_b)
+@inline function tvf_shifting_quadrature_factors(system::Union{WallBoundarySystem{<:BoundaryModelMonaghanKajtar},
+                                                               TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}})
     # Let d be the wall marker spacing and dx_fluid = beta*d the nominal fluid spacing.
     # At matched spacing (beta=1), use the marker's hydrodynamic mass m_b and weight 1.
     # When refining the wall, keep the volume used in the pair operator at dx_fluid^D.
@@ -98,7 +97,7 @@ end
     # Halving d in 3D gives four times as many markers on that patch, each contributing
     # one quarter of its former weight at its own kernel gradient.
     beta = system.boundary_model.beta
-    return m_b * beta^ndims(system), inv(beta^(ndims(system) - 1))
+    return beta^ndims(system), inv(beta^(ndims(system) - 1))
 end
 
 @inline contributes_to_pressure_average(::Union{WallBoundarySystem{<:BoundaryModelMonaghanKajtar},

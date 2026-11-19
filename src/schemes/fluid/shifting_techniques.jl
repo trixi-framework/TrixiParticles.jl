@@ -709,18 +709,22 @@ function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
 end
 
 """
-    tvf_shifting_quadrature(neighbor_system, m_b) -> (quadrature_mass, weight)
+    tvf_shifting_quadrature_factors(neighbor_system)
 
-For the TVF background-pressure shift, evaluate the unit-pressure pair acceleration
-using `quadrature_mass` in the neighbor mass slot and the original neighbor density.
-Multiply the resulting vector by `weight`. For bulk neighbors, use their hydrodynamic
-mass `m_b` and weight one. For a Monaghan–Kajtar wall, the mass sets the nominal volume
-in the pair operator. The weight accounts for the wall length (2D) or area (3D)
-represented by the marker.
-The weight multiplies the whole pair acceleration because that acceleration need not
-be linear in the neighbor mass.
+Return the mass factor and weight for the TVF background-pressure shift, or `nothing`
+if the pair operator uses the original neighbor mass and unit weight. For a
+Monaghan–Kajtar wall, the mass factor sets the nominal volume in the pair operator.
+The weight accounts for the wall length (2D) or area (3D) represented by the marker.
+It multiplies the whole pair acceleration, which need not be linear in the neighbor mass.
 """
-@inline tvf_shifting_quadrature(neighbor_system, m_b) = (m_b, one(m_b))
+@inline tvf_shifting_quadrature_factors(neighbor_system) = nothing
+
+@inline tvf_shifting_quadrature(::Nothing, m_b) = (m_b, one(m_b))
+
+@inline function tvf_shifting_quadrature(factors::Tuple, m_b)
+    mass_factor, weight = factors
+    return m_b * mass_factor, weight
+end
 
 function update_shifting_inner!(system, shifting::TransportVelocityAdami,
                                 v, u, v_ode, u_ode, semi)
@@ -740,6 +744,7 @@ function update_shifting_inner!(system, shifting::TransportVelocityAdami,
 
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
+        quadrature_factors = tvf_shifting_quadrature_factors(neighbor_system)
 
         foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                                semi;
@@ -792,7 +797,7 @@ function update_shifting_inner!(system, shifting::TransportVelocityAdami,
             # The last part is achieved by passing `p_a = 1` and `p_b = 1` to
             # `pressure_acceleration_interparticle`, which bypasses physical boundary repulsion.
             formulation = pressure_acceleration_formulation(system)
-            quadrature_mass, weight = tvf_shifting_quadrature(neighbor_system, m_b)
+            quadrature_mass, weight = tvf_shifting_quadrature(quadrature_factors, m_b)
             delta_v_ = background_pressure / 8 * h / sound_speed * weight *
                        pressure_acceleration_interparticle(formulation, neighbor_system,
                                                            neighbor, m_a, quadrature_mass,
