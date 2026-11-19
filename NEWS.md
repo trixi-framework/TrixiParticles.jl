@@ -14,6 +14,10 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - The smoothing kernel and smoothing length of a `BoundaryModelDummyParticles` of a
   `TotalLagrangianSPHSystem` or `RigidBodySystem` must now be the same as those of all
   fluid systems in the simulation (#1338, #1348).
+- A `BoundaryModelDummyParticles` with `SummationDensity` is no longer accepted for a
+  `TotalLagrangianSPHSystem` or `RigidBodySystem`. The boundary density was never computed
+  for structures, so this combination behaved like `PressureZeroing`, which can be used
+  instead (#1341).
 - The `correction` of a `BoundaryModelDummyParticles` of a `TotalLagrangianSPHSystem` or
   `RigidBodySystem` must now be `nothing`. Previously, it was ignored or caused an error
   (#1342).
@@ -35,7 +39,13 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Fixed double-counted Monaghan-Kajtar repulsion in TVF momentum and
   background-pressure shifting operators (#1344).
 - Fixed pressure mirroring for TLSPH and rigid-body neighbors and for EDAC momentum,
-  pressure diffusion, and average-pressure reduction at walls and structures (#1341).
+  pressure diffusion, and average-pressure reduction at walls and structures.
+  With a boundary viscosity, `PressureMirroring` now computes the wall velocity of the
+  no-slip condition, which was zero before (#1341).
+- Fixed the advection prediction of `ImplicitIncompressibleSPHSystem` depending on the
+  order of the systems in the `Semidiscretization`. The densities and predicted velocities
+  of systems that are updated later in the same step were taken from the previous update.
+  This affected `PressureBoundaries` and simulations with multiple IISPH systems (#1341).
 - Fixed the fluid–structure pressure acceleration of fluids with `KernelCorrection`,
   `GradientCorrection`, `BlendedGradientCorrection` or `MixedKernelGradientCorrection` to use
   the smoothing kernel and smoothing length of the boundary model at the structure particles

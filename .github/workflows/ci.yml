@@ -80,7 +80,9 @@ jobs:
         with:
           annotate: true
           # Only run coverage in one Job (Ubuntu and latest Julia version)
-          coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1.12' }}
+          # There is a performance regression for coverage affecting us: https://github.com/JuliaLang/julia/issues/62424
+          # This is fixed in 1.14! Broken are 1.12 and 1.13
+          coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1.10' }}
         env:
           TRIXIPARTICLES_TEST: unit
 
