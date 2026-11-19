@@ -196,6 +196,8 @@ end
                                                      neighbor_system::Union{WallBoundarySystem{<:BoundaryModelMonaghanKajtar},
                                                                             TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
                                                      particle, neighbor)
-    # Repulsive particles have no hydrodynamic smoothing length of their own.
+    # Repulsive particles have no hydrodynamic smoothing length to average with.
+    # Use the fluid length to regularize the diffusion, even for TLSPH neighbors
+    # that have a separate smoothing length for solid mechanics.
     return smoothing_length(particle_system, particle)
 end

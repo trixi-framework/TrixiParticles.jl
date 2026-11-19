@@ -305,6 +305,11 @@ struct BlendedGradientCorrection{ELTYPE <: Real}
     end
 end
 
+# These corrections can make the gradients at the two particles non-antisymmetric.
+const AsymmetricKernelGradientCorrection = Union{KernelCorrection, GradientCorrection,
+                                                 BlendedGradientCorrection,
+                                                 MixedKernelGradientCorrection}
+
 # Called only by DensityDiffusion and TLSPH
 function compute_gradient_correction_matrix!(corr_matrix, system, coordinates, density_fun,
                                              semi)

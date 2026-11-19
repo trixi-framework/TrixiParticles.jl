@@ -29,6 +29,8 @@ end
                                                particle_system::Union{TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
                                                                       RigidBodySystem{<:BoundaryModelDummyParticles}},
                                                pos_diff, distance, particle)
+    # Use the boundary model's kernel, smoothing length and correction, not the
+    # TLSPH kernel used for solid mechanics.
     return smoothing_kernel_grad(particle_system.boundary_model, pos_diff, distance,
                                  particle)
 end
@@ -39,6 +41,8 @@ end
                                                      neighbor, m_a, m_b, value_a, value_b,
                                                      rho_a, rho_b, pos_diff, distance, W_a,
                                                      correction::AsymmetricKernelGradientCorrection) where {F}
+    # W_a uses the fluid particle's kernel and correction. W_b is evaluated at the
+    # structure particle using its boundary model and the structure-first displacement.
     W_b = boundary_pressure_kernel_grad(correction, neighbor_system, -pos_diff, distance,
                                         neighbor)
     return formulation(m_a, m_b, rho_a, rho_b, value_a, value_b, W_a, W_b)

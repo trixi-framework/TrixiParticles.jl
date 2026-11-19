@@ -82,7 +82,8 @@ end
                                                      neighbor, m_a, m_b, value_a, value_b,
                                                      rho_a, rho_b, pos_diff, distance, W_a,
                                                      ::AsymmetricKernelGradientCorrection) where {F}
-    # Repulsive particles have no hydrodynamic kernel. Use the reversed fluid gradient.
+    # Repulsive particles have no hydrodynamic kernel of their own. TVF uses the
+    # reversed fluid gradient, not an elastic structure kernel or the repulsion law.
     W_b = -W_a
     return formulation(m_a, m_b, rho_a, rho_b, value_a, value_b, W_a, W_b)
 end

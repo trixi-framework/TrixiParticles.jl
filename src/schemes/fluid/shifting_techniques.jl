@@ -603,6 +603,9 @@ end
     A_a = rho_a * v_a * permutedims(delta_v_a)
     A_b = rho_b * v_b * permutedims(delta_v_b)
 
+    # For the default `ContinuityDensity` pressure formulation and antisymmetric
+    # gradients, the tensor acceleration is +m_b * (A_a + A_b) * ∇W_ab / (ρ_a * ρ_b).
+    # Adami's volume-weighted formulation uses an arithmetic tensor average instead.
     formulation = tvf_tensor_divergence_formulation(pressure_acceleration_formulation(system))
     dv_particle += pressure_acceleration_interparticle(formulation, neighbor_system,
                                                        neighbor, m_a, m_b, A_a, A_b,
@@ -632,7 +635,8 @@ end
 end
 
 @inline function tvf_tensor_divergence_formulation(::typeof(tensile_instability_control))
-    # Tensile instability control modifies scalar pressure only.
+    # The absolute value in tensile instability control is a scalar pressure
+    # correction. Use the unmodified continuity-density pair weights for tensors.
     return tvf_tensor_divergence_formulation(pressure_acceleration_continuity_density)
 end
 
@@ -643,7 +647,8 @@ end
 @inline function tvf_tensor_divergence_volume_weighted(m_a, m_b, rho_a, rho_b, A_a, A_b,
                                                        W_a)
     # Adami et al. (2013), Eq. (8); Ramachandran & Puri (2019), Eq. (12).
-    # Unlike the pressure, the tensors use an arithmetic mean.
+    # The tensor term is (V_a^2 + V_b^2) / m_a * ((A_a + A_b) / 2) * ∇W_ab.
+    # Unlike the pressure, the tensors use an arithmetic rather than density-weighted mean.
     volume_a = m_a / rho_a
     volume_b = m_b / rho_b
     scale = (volume_a^2 + volume_b^2) / (2 * m_a)
@@ -704,10 +709,40 @@ function update_shifting_inner!(system, shifting::TransportVelocityAdami,
 
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
-            # Adami et al. (2013) scale the background-pressure acceleration by Δt/2.
-            # Use their CFL estimate Δt = h/(4c) to make the shifting velocity independent
-            # of the integrator's time step. Apply the chosen pressure formulation at unit
-            # pressure and scale by p_0 * h/(8c), bypassing physical boundary repulsion.
+            # In the original paper (Adami et al., 2013), the transport velocity is applied
+            # as follows:
+            #   v_{1/2} = v_0 + Δt/2 * a,
+            # where a is the regular SPH acceleration term (pressure, viscosity, etc.).
+            #   r_1 = r_0 + Δt * ṽ_{1/2},
+            # where ṽ_{1/2} = v_{1/2} - Δt/2 * p_0 / m_a * \sum_b[ (V_a^2 + V_b^2) * ∇W_ab ]
+            # is the transport velocity.
+            # We call δv_{1/2} = ṽ_{1/2} - v_{1/2} the shifting velocity, which is given by
+            #   δv = -Δt/2 * p_0 / m_a * \sum_b[ (V_a^2 + V_b^2) * ∇W_ab ],
+            # where p_0 is the background pressure, V_a = m_a / ρ_a, V_b = m_b / ρ_b.
+            # This term depends on the pressure acceleration formulation.
+            # In Zhang et al. (2017), the pressure acceleration term
+            #   -m_b * (p_a / ρ_a^2 + p_b / ρ_b^2) * ∇W_ab
+            # is used. They consequently changed the shifting velocity to
+            #   δv = -Δt/2 * p_0 * \sum_b[ m_b * (1 / ρ_a^2 + 1 / ρ_b^2) * ∇W_ab ].
+            # We therefore use the inter-particle pressure operator to compute the
+            # shifting velocity according to the used pressure acceleration formulation.
+            # In most cases, this will be
+            #   δv = -Δt/2 * p_0 * \sum_b[ m_b * (1 + 1) / (ρ_a * ρ_b) * ∇W_ab ].
+            #
+            # In these papers, the shifting velocity is scaled by the time step Δt.
+            # We generally want the spatial discretization to be independent of the time step.
+            # Scaling the shifting velocity by the time step would lead to less shifting
+            # when very small time steps are used for testing/debugging purposes.
+            # This is especially problematic in TrixiParticles.jl, as the time step can vary
+            # significantly between different time integration methods (low vs high order).
+            # In order to eliminate the time step from the shifting velocity, we apply the
+            # CFL condition used in Adami et al. (2013):
+            #   Δt <= 0.25 * h / c,
+            # where h is the smoothing length and c is the sound speed.
+            # Applying this equation as equality yields the shifting velocity
+            #   δv = -p_0 / 8 * h / c * \sum_b[ m_b * (1 + 1) / (ρ_a * ρ_b) * ∇W_ab ].
+            # The last part is achieved by passing `p_a = 1` and `p_b = 1` to
+            # `pressure_acceleration_interparticle`, which bypasses physical boundary repulsion.
             formulation = pressure_acceleration_formulation(system)
             delta_v_ = background_pressure / 8 * h / sound_speed *
                        pressure_acceleration_interparticle(formulation, neighbor_system,

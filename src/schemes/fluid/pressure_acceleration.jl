@@ -93,10 +93,6 @@ end
     return -volume_term * pressure_tilde * W_a
 end
 
-const AsymmetricKernelGradientCorrection = Union{KernelCorrection, GradientCorrection,
-                                                 BlendedGradientCorrection,
-                                                 MixedKernelGradientCorrection}
-
 function choose_pressure_acceleration_formulation(pressure_acceleration,
                                                   density_calculator, NDIMS, ELTYPE,
                                                   correction)
@@ -155,12 +151,14 @@ end
 end
 
 # Evaluate the inter-particle formulation without dispatching to a physical boundary
-# force. TVF uses this for background pressure and tensor divergence.
+# force. TVF uses scalar unit pressures for background-pressure shifting and tensors
+# for its momentum correction. Neither term should apply the radial repulsion law.
 @inline function pressure_acceleration_interparticle(formulation::F, neighbor_system,
                                                      neighbor, m_a, m_b, value_a, value_b,
                                                      rho_a, rho_b, pos_diff, distance,
                                                      W_a, correction) where {F}
-    # The gradients are antisymmetric, so the formulation only needs W_a.
+    # Without a correction that changes the kernel gradient (e.g., with
+    # `AkinciFreeSurfaceCorrection`), assume W_b = -W_a and pass only W_a.
     return formulation(m_a, m_b, rho_a, rho_b, value_a, value_b, W_a)
 end
 
@@ -169,6 +167,8 @@ end
                                                      rho_a, rho_b, pos_diff, distance,
                                                      W_a,
                                                      ::AsymmetricKernelGradientCorrection) where {F}
+    # These corrections depend on the local neighborhood, so W_b must be
+    # evaluated at the neighbor with the reversed displacement.
     W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
     return formulation(m_a, m_b, rho_a, rho_b, value_a, value_b, W_a, W_b)
 end
@@ -183,8 +183,8 @@ end
                                  W_a, correction)
 end
 
-# The structure RHS has already computed the neighbor-side gradient from the
-# boundary model. Reuse it here instead of evaluating it again.
+# The structure RHS computes the boundary gradient once for both the pressure
+# acceleration and the continuity equation of the boundary particles.
 @inline function pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
                                        m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
                                        distance, W_a, ::AsymmetricKernelGradientCorrection,
