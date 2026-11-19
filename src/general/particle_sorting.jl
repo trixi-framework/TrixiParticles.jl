@@ -264,13 +264,15 @@ function sort_particles_by_nhs_inner!(system, sorting, arrays, buffers,
     index_buffer = sorting.index_buffer[system_index]
 
     # Update `original_index`.
+    # Note that the values of the permutations are not checked to be valid indices,
+    # so corrupted permutations can lead to out-of-bounds accesses here.
     copy_parallel!(index_buffer, original_index, semi)
-    @threaded semi for i in eachindex(original_index)
+    @threaded semi for i in eachindex(original_index, index_buffer, old_index)
         @inbounds original_index[i] = index_buffer[old_index[i]]
     end
 
     # Update `sorted_index`.
-    @threaded semi for i in eachindex(original_index)
+    @threaded semi for i in eachindex(original_index, sorted_index)
         @inbounds sorted_index[original_index[i]] = i
     end
 
@@ -312,7 +314,7 @@ end
 
 # `new_index[old_index[i]] = i` for all `i`.
 function invert_permutation!(new_index, old_index, semi)
-    @threaded semi for i in eachindex(old_index)
+    @threaded semi for i in eachindex(new_index, old_index)
         @inbounds new_index[old_index[i]] = i
     end
 
@@ -325,6 +327,9 @@ function reorder_particle_array!(array, old_index, buffer, semi)
 
     array_ = reshape(array, :, size(array, ndims(array)))
     buffer_ = reshape(buffer, :, size(buffer, ndims(buffer)))
+
+    @boundscheck axes(buffer_) == axes(array_) && axes(array_, 2) == eachindex(old_index) ||
+                 throw(DimensionMismatch("`array`, `buffer` and `old_index` don't match"))
     @threaded semi for i in axes(array_, 2)
         for j in axes(array_, 1)
             @inbounds array_[j, i] = buffer_[j, old_index[i]]
@@ -341,7 +346,7 @@ function reorder_buffer!(buffer::SystemBuffer, old_index, index_buffer, semi)
 
     # Use the index buffer as a temporary buffer.
     index_buffer .= active_particle
-    @threaded semi for i in eachindex(active_particle)
+    @threaded semi for i in eachindex(active_particle, old_index)
         @inbounds active_particle[i] = index_buffer[old_index[i]]
     end
 
@@ -501,6 +506,9 @@ end
 
 # `dest[:, i] .= src[:, permutation[i]]`, but in parallel.
 function copy_permuted!(dest, src, permutation, semi)
+    @boundscheck axes(dest) == axes(src) ||
+                 throw(DimensionMismatch("`dest` and `src` must have the same axes"))
+    @boundscheck checkbounds(permutation, axes(dest, 2))
     @threaded semi for i in axes(dest, 2)
         for j in axes(dest, 1)
             @inbounds dest[j, i] = src[j, permutation[i]]
