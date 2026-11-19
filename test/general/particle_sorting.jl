@@ -22,7 +22,11 @@ using OrdinaryDiffEqLowStorageRK
             density = tank.fluid.density
 
             # Let some particles leave the domain, so that they are deactivated.
-            velocity[1, 1:3] .= 30.0
+            # They are placed to the right of the tank, outside of the compact support
+            # of the wall particles, and quickly leave the grid of the neighborhood search.
+            coordinates[:, 1:3] .= [2.25 2.3 2.35
+                                    0.8 0.8 0.8]
+            velocity[:, 1:3] .= [30.0, 0.0]
         end
         mass = tank.fluid.mass[perm] .* (1 .+ 0.01 * rand(Random.Xoshiro(5), n_fluid))
         fluid = InitialCondition(; coordinates, velocity, density, mass, particle_spacing)
@@ -175,11 +179,33 @@ using OrdinaryDiffEqLowStorageRK
             sol_reference = solve_setup(ode_reference)
             sol = solve_setup(ode)
 
-            @test isapprox(sol.u[end], sol_reference.u[end], rtol=1e-12)
-
-            # The integration arrays must be copied to system order before wrapping them.
+            # Only the fluid system has integrated particles.
+            # We only compare the active particles. Particles are deactivated in the RHS,
+            # which is fine because the active state is stored in the system,
+            # and the data of inactive particles is not used.
+            # However, `deactivate_particle!` also resets `v` and `u` of the deactivated
+            # particle in the arrays passed to the RHS. When particles are sorted,
+            # these are the sorted copies, so the integration arrays still contain the
+            # old data of inactive particles.
+            # Therefore, comparing the whole integration arrays would fail.
             semi_sorted = sol.prob.p.semi
             fluid_system = semi_sorted.systems[1]
+            semi_reference = sol_reference.prob.p.semi
+            fluid_reference = semi_reference.systems[1]
+            particles = TrixiParticles.each_active_particle(fluid_reference)
+
+            v_ode, u_ode = sol.u[end].x
+            v_ode_reference, u_ode_reference = sol_reference.u[end].x
+
+            v = TrixiParticles.wrap_v_unchecked(v_ode, fluid_system, semi_sorted)
+            u = TrixiParticles.wrap_u_unchecked(u_ode, fluid_system, semi_sorted)
+            v_reference = TrixiParticles.wrap_v(v_ode_reference, fluid_reference, semi_reference)
+            u_reference = TrixiParticles.wrap_u(u_ode_reference, fluid_reference, semi_reference)
+
+            @test isapprox(v[:, particles], v_reference[:, particles], rtol=1e-12)
+            @test isapprox(u[:, particles], u_reference[:, particles], rtol=1e-12)
+
+            # The integration arrays must be copied to system order before wrapping them.
             @test_throws ArgumentError TrixiParticles.wrap_u(sol.u[end].x[2], fluid_system,
                                                              semi_sorted)
             @test_throws ArgumentError TrixiParticles.wrap_v(sol.u[end].x[1], fluid_system,

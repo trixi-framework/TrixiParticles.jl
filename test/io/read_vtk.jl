@@ -276,7 +276,9 @@
             TrixiParticles.update_final!(rigid_system, v, u, v_ode, u_ode, semi, 0.0)
 
             vu_ode = (; x=(v_ode, u_ode))
-            trixi2vtk(rigid_system, nothing, vu_ode, semi, 0.0,
+            # `dvdu_ode` is only needed for custom quantities.
+            dvdu_ode = (; x=(nothing, nothing))
+            trixi2vtk(rigid_system, dvdu_ode, vu_ode, semi, 0.0,
                       nothing; system_name="tmp_file_rigid", output_directory=tmp_dir,
                       iter=1)
 
