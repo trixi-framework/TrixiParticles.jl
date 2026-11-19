@@ -50,6 +50,14 @@ end
                                       init, search_radius)
 end
 
+# Forward `foreach_point` to wrapped neighborhood search
+@inline function PointNeighbors.foreach_point(f, system_coords, neighbor_coords,
+                                              neighborhood_search::NoUpdateNeighborhoodSearch;
+                                              kwargs...)
+    PointNeighbors.foreach_point(f, system_coords, neighbor_coords,
+                                 neighborhood_search.nhs; kwargs...)
+end
+
 # No update
 @inline function PointNeighbors.update!(search::NoUpdateNeighborhoodSearch, x, y;
                                         points_moving=(true, true),
