@@ -293,6 +293,6 @@ function print_summary(integrator)
     # Print timer
     TimerOutputs.complement!(timer())
     print_timer(timer(), title="TrixiParticles.jl",
-                allocations=true, linechars=:unicode, compact=false)
+                allocations=true, linechars=:unicode, compact=false, bars=false)
     println()
 end

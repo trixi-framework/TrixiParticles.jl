@@ -204,7 +204,7 @@ end
 
 @inline density_calculator(system::ImplicitIncompressibleSPHSystem) = nothing
 
-# Calculates the pressure values by solving a linear system with a relaxed Jacobi scheme
+# Compute density before the prediction and pressure solve in `update_implicit_sph!`.
 function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
     (; density) = system
@@ -212,8 +212,7 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
     # Compute density by kernel summation
     summation_density!(system, semi, u, u_ode, density)
 
-    @trixi_timeit timer() "predict advection" predict_advection!(system, v, u, v_ode, u_ode,
-                                                                 semi)
+    return system
 end
 
 function update_implicit_sph!(semi, v_ode, u_ode, t)
@@ -222,19 +221,22 @@ function update_implicit_sph!(semi, v_ode, u_ode, t)
         return semi
     end
 
+    # All densities and mirrored wall velocities are ready after `update_quantities!`.
+    # Predict every fluid velocity before computing coefficients that use neighboring
+    # predictions, including those of `PressureBoundaries`, regardless of system order.
+    @trixi_timeit timer() "predict advection" begin
+        foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+            calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi)
+        end
+        foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+            calculate_diagonal_elements_and_predicted_density!(system, v, u, v_ode, u_ode,
+                                                               semi)
+        end
+    end
+
     @trixi_timeit timer() "pressure solver" pressure_solve!(semi, v_ode, u_ode)
 
     return semi
-end
-
-function predict_advection!(system::Union{ImplicitIncompressibleSPHSystem,
-                                          WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}},
-                            v, u, v_ode, u_ode, semi)
-    calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi)
-
-    calculate_diagonal_elements_and_predicted_density!(system, v, u, v_ode, u_ode, semi)
-
-    return system
 end
 
 function calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi)
@@ -497,7 +499,8 @@ function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
     (; time_step) = system
 
     system_coords = current_coordinates(u, system)
-    neighbor_coords = current_coordinates(u, neighbor_system)
+    u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+    neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, semi;
                            points=each_integrated_particle(system)) do particle, neighbor,
@@ -585,12 +588,15 @@ function pressure_update(system, pressure, reference_density, a_ii, sum_term, om
         else
             pressure[particle] = zero(pressure[particle])
         end
-        # Calculate the average density error for the termination condition
-        if (pressure[particle] != 0.0)
+        # Calculate the density error for the termination condition, explicitly
+        # clearing zero-pressure entries (no stale values from previous iterations).
+        if pressure[particle] != 0.0
             new_density = a_ii[particle] * pressure[particle] + sum_term[particle] -
                           iisph_source_term(system, particle) +
                           reference_density
-            density_error[particle] = (new_density - reference_density)
+            density_error[particle] = new_density - reference_density
+        else
+            density_error[particle] = zero(eltype(density_error))
         end
     end
     relative_density_error = sum(density_error) / reference_density
