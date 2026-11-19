@@ -100,6 +100,20 @@ end
 
 check_smoothing_kernel_fsi(system, boundary_model, neighbor_system) = system
 
+# Dummy-particle pressure and density are separate from the TLSPH material state.
+# Adami extrapolation already uses the current fluid neighborhood. Summation density
+# additionally needs current boundary/structure neighbors and the boundary model's kernel;
+# the reference-configuration TLSPH self-search cannot supply those neighbors.
+# There is currently no NHS to find current structure neighbors with the boundary model's kernel.
+function check_boundary_model_density(system,
+                                      ::BoundaryModelDummyParticles{SummationDensity})
+    throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
+                        "`SummationDensity` is not supported for a " *
+                        "`$(nameof(typeof(system)))`"))
+end
+
+check_boundary_model_density(system, boundary_model) = system
+
 # The correction values of a boundary particle are sums over its complete hydrodynamic
 # neighborhood in the current configuration, including the particles of its own structure
 # within the compact support of the boundary model. The neighborhood searches of structures
@@ -167,8 +181,12 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
 
         # In fluid-structure interaction, use the "hydrodynamic pressure" of the structure
         # particles corresponding to the chosen boundary model.
-        p_a = current_pressure(v_particle_system, particle_system, particle)
+        # The following call is equivalent to
+        #     `p_a = current_pressure(v_particle_system, particle_system, particle)`
+        # except for structures using `PressureMirroring`, where this returns `p_a = p_b`, which is
+        # the pressure of the fluid particle, mirroring the fluid-structure interaction.
         p_b = current_pressure(v_neighbor_system, neighbor_system, neighbor)
+        p_a = neighbor_pressure(v_particle_system, particle_system, particle, p_b)
 
         # The kernel gradient of the boundary model at the structure particle is required
         # by the pressure acceleration of a fluid with an asymmetric corrected kernel

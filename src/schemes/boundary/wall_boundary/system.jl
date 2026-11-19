@@ -215,6 +215,8 @@ function update_quantities!(system::WallBoundarySystem, v, u, v_ode, u_ode, semi
 
     update_density!(boundary_model, system, v, u, v_ode, u_ode, semi)
 
+    interpolate_wall_velocity!(boundary_model, system, v, u, v_ode, u_ode, semi)
+
     return system
 end
 

@@ -33,9 +33,10 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                     See [`PrescribedMotion`](@ref) for details.
 - `boundary_model`: Boundary model to compute the hydrodynamic density and pressure for
                     fluid-structure interaction (see [Boundary Models](@ref boundary_models)).
-                    For [`BoundaryModelDummyParticles`](@ref), [`ContinuityDensity`](@ref)
-                    is not supported and `correction` must be `nothing`, since corrections
-                    at the boundary particles of structures are not supported yet.
+                    For [`BoundaryModelDummyParticles`](@ref), [`SummationDensity`](@ref)
+                    and [`ContinuityDensity`](@ref) are not supported and `correction`
+                    must be `nothing`, since corrections at the boundary particles of
+                    structures are not supported yet.
 - `penalty_force`:  Penalty force to ensure regular particle position under large deformations
                     (see [`PenaltyForceGanzenmueller`](@ref)).
 - `viscosity`:      Artificial viscosity model to stabilize both the TLSPH and the FSI.
@@ -124,6 +125,10 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
         throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
     end
 
+    # `ContinuityDensity` requires integrating the boundary density of all particles,
+    # including clamped ones. The ODE state only contains `n_integrated_particles`, with
+    # `v_nvariables` variables per particle. Increasing `v_nvariables` therefore does not
+    # provide density unknowns for clamped particles, whose motion must remain prescribed.
     if boundary_model isa BoundaryModelDummyParticles{ContinuityDensity}
         throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
                             "`ContinuityDensity` is not supported for a `TotalLagrangianSPHSystem`"))
@@ -504,7 +509,12 @@ function update_boundary_interpolation!(system::TotalLagrangianSPHSystem, v, u,
                                         v_ode, u_ode, semi, t)
     (; boundary_model) = system
 
-    # Only update boundary model
+    # Only update the boundary model. This cannot be in `update_quantities!`,
+    # which the `SplitIntegrationCallback` also calls
+    # without any fluid systems to interpolate the wall velocity from.
+    @trixi_timeit timer() "interpolate wall velocity" begin
+        interpolate_wall_velocity!(boundary_model, system, v, u, v_ode, u_ode, semi)
+    end
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
 end
 
@@ -848,6 +858,7 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
         end
     end
 
+    check_boundary_model_density(system, boundary_model)
     check_boundary_model_correction(system, boundary_model)
 
     foreach_system(systems) do neighbor
