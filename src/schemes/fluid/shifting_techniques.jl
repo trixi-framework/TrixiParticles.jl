@@ -629,6 +629,9 @@ end
     # For the default `ContinuityDensity` pressure formulation and antisymmetric
     # gradients, the tensor acceleration is +m_b * (A_a + A_b) * ∇W_ab / (ρ_a * ρ_b).
     # Adami's volume-weighted formulation uses an arithmetic tensor average instead.
+    # As for the background-pressure update below, reuse the inter-particle pair
+    # weights here. Pass A_a and A_b in the pressure slots of the tensor formulation
+    # so that this term stays separate from the physical boundary force.
     formulation = tvf_tensor_divergence_formulation(pressure_acceleration_formulation(system))
     dv_particle += pressure_acceleration_interparticle(formulation, neighbor_system,
                                                        neighbor, m_a, m_b, A_a, A_b,
@@ -659,7 +662,8 @@ end
 
 @inline function tvf_tensor_divergence_formulation(::typeof(tensile_instability_control))
     # The absolute value in tensile instability control is a scalar pressure
-    # correction. Use the unmodified continuity-density pair weights for tensors.
+    # correction, not a tensor operation. Bypass it for the tensor divergence and
+    # use the unmodified continuity-density pair weights.
     return tvf_tensor_divergence_formulation(pressure_acceleration_continuity_density)
 end
 

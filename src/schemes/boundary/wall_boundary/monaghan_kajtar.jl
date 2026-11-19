@@ -47,6 +47,9 @@ end
     return nothing
 end
 
+# The radial boundary law replaces the physical pressure force for every fluid
+# correction, including corrections with asymmetric gradients. TVF calls the
+# inter-particle operator separately and does not apply this law.
 @inline function pressure_acceleration(particle_system,
                                        neighbor_system::Union{WallBoundarySystem{<:BoundaryModelMonaghanKajtar},
                                                               TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
@@ -106,8 +109,8 @@ end
                                  particle)
     (; hydrodynamic_mass, boundary_particle_spacing) = system.boundary_model
 
-    # This model does not use any particle density. However, a mean density is used for
-    # `ArtificialViscosityMonaghan` in the fluid interaction.
+    # The radial repulsion law does not use particle density. The fluid interaction
+    # still needs a mean density for `ArtificialViscosityMonaghan` and TVF pair weights.
     return hydrodynamic_mass[particle] / boundary_particle_spacing^ndims(system)
 end
 
@@ -116,7 +119,8 @@ end
     error("`current_density` not implemented for `BoundaryModelMonaghanKajtar`")
 end
 
-# This model does not not use any particle pressure
+# The radial repulsion law does not use particle pressure. This placeholder is not
+# a prescribed boundary pressure for EDAC diffusion.
 @inline function current_pressure(v,
                                   system::Union{WallBoundarySystem{<:BoundaryModelMonaghanKajtar},
                                                 TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},

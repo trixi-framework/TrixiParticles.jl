@@ -148,6 +148,7 @@ end
                                      grad_kernel, particle, neighbor,
                                      pos_diff, distance, sound_speed, m_a, m_b,
                                      p_a, p_b, rho_a, rho_b, nu_edac)
+    # EDAC pressure evolution adds an acoustic term and a pressure-diffusion term.
     # This is basically the continuity equation times `sound_speed^2`.
     artificial_eos = m_b * rho_a / rho_b * sound_speed^2 * dot(v_diff, grad_kernel)
     damping_term = pressure_diffusion_term(particle_system, neighbor_system, particle,

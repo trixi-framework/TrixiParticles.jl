@@ -157,8 +157,9 @@ end
                                                      neighbor, m_a, m_b, value_a, value_b,
                                                      rho_a, rho_b, pos_diff, distance,
                                                      W_a, correction) where {F}
-    # Without a correction that changes the kernel gradient (e.g., with
-    # `AkinciFreeSurfaceCorrection`), assume W_b = -W_a and pass only W_a.
+    # With no correction, or with a correction that leaves the kernel gradient
+    # unchanged (such as `AkinciFreeSurfaceCorrection`), use the symmetric
+    # formulation: it assumes W_b = -W_a and takes only W_a.
     return formulation(m_a, m_b, rho_a, rho_b, value_a, value_b, W_a)
 end
 
@@ -167,8 +168,9 @@ end
                                                      rho_a, rho_b, pos_diff, distance,
                                                      W_a,
                                                      ::AsymmetricKernelGradientCorrection) where {F}
-    # These corrections depend on the local neighborhood, so W_b must be
-    # evaluated at the neighbor with the reversed displacement.
+    # These corrections depend on the local neighborhood and can break gradient
+    # antisymmetry. Call the asymmetric formulation with both gradients, evaluating
+    # W_b at the neighbor with the reversed displacement.
     W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
     return formulation(m_a, m_b, rho_a, rho_b, value_a, value_b, W_a, W_b)
 end
@@ -189,6 +191,8 @@ end
                                        m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
                                        distance, W_a, ::AsymmetricKernelGradientCorrection,
                                        W_b::AbstractVector)
+    # As in the two-gradient method above, the correction can break antisymmetry.
+    # Use the supplied W_b instead of evaluating the neighbor gradient again.
     return pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
                                                               p_a, p_b, W_a, W_b)
 end

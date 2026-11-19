@@ -261,49 +261,52 @@
                 end
             end
         end
-    end
 
-    @testset "Signed TVF tensor force between fluid particles" begin
-        coordinates = [0.0 1.5; 0.0 0.0]
-        velocity = [2.0 0.5; -1.0 1.5]
-        mass = [900.0, 1350.0]
-        density = [900.0, 1200.0]
-        initial_condition = InitialCondition(; coordinates, velocity, mass, density,
-                                             particle_spacing=1.0)
-        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-        sound_speed = 10.0
-        state_equation = StateEquationCole(; sound_speed, reference_density=1000.0,
-                                           exponent=1)
-        kwargs = (; smoothing_kernel, smoothing_length=1.0,
-                  density_calculator=ContinuityDensity(),
-                  shifting_technique=TransportVelocityAdami(background_pressure=100.0))
-        wcsph = WeaklyCompressibleSPHSystem(initial_condition; state_equation, kwargs...)
-        edac = EntropicallyDampedSPHSystem(initial_condition; sound_speed,
-                                           average_pressure_reduction=false, kwargs...)
-        wcsph.pressure .= 0.0
-        semi = DummySemidiscretization()
-        prescribed_shift = [0.4 -0.3; -0.2 0.5]
+        # The randomized checks above do not use shifting. Use a single pair with
+        # prescribed shifts to check both the sign and momentum balance of the TVF force.
+        @testset "TVF pair momentum conservation" begin
+            coordinates = [0.0 1.5; 0.0 0.0]
+            velocity = [2.0 0.5; -1.0 1.5]
+            mass = [900.0, 1350.0]
+            density = [900.0, 1200.0]
+            initial_condition = InitialCondition(; coordinates, velocity, mass, density,
+                                                 particle_spacing=1.0)
+            sound_speed = 10.0
+            tvf_state_equation = StateEquationCole(; sound_speed, reference_density=1000.0,
+                                                   exponent=1)
+            kwargs = (; smoothing_kernel, smoothing_length=1.0,
+                      density_calculator=ContinuityDensity(),
+                      shifting_technique=TransportVelocityAdami(background_pressure=100.0))
+            wcsph = WeaklyCompressibleSPHSystem(initial_condition;
+                                                state_equation=tvf_state_equation,
+                                                kwargs...)
+            edac = EntropicallyDampedSPHSystem(initial_condition; sound_speed,
+                                               average_pressure_reduction=false, kwargs...)
+            wcsph.pressure .= 0.0
+            semi = DummySemidiscretization()
+            prescribed_shift = [0.4 -0.3; -0.2 0.5]
 
-        # The cubic-spline gradient points from particle 1 towards particle 2.
-        # Contract each tensor with that gradient; both contractions are nonzero.
-        grad_x = 15 / (56pi)
-        tensor_gradient = sum(density[b] * prescribed_shift[1, b] * grad_x * velocity[:, b]
-                              for b in 1:2)
-        wcsph_weight = prod(mass) / prod(density)
-        edac_weight = sum(abs2, mass ./ density) / 2
+            # The cubic-spline gradient points from particle 1 towards particle 2.
+            # Contract each tensor with that gradient; both contractions are nonzero.
+            grad_x = 15 / (56pi)
+            tensor_gradient = sum(density[b] * prescribed_shift[1, b] * grad_x *
+                                  velocity[:, b] for b in 1:2)
+            wcsph_weight = prod(mass) / prod(density)
+            edac_weight = sum(abs2, mass ./ density) / 2
 
-        for (system, weight) in ((wcsph, wcsph_weight), (edac, edac_weight))
-            v = system isa EntropicallyDampedSPHSystem ?
-                vcat(velocity, zeros(1, 2), density') : vcat(velocity, density')
-            system.cache.delta_v .= prescribed_shift
-            dv = zero(v)
-            TrixiParticles.interact!(dv, v, coordinates, v, coordinates, system, system,
-                                     semi)
+            for (system, weight) in ((wcsph, wcsph_weight), (edac, edac_weight))
+                v = system isa EntropicallyDampedSPHSystem ?
+                    vcat(velocity, zeros(1, 2), density') : vcat(velocity, density')
+                system.cache.delta_v .= prescribed_shift
+                dv = zero(v)
+                TrixiParticles.interact!(dv, v, coordinates, v, coordinates, system,
+                                         system, semi)
 
-            force_a = mass[1] * dv[1:2, 1]
-            force_b = mass[2] * dv[1:2, 2]
-            @test force_a ≈ weight * tensor_gradient
-            @test force_b ≈ -force_a
+                force_a = mass[1] * dv[1:2, 1]
+                force_b = mass[2] * dv[1:2, 2]
+                @test force_a ≈ weight * tensor_gradient
+                @test force_b ≈ -force_a
+            end
         end
     end
 
@@ -434,14 +437,17 @@
             return fluid, structure, arrays, semi, ode
         end
 
-        # Force on the fluid particle and force on the structure particle
-        function pair_forces(fluid, structure, arrays, semi)
+        function fluid_pair_rhs(fluid, structure, arrays, semi)
             v_fluid, u_fluid, v_structure, u_structure = arrays
 
             dv_fluid = zero(v_fluid)
             TrixiParticles.interact!(dv_fluid, v_fluid, u_fluid, v_structure, u_structure,
                                      fluid, structure, semi)
-            force_fluid = fluid.mass[1] * dv_fluid[1:2, 1]
+            return dv_fluid
+        end
+
+        function structure_pair_force(fluid, structure, arrays, semi)
+            v_fluid, u_fluid, v_structure, u_structure = arrays
 
             if structure isa RigidBodySystem
                 structure.force_per_particle .= 0
@@ -467,6 +473,15 @@
                 force_structure = structure.mass[1] * dv_structure[1:2, 1]
             end
 
+            return force_structure, dv_structure
+        end
+
+        # Force on the fluid particle and force on the structure particle
+        function pair_forces(fluid, structure, arrays, semi)
+            dv_fluid = fluid_pair_rhs(fluid, structure, arrays, semi)
+            force_fluid = fluid.mass[1] * dv_fluid[1:2, 1]
+            force_structure,
+            dv_structure = structure_pair_force(fluid, structure, arrays, semi)
             return force_fluid, force_structure, dv_structure
         end
 
@@ -1018,120 +1033,112 @@
         end
 
         # The extra terms of the shifting techniques in the momentum equation act on the
-        # fluid, but must not be applied to the structure.
-        shifting_techniques = (ParticleShiftingTechnique(), tvf)
-
-        @testset "Shifting `$(nameof(typeof(shifting_technique)))`" for shifting_technique in
-                                                                        shifting_techniques
-
-            @testset "`$structure_type`" for structure_type in structure_types
-                viscosity = ViscosityAdami(nu=0.1)
-                fluid_system = create_fluid_system("WCSPH", (1.0, 0.5), 1005.0,
-                                                   viscosity; shifting_technique)
-                structure_system = create_structure_system(structure_type, viscosity)
-                (fluid, structure, arrays, semi,
-                 _) = initialize(fluid_system, structure_system)
-
-                # Compare the forces without and with a shifting velocity
-                fluid.cache.delta_v .= 0
-                (force_fluid, force_structure,
-                 _) = pair_forces(fluid, structure, arrays, semi)
-
-                fluid.cache.delta_v .= [0.5, 0.2]
-                (force_fluid_shifting, force_structure_shifting,
-                 _) = pair_forces(fluid, structure, arrays, semi)
-
-                # Make sure that the shifting terms act on the fluid.
-                @test !isapprox(force_fluid_shifting, force_fluid)
-
-                # The shifting terms must not be applied to the structure.
-                @test force_structure_shifting == force_structure
-            end
-        end
-
-        @testset "TVF and Monaghan-Kajtar repulsion" begin
+        # fluid, but must not be applied to the structure. Check this for both dummy
+        # particles and repulsive boundaries using the same pair fixture.
+        @testset "Shifting forces at boundaries" begin
             velocity = SVector(1.0, 0.5)
             rho_f = 1005.0
+            prescribed_shift = SVector(0.4, -0.3)
             # Substitute K=10, beta=1, spacing=1, r=1.5, h=1 in the MK force:
             # the direction is -x, 1/(r-spacing)=1/0.5, and (2-r/h)^5=0.5^5.
             repulsion = SVector(-10.0 / 0.5 * (1.77 / 32) *
                                 (1 + 2.5 * 1.5 + 2 * 1.5^2) * 0.5^5, 0.0)
-            configurations = (("WCSPH", TotalLagrangianSPHSystem, nothing),
-                              ("WCSPH", WallBoundarySystem, nothing),
-                              ("EDAC", TotalLagrangianSPHSystem, nothing),
-                              ("EDAC", WallBoundarySystem, nothing),
-                              ("WCSPH", TotalLagrangianSPHSystem, KernelCorrection()))
-            @testset "$(config[1]), $(config[2]), $(nameof(typeof(config[3])))" for config in
-                                                                                    configurations
+            dummy_cases = [("WCSPH", structure_type, shifting_technique, nothing, false)
+                           for structure_type in structure_types
+                           for shifting_technique in (ParticleShiftingTechnique(), tvf)]
+            repulsive_cases = (("WCSPH", TotalLagrangianSPHSystem, tvf, nothing, true),
+                               ("WCSPH", WallBoundarySystem, tvf, nothing, true),
+                               ("EDAC", TotalLagrangianSPHSystem, tvf, nothing, true),
+                               ("EDAC", WallBoundarySystem, tvf, nothing, true),
+                               ("WCSPH", TotalLagrangianSPHSystem, tvf, KernelCorrection(),
+                                true))
+            for (scheme, structure_type, shifting_technique, correction, monaghan_kajtar) in
+                Iterators.flatten((dummy_cases, repulsive_cases))
+                boundary = monaghan_kajtar ? "Monaghan-Kajtar" : "dummy particles"
+                shifting = nameof(typeof(shifting_technique))
+                @testset "$scheme, $structure_type, $shifting, $boundary, $(typeof(correction))" begin
+                    viscosity = monaghan_kajtar ? nothing : ViscosityAdami(nu=0.1)
+                    structure_smoothing_kernel = monaghan_kajtar ? WendlandC2Kernel{2}() :
+                                                 smoothing_kernel
+                    structure_smoothing_length = monaghan_kajtar ? 0.4 : smoothing_length
+                    fluid_system = create_fluid_system(scheme, velocity, rho_f, viscosity;
+                                                       correction, shifting_technique)
+                    structure_system = create_structure_system(structure_type, viscosity;
+                                                               monaghan_kajtar,
+                                                               structure_smoothing_kernel,
+                                                               structure_smoothing_length)
+                    fluid, structure, arrays, semi,
+                    _ = initialize(fluid_system, structure_system)
+                    shift = TrixiParticles.delta_v(fluid, 1)
 
-                scheme, structure_type, correction = config
-                fluid_system = create_fluid_system(scheme, velocity, rho_f, nothing;
-                                                   correction, shifting_technique=tvf)
-                structure_system = create_structure_system(structure_type, nothing;
-                                                           monaghan_kajtar=true,
-                                                           structure_smoothing_kernel=WendlandC2Kernel{2}(),
-                                                           structure_smoothing_length=0.4)
-                fluid, structure, arrays, semi,
-                _ = initialize(fluid_system, structure_system)
-                v_fluid, u_fluid, v_structure, u_structure = arrays
-                shift = TrixiParticles.delta_v(fluid, 1)
+                    # Compare the forces with and without a prescribed shifting velocity.
+                    fluid.cache.delta_v .= 0
+                    dv_unshifted = fluid_pair_rhs(fluid, structure, arrays, semi)
+                    if structure_type !== WallBoundarySystem
+                        force_structure,
+                        _ = structure_pair_force(fluid, structure, arrays, semi)
+                    end
 
-                # A_f = rho_f * v_f * delta_v_f' vanishes at zero shift, so only the
-                # physical repulsion remains. The old boundary dispatch applied it twice.
-                fluid.cache.delta_v .= 0
-                dv_fluid = zero(v_fluid)
-                TrixiParticles.interact!(dv_fluid, v_fluid, u_fluid, v_structure,
-                                         u_structure, fluid, structure, semi)
-                @test dv_fluid[1:2, 1] ≈ repulsion
+                    fluid.cache.delta_v .= prescribed_shift
+                    dv_shifted = fluid_pair_rhs(fluid, structure, arrays, semi)
+                    tensor_acceleration = dv_shifted[1:2, 1] - dv_unshifted[1:2, 1]
 
-                grad_f = pair_gradient
-                if correction isa KernelCorrection
-                    # Evaluate the corrected fluid gradient independently with the cubic-spline
-                    # values at 0 and 1.5h. MK has no hydrodynamic kernel, so the unit-pressure
-                    # shift needs W_b = -W_a. The elastic kernel vanishes at 1.5h; using it
-                    # for W_b would halve the shift.
-                    gamma_f = fluid_density / rho_f * 10 / (7pi) + 5 / (112pi)
-                    grad_f = (pair_gradient - 5 / (112pi) * pair_gradient / gamma_f) /
-                             gamma_f
-                end
-                # MK gives rho_s=m_s=1000, so V_s=1. Unit pressures select the
-                # background-pressure operator instead of the physical repulsion.
-                # C=2*m_s/(rho_f*rho_s) for WCSPH and (V_f^2+V_s^2)/m_f for EDAC.
-                volume_term = ((fluid_density / rho_f)^2 + 1.0) / fluid_density
-                expected_shift = -background_pressure / (8 * sound_speed) *
-                                 (scheme == "WCSPH" ? 2 / rho_f : volume_term) * grad_f
-                @test shift ≈ expected_shift
+                    if structure_type !== WallBoundarySystem
+                        # Neither shifting technique may alter the structural load.
+                        force_structure_shifted,
+                        _ = structure_pair_force(fluid, structure, arrays, semi)
+                        @test force_structure_shifted == force_structure
+                    end
 
-                # For WCSPH, the pair weight times rho_f is m_s/rho_s=1. For EDAC,
-                # Eq. (12) of Ramachandran & Puri uses (A_f + A_s)/2, with A_s=0.
-                tensor_scale = scheme == "WCSPH" ? 1.0 : volume_term * rho_f / 2
-                prescribed_shift = SVector(0.4, -0.3)
-                fluid.cache.delta_v .= prescribed_shift
-                tensor_acceleration = tensor_scale * velocity *
-                                      dot(prescribed_shift, grad_f)
-                fill!(dv_fluid, 0)
-                TrixiParticles.interact!(dv_fluid, v_fluid, u_fluid, v_structure,
-                                         u_structure, fluid, structure, semi)
-                @test dv_fluid[1:2, 1] - repulsion ≈ tensor_acceleration
+                    if monaghan_kajtar
+                        # A_f = rho_f * v_f * delta_v_f' vanishes at zero shift, so only the
+                        # physical repulsion remains. The old dispatch applied it twice.
+                        @test dv_unshifted[1:2, 1] ≈ repulsion
+                        if structure_type === TotalLagrangianSPHSystem
+                            @test force_structure ≈ -fluid.mass[1] * repulsion
+                        end
 
-                if scheme == "EDAC"
-                    # The boundary has zero diffusive pressure flux. Only the acoustic
-                    # contribution remains, independent of the fluid pressure offset.
-                    acoustic = rho_f * sound_speed^2 * dot(velocity, grad_f)
-                    @test dv_fluid[3, 1] ≈ acoustic
+                        grad_f = pair_gradient
+                        if correction isa KernelCorrection
+                            # Evaluate the corrected fluid gradient independently with the
+                            # cubic-spline values at 0 and 1.5h. MK has no hydrodynamic kernel,
+                            # so the unit-pressure shift needs W_b = -W_a. The elastic kernel
+                            # vanishes at 1.5h; using it for W_b would halve the shift.
+                            gamma_f = fluid_density / rho_f * 10 / (7pi) + 5 / (112pi)
+                            grad_f = (pair_gradient - 5 / (112pi) * pair_gradient / gamma_f) /
+                                     gamma_f
+                        end
+                        # MK gives rho_s=m_s=1000, so V_s=1. Unit pressures select the
+                        # background-pressure operator instead of physical repulsion.
+                        # C=2*m_s/(rho_f*rho_s) for WCSPH and (V_f^2+V_s^2)/m_f for EDAC.
+                        volume_term = ((fluid_density / rho_f)^2 + 1.0) / fluid_density
+                        expected_shift = -background_pressure / (8 * sound_speed) *
+                                         (scheme == "WCSPH" ? 2 / rho_f : volume_term) *
+                                         grad_f
+                        @test shift ≈ expected_shift
 
-                    v_fluid[3, 1] += 100.0
-                    dv_offset = zero(v_fluid)
-                    TrixiParticles.interact!(dv_offset, v_fluid, u_fluid, v_structure,
-                                             u_structure, fluid, structure, semi)
-                    @test dv_offset ≈ dv_fluid
-                end
+                        # For WCSPH, the pair weight times rho_f is m_s/rho_s=1. For EDAC,
+                        # Eq. (12) of Ramachandran & Puri uses (A_f + A_s)/2, with A_s=0.
+                        tensor_scale = scheme == "WCSPH" ? 1.0 : volume_term * rho_f / 2
+                        @test tensor_acceleration ≈
+                              tensor_scale * velocity *
+                              dot(prescribed_shift, grad_f)
 
-                if structure_type === TotalLagrangianSPHSystem
-                    # The nonzero shifting velocity must not alter the physical
-                    # structural load, F_s=-m_f*a_f^physical.
-                    _, force_structure = pair_forces(fluid, structure, arrays, semi)
-                    @test force_structure ≈ -fluid.mass[1] * repulsion
+                        if scheme == "EDAC"
+                            # The boundary has zero diffusive pressure flux. Only the acoustic
+                            # contribution remains, independent of the fluid pressure offset.
+                            acoustic = rho_f * sound_speed^2 * dot(velocity, grad_f)
+                            @test dv_shifted[3, 1] ≈ acoustic
+
+                            v_fluid = first(arrays)
+                            v_fluid[3, 1] += 100.0
+                            @test fluid_pair_rhs(fluid, structure, arrays, semi) ≈
+                                  dv_shifted
+                        end
+                    else
+                        # Make sure the shifting terms act on the fluid for dummy particles.
+                        @test !isapprox(dv_shifted[1:2, 1], dv_unshifted[1:2, 1])
+                    end
                 end
             end
         end
