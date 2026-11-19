@@ -204,6 +204,26 @@
 
             semi, ode = correction_setup(structure_type, correction, search, handler)
             fluid, structure = semi.systems
+
+            if !isnothing(search)
+                # Reuse the regular fluid search, but not the elastic or contact search.
+                @test TrixiParticles.get_hydrodynamic_neighborhood_search(structure, fluid,
+                                                                          semi) ===
+                      TrixiParticles.get_neighborhood_search(structure, fluid, semi)
+                self_search = TrixiParticles.get_hydrodynamic_neighborhood_search(structure,
+                                                                                  structure,
+                                                                                  semi)
+                @test self_search !==
+                      TrixiParticles.get_neighborhood_search(structure, structure, semi)
+                @test PointNeighbors.search_radius(self_search) == 2.0
+
+                if handler === PairsNHSHandler
+                    searches = semi.neighborhood_search_handler.hydrodynamic_neighborhood_searches
+                    @test isnothing(searches[2][1])
+                    @test isempty(searches[1])
+                end
+            end
+
             v_ode, u_ode = ode.u0.x
             v_fluid = TrixiParticles.wrap_v(v_ode, fluid, semi)
             u = TrixiParticles.wrap_u(u_ode, structure, semi)
@@ -361,38 +381,6 @@
                 @test semi.systems[2].boundary_model.cache.kernel_correction_coefficient ≈
                       [700.0 * W(0.0) + 750.0 * W(1.0),
                     750.0 * W(0.0) + 700.0 * W(1.0)] / 950.0
-            end
-        end
-
-        # The regular searches of structures with fluids already use the compact support
-        # of the boundary model in the current configuration, so they are reused instead
-        # of creating and updating copies. Other neighbors use separate searches.
-        @testset "Reuse of regular searches with fluids" begin
-            for (search, handler) in ((GridNeighborhoodSearch{2}(), PairsNHSHandler),
-                 (GridNeighborhoodSearch{2}(), SharedNHSHandler),
-                 (PrecomputedNeighborhoodSearch{2}(),
-                  PairsNHSHandler))
-                semi,
-                _ = correction_setup(RigidBodySystem, KernelCorrection(), search,
-                                     handler)
-                fluid, structure = semi.systems
-
-                @test TrixiParticles.get_hydrodynamic_neighborhood_search(structure, fluid,
-                                                                          semi) ===
-                      TrixiParticles.get_neighborhood_search(structure, fluid, semi)
-
-                self_search = TrixiParticles.get_hydrodynamic_neighborhood_search(structure,
-                                                                                  structure,
-                                                                                  semi)
-                @test self_search !==
-                      TrixiParticles.get_neighborhood_search(structure, structure, semi)
-                @test PointNeighbors.search_radius(self_search) == 2.0
-
-                if handler === PairsNHSHandler
-                    searches = semi.neighborhood_search_handler.hydrodynamic_neighborhood_searches
-                    @test isnothing(searches[2][1])
-                    @test isempty(searches[1])
-                end
             end
         end
 
