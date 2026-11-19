@@ -169,6 +169,7 @@
 
                 # Missing boundary model.
                 structure = create_structure_system(structure_type, nothing)
+                @test_nowarn Semidiscretization(structure; neighborhood_search=nothing)
                 error_str = "a boundary model for `$structure_type` must be specified " *
                             "when simulating a fluid-structure interaction."
                 @test_throws ArgumentError(error_str) Semidiscretization(fluid_system,
@@ -184,6 +185,31 @@
                                                     BoundaryModelMock(zeros(3)))
                 error_str = "the boundary model was initialized with 3 particles, " *
                             "but the `$structure_type` has 2 particles."
+                @test_throws ArgumentError(error_str) Semidiscretization(structure,
+                                                                         fluid_system;
+                                                                         neighborhood_search=nothing)
+
+                # Summation density is unsupported for both structure types.
+                boundary_model = BoundaryModelDummyParticles(ic.density, ic.mass,
+                                                             SummationDensity(),
+                                                             smoothing_kernel,
+                                                             smoothing_length;
+                                                             state_equation)
+                structure = create_structure_system(structure_type, boundary_model)
+                error_str = "`BoundaryModelDummyParticles` with density calculator " *
+                            "`SummationDensity` is not supported for a `$structure_type`"
+                @test_throws ArgumentError(error_str) Semidiscretization(structure;
+                                                                         neighborhood_search=nothing)
+                for systems in ((structure, fluid_system), (fluid_system, structure))
+                    # The boundary model is unsupported even with FSI disabled.
+                    for interaction_matrix in ([true false; false true],
+                         [true true; false true],
+                         [true false; true true])
+                        @test_throws ArgumentError(error_str) Semidiscretization(systems...;
+                                                                                 neighborhood_search=nothing,
+                                                                                 interaction_matrix)
+                    end
+                end
                 @test_throws ArgumentError(error_str) Semidiscretization(structure,
                                                                          fluid_system;
                                                                          neighborhood_search=nothing)
@@ -334,7 +360,7 @@
                                             particle_spacing=1.0)
             boundary_model = BoundaryModelDummyParticles(structure_ic.density,
                                                          structure_ic.mass,
-                                                         SummationDensity(), kernel,
+                                                         PressureZeroing(), kernel,
                                                          smoothing_length;
                                                          state_equation,
                                                          correction=nothing)

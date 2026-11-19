@@ -11,7 +11,7 @@
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
         smoothing_length = 0.12
         boundary_model = BoundaryModelDummyParticles(material_densities, mass,
-                                                     SummationDensity(),
+                                                     PressureZeroing(),
                                                      smoothing_kernel,
                                                      smoothing_length)
 
@@ -459,7 +459,7 @@
         @test_throws ArgumentError Semidiscretization(fluid_system, rigid_system)
 
         rigid_boundary_model = BoundaryModelDummyParticles(density, mass,
-                                                           SummationDensity(),
+                                                           PressureZeroing(),
                                                            smoothing_kernel,
                                                            smoothing_length)
         rigid_system_with_dummy = RigidBodySystem(rigid_ic;

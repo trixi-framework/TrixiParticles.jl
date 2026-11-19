@@ -69,6 +69,8 @@ We provide six options to compute the boundary density and pressure, determined 
    penetrations.
 3. With [`SummationDensity`](@ref), the density is calculated by summation over the neighboring particles,
    and the pressure is computed from the density with the state equation.
+   This option is not supported for the boundary models of a [`TotalLagrangianSPHSystem`](@ref)
+   or a [`RigidBodySystem`](@ref).
 4. With [`ContinuityDensity`](@ref), the density is integrated from the continuity equation,
    and the pressure is computed from the density with the state equation.
    This option is not supported for a [`TotalLagrangianSPHSystem`](@ref).
@@ -86,6 +88,9 @@ We provide six options to compute the boundary density and pressure, determined 
    momentum equation.
    This option is not recommended due to stability issues. See [`PressureMirroring`](@ref)
    for more details.
+   In EDAC, the mirrored pressure is used in the momentum equation,
+   the pressure evolution equation, and the average-pressure reduction.
+   Mirroring makes the pressure diffusion contribution from a fluid-boundary pair zero.
 
 #### 1. [`AdamiPressureExtrapolation`](@ref)
 
