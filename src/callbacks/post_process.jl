@@ -161,20 +161,24 @@ function (pp::PostprocessCallback)(integrator)
 
         semi = integrator.p.semi
         t = integrator.t
-        v_ode, u_ode = integrator.u.x
         filenames = system_names(semi.systems)
         new_data = false
 
         # Update quantities that are stored in the systems. These quantities (e.g. pressure)
         # still have the values from the last stage of the previous step if not updated here.
-        @trixi_timeit timer() "update systems and nhs" begin
+        # When particles are sorted, this returns copies of the integration arrays
+        # in system order (see `particle_sorting.jl`).
+        v_ode, u_ode = @trixi_timeit timer() "update systems and nhs" begin
             # Don't create sub-timers here to avoid cluttering the timer output
-            @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t)
+            @notimeit timer() update_systems_and_nhs(integrator.u.x..., semi, t)
         end
+
+        # When particles are sorted, copy `dv_ode` and `du_ode` to system order as well.
+        dv_ode_, du_ode_ = sorted_copies(dv_ode, du_ode, semi)
 
         # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.
         v_ode_cpu, u_ode_cpu, semi_cpu = transfer2cpu(v_ode, u_ode, semi)
-        dv_ode_cpu, du_ode_cpu = transfer2cpu(dv_ode, du_ode)
+        dv_ode_cpu, du_ode_cpu = transfer2cpu(dv_ode_, du_ode_)
 
         foreach_system(semi) do system
             if system isa AbstractBoundarySystem && pp.exclude_boundary

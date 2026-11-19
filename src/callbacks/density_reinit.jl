@@ -128,7 +128,9 @@ end
 
 function reinitialize_density!(reinit_callback::DensityReinitializationCallback,
                                vu_ode, semi)
-    v_ode, u_ode = vu_ode.x
+    # When particles are sorted, copy the integration arrays to system order
+    # (see `particle_sorting.jl`).
+    v_ode, u_ode = sorted_ode_arrays(vu_ode.x..., semi)
 
     particle_system = current_reinit_system(reinit_callback.system_index, semi)
     check_density_reinit_system(particle_system)
@@ -137,6 +139,9 @@ function reinitialize_density!(reinit_callback::DensityReinitializationCallback,
     u = wrap_u(u_ode, particle_system, semi)
 
     reinit_density!(particle_system, v, u, v_ode, u_ode, semi)
+
+    # When particles are sorted, copy the modified density back to the integration arrays.
+    unsort_ode_arrays!(vu_ode.x..., v_ode, u_ode, semi)
 
     return reinit_callback
 end

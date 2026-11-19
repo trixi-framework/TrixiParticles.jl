@@ -16,6 +16,12 @@ Reorders particles according to neighborhood-search cells for performance optimi
 
 When particles become very unordered throughout a long-running simulation, performance
 degrades due to increased cache-misses (on CPUs) and lack of block structure (on GPUs).
+
+When the neighborhood search sorts the particles in every update
+(e.g., a [`SortingGridNeighborhoodSearch`](@ref)), this callback only reorders the time
+integration arrays to match the current sorted order.
+This makes copying them to sorted arrays in every evaluation of the right-hand side faster.
+
 On GPUs, a fully shuffled particle ordering causes a 3-4x slowdown compared to a sorted configuration.
 On CPUs the performance penalty grows linearly with the problem size and can reach up to a
 10x slowdown for very large problems (65M particles).
@@ -96,12 +102,7 @@ function (sorting_callback!::SortingCallback)(integrator)
     v_ode, u_ode = integrator.u.x
 
     @trixi_timeit timer() "sorting callback" begin
-        foreach_system(semi) do system
-            v = wrap_v(v_ode, system, semi)
-            u = wrap_u(u_ode, system, semi)
-
-            sort_particles!(system, v, u, semi)
-        end
+        sort_particles_callback!(v_ode, u_ode, semi, particle_sorting(semi))
     end
 
     # Update the last sorting time in the callback struct.
@@ -111,6 +112,24 @@ function (sorting_callback!::SortingCallback)(integrator)
     derivative_discontinuity!(integrator, true)
 
     return integrator
+end
+
+# Particles are not sorted by the neighborhood search, so sort them here.
+function sort_particles_callback!(v_ode, u_ode, semi, ::Nothing)
+    foreach_system(semi) do system
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
+
+        sort_particles!(system, v, u, semi)
+    end
+end
+
+# When the neighborhood search sorts the particles in every update,
+# the system arrays are already sorted. Reorder the integration arrays
+# to the (sorted) order of the system arrays, so that copying them to sorted arrays
+# in every `kick!` is faster (see `particle_sorting.jl`).
+function sort_particles_callback!(v_ode, u_ode, semi, ::ParticleSorting)
+    apply_system_order!(v_ode, u_ode, semi)
 end
 
 sort_particles!(system, v, u, semi) = system

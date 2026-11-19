@@ -66,6 +66,29 @@ function deactivate_out_of_bounds_particles!(system, ::SystemBuffer, nhs,
     return system
 end
 
+# Loop over all particles in `points` and call `f(particle, neighbors)`, where `neighbors`
+# can be passed to `mapreduce_neighbor(f, op, neighbors; init)` to loop over all neighbors
+# of `particle` within the search radius.
+@inline function foreach_point(f, system_coords, neighbor_coords, neighborhood_search,
+                               backend; points)
+    PointNeighbors.foreach_point(f, system_coords, neighbor_coords, neighborhood_search;
+                                 points, parallelization_backend=backend)
+end
+
+@inline function foreach_point(f, system_coords, neighbor_coords, neighborhood_search,
+                               backend::KernelAbstractions.GPU; points)
+    # On GPUs, remove all bounds checks for maximum performance.
+    # Note that this is not safe if the neighborhood search was not initialized correctly.
+    # For example, this is unsafe when benchmarking `interact!` with the wrong NHS.
+    PointNeighbors.foreach_point_unsafe(f, system_coords, neighbor_coords,
+                                        neighborhood_search;
+                                        points, parallelization_backend=backend)
+end
+
+@inline function mapreduce_neighbor(f, op, neighbors; init)
+    PointNeighbors.mapreduce_neighbor(f, op, neighbors; init)
+end
+
 @propagate_inbounds function foreach_neighbor(f, system_coords, neighbor_coords,
                                               neighborhood_search, backend, particle)
     PointNeighbors.foreach_neighbor(f, system_coords, neighbor_coords,
@@ -246,6 +269,15 @@ abstract type AbstractNHSHandler end
 
 function create_neighborhood_search_handler(::Type{Handler}, neighborhood_search,
                                             systems) where {Handler <: AbstractNHSHandler}
+    # Only the `CombinedNHSHandler` can be used with a neighborhood search that sorts points
+    # (see `particle_sorting.jl`).
+    if PointNeighbors.sorts_points(neighborhood_search) && !(Handler <: CombinedNHSHandler)
+        throw(ArgumentError("a neighborhood search that sorts points, like the " *
+                            "`SortingGridNeighborhoodSearch`, can only be used with the " *
+                            "`CombinedNHSHandler`, which requires all pairs of systems " *
+                            "to use the same search radius"))
+    end
+
     return Handler(neighborhood_search, systems)
 end
 
@@ -641,11 +673,15 @@ function initialize_self_interaction_nhs(system, neighborhood_search,
 end
 
 # === Neighborhood search updates (per-system) ===
-function update_nhs!(semi, u_ode)
-    update_nhs!(semi, semi.neighborhood_search_handler, u_ode)
+# Update the neighborhood searches with the current coordinates in `u_ode`.
+# When `ParticleSorting` is used, this also sorts the particles, and `v_ode` and `u_ode`
+# must be the sorted copies returned by `sorted_ode_arrays`, which are reordered
+# here together with the particles (see `particle_sorting.jl`).
+function update_nhs!(semi, v_ode, u_ode)
+    update_nhs!(semi, semi.neighborhood_search_handler, v_ode, u_ode)
 end
 
-function update_nhs!(semi, handler, u_ode)
+function update_nhs!(semi, handler, v_ode, u_ode)
     # Update NHS for each pair of systems
     foreach_system(semi) do system
         u_system = wrap_u(u_ode, system, semi)
@@ -683,7 +719,7 @@ function update_nhs!(semi, handler, u_ode)
     end
 end
 
-function update_nhs!(semi, handler::CombinedNHSHandler, u_ode)
+function update_nhs!(semi, handler::CombinedNHSHandler, v_ode, u_ode)
     (; neighborhood_search, systems_moving) = handler
 
     # The per-pair `points_moving` methods define which systems have to be updated.
@@ -706,16 +742,19 @@ function update_nhs!(semi, handler::CombinedNHSHandler, u_ode)
     end
 
     # Update the NHS of each moving system only once.
+    # When `ParticleSorting` is used, the particles of each updated system are reordered
+    # with the permutation of its updated (sorted) cell list (see `particle_sorting.jl`).
     foreach_system(semi) do system
         system_index = system_indices(system, semi)
+        systems_moving[system_index] || return nothing
 
-        if systems_moving[system_index]
-            u_system = wrap_u(u_ode, system, semi)
-            PointNeighbors.update!(neighborhood_search, system_index,
-                                   current_coordinates(u_system, system),
-                                   eachindex=each_active_particle(system),
-                                   parallelization_backend=semi.parallelization_backend)
-        end
+        u_system = wrap_u(u_ode, system, semi)
+        PointNeighbors.update!(neighborhood_search, system_index,
+                               current_coordinates(u_system, system),
+                               eachindex=each_active_particle(system),
+                               parallelization_backend=semi.parallelization_backend)
+
+        sort_particles_by_nhs!(system, particle_sorting(semi), v_ode, u_ode, semi)
     end
 
     return semi

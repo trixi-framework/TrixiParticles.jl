@@ -94,11 +94,15 @@ function _trixi2vtk(dvdu_ode, vu_ode, semi, t; iter=nothing, overwrite=isnothing
 
     # Update quantities that are stored in the systems. These quantities (e.g. pressure)
     # still have the values from the last stage of the previous step if not updated here.
-    @trixi_timeit timer() "update systems" begin
-        v_ode, u_ode = vu_ode.x
+    # When particles are sorted, this returns copies of the integration arrays
+    # in system order (see `particle_sorting.jl`).
+    v_ode, u_ode = @trixi_timeit timer() "update systems" begin
         # Don't create sub-timers here to avoid cluttering the timer output
-        @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t)
+        @notimeit timer() update_systems_and_nhs(vu_ode.x..., semi, t)
     end
+
+    # When particles are sorted, copy `dv_ode` and `du_ode` to system order as well.
+    dv_ode, du_ode = sorted_copies(dvdu_ode.x..., semi)
 
     filenames = system_names(systems)
 
@@ -106,26 +110,29 @@ function _trixi2vtk(dvdu_ode, vu_ode, semi, t; iter=nothing, overwrite=isnothing
         system_index = system_indices(system, semi)
         periodic_box = extract_periodic_box(get_neighborhood_search(system, semi))
 
-        _trixi2vtk(system, dvdu_ode, vu_ode, semi, t, periodic_box;
+        _trixi2vtk(system, dv_ode, du_ode, v_ode, u_ode, semi, t, periodic_box;
                    system_name=filenames[system_index], output_directory, iter,
                    overwrite, append_collection, prefix, git_hash, max_coordinates,
                    custom_quantities...)
     end
 end
 
-# Convert data for a single TrixiParticle system to VTK format
+# Convert data for a single TrixiParticle system to VTK format.
 function trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
                    output_directory="out", prefix="", iter=nothing,
                    overwrite=isnothing(iter),
                    system_name=vtkname(system_), max_coordinates=Inf,
                    custom_quantities...)
-    return _trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
+    dv_ode, du_ode = dvdu_ode_.x
+    v_ode, u_ode = vu_ode_.x
+
+    return _trixi2vtk(system_, dv_ode, du_ode, v_ode, u_ode, semi_, t, periodic_box;
                       output_directory, prefix, iter, overwrite,
                       append_collection=_default_append_collection(iter), system_name,
                       max_coordinates, custom_quantities...)
 end
 
-function _trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
+function _trixi2vtk(system_, dv_ode_, du_ode_, v_ode_, u_ode_, semi_, t, periodic_box;
                     output_directory="out", prefix="", iter=nothing,
                     overwrite=isnothing(iter),
                     append_collection=_default_append_collection(iter),
@@ -137,8 +144,6 @@ function _trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
     if nparticles(system_) == 0
         return
     end
-
-    v_ode_, u_ode_ = vu_ode_.x
 
     # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.
     v_ode, u_ode, system, semi = transfer2cpu(v_ode_, u_ode_, system_, semi_)
@@ -162,8 +167,14 @@ function _trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
         pvd = paraview_collection(collection_file; append=append_collection)
     end
 
-    points = PointNeighbors.periodic_coords(active_coordinates(u, system),
-                                            periodic_box)
+    # When particles are sorted, the system arrays and `v` and `u` are in the sorted order.
+    # Write the particles in the order of the time integration arrays instead,
+    # so that the particle indices are the same in all files (see `particle_sorting.jl`),
+    # unless they are explicitly sorted between time steps by the `SortingCallback`.
+    output_order = vtk_output_order(system, semi)
+
+    points_ = PointNeighbors.periodic_coords(active_coordinates(u, system), periodic_box)
+    points = reorder_point_data(points_, output_order)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
 
     if abs(maximum(points)) > max_coordinates || abs(minimum(points)) > max_coordinates
@@ -175,12 +186,15 @@ function _trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
         end
     end
 
-    @trixi_timeit timer() "write to vtk" vtk_grid(file, points, cells) do vtk
+    @trixi_timeit timer() "write to vtk" vtk_grid(file, points, cells) do vtk_file
+        # Write all point data in `output_order`.
+        vtk = OutputOrderVTK(vtk_file, output_order)
+
         # Dispatches based on the different system types e.g. AbstractFluidSystem
         write2vtk!(vtk, v, u, t, system)
 
         # Store particle index
-        vtk["index"] = eachparticle(system)
+        vtk["index"] = vtk_particle_index(system, semi)
         vtk["time"] = t
         vtk["ndims"] = ndims(system)
         vtk[VTKFieldData()] = "solver_version" => git_hash
@@ -190,7 +204,6 @@ function _trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
 
         # Extract custom quantities for this system
         if !isempty(custom_quantities)
-            dv_ode_, du_ode_ = dvdu_ode_.x
             dv_ode, du_ode = transfer2cpu(dv_ode_, du_ode_)
 
             for (key, quantity) in custom_quantities
@@ -204,13 +217,60 @@ function _trixi2vtk(system_, dvdu_ode_, vu_ode_, semi_, t, periodic_box;
 
         if has_collection
             # Add to collection
-            pvd[t] = vtk
+            pvd[t] = vtk_file
         end
     end
 
     has_collection && vtk_save(pvd)
 
     return file
+end
+
+# Without sorting, particles are written in the order of the system arrays.
+vtk_output_order(system, semi) = vtk_output_order(system, semi, particle_sorting(semi))
+vtk_output_order(system, semi, ::Nothing) = nothing
+
+# With sorting, the active particles are written in the order of the integration arrays.
+# Return the permutation of the active particles in system order that sorts them
+# by their index in the integration arrays.
+function vtk_output_order(system, semi, sorting::ParticleSorting)
+    original_index = sorting.original_index[system_indices(system, semi)]
+
+    return sortperm(original_index[each_active_particle(system)])
+end
+
+vtk_particle_index(system, semi) = vtk_particle_index(system, semi, particle_sorting(semi))
+vtk_particle_index(system, semi, ::Nothing) = eachparticle(system)
+
+# Map the index of each active particle in the system arrays
+# to its index in the integration arrays.
+function vtk_particle_index(system, semi, sorting::ParticleSorting)
+    original_index = sorting.original_index[system_indices(system, semi)]
+
+    return original_index[each_active_particle(system)]
+end
+
+# Reorder point data, that is, arrays whose last dimension is the number of points.
+# All other data is returned unchanged.
+function reorder_point_data(data, output_order)
+    if isnothing(output_order) || !(data isa AbstractArray) ||
+       size(data, ndims(data)) != length(output_order)
+        return data
+    end
+
+    return copy(selectdim(data, ndims(data), output_order))
+end
+
+# Wrapper of a VTK file that reorders all point data with `output_order`.
+struct OutputOrderVTK{V, O}
+    vtk_file     :: V
+    output_order :: O
+end
+
+function Base.setindex!(vtk::OutputOrderVTK, data, name)
+    vtk.vtk_file[name] = reorder_point_data(data, vtk.output_order)
+
+    return vtk
 end
 
 function custom_quantity(quantity::AbstractArray, system, dv_ode, du_ode, v_ode, u_ode,

@@ -76,7 +76,56 @@ semi = Semidiscretization(system1, system2,
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
+## [Sorting Particles](@id particle_sorting)
+
+Sorting the particles by neighborhood search cell improves memory locality and makes
+the neighbor loops faster on both CPUs and GPUs.
+When a [`SortingGridNeighborhoodSearch`](@ref) is used, the particles are sorted by cell
+in every update of the neighborhood search.
+This requires that the particles of all systems are stored in the same grid
+(see [neighborhood search performance](@ref neighborhood_search_performance)),
+that is, all pairs of systems use the same search radius and no neighborhood search
+handler other than the default is passed to the [`Semidiscretization`](@ref).
+Otherwise, an error is thrown.
+
+```jldoctest semi_example; output=false, filter = [r"u0: .*", r"\[ Info: .*"]
+min_corner = minimum(tank.boundary.coordinates, dims=2)
+max_corner = maximum(tank.boundary.coordinates, dims=2)
+neighborhood_search = SortingGridNeighborhoodSearch{2}(; min_corner, max_corner)
+semi = Semidiscretization(system1, system2; neighborhood_search)
+ode = semidiscretize(semi, (0.0, 1.0))
+
+# output
+ODEProblem with uType RecursiveArrayTools.ArrayPartition{Float64, Tuple{TrixiParticles.ThreadedBroadcastArray{Float64, 1, Vector{Float64}, PolyesterBackend}, TrixiParticles.ThreadedBroadcastArray{Float64, 1, Vector{Float64}, PolyesterBackend}}} and tType Float64. In-place: true
+Non-trivial mass matrix: false
+timespan: (0.0, 1.0)
+u0: ([...], [...]) *this line is ignored by filter*
+```
+
+Currently, sorting particles is only supported for the
+[`WeaklyCompressibleSPHSystem`](@ref) and the [`WallBoundarySystem`](@ref).
+Fixed wall boundaries are only sorted once at the beginning of the simulation.
+
+The time integration arrays `v_ode` and `u_ode` (`sol.u[i].x` or `integrator.u.x`)
+are never reordered, so the particles in these arrays stay in their original order.
+This is also the order in which particles are written to VTK files.
+All arrays owned by the systems (like the particle masses) are stored in the sorted order.
+Sorting the particles reorders these arrays in place. To avoid modifying the passed systems,
+[`semidiscretize`](@ref) creates a copy of the [`Semidiscretization`](@ref),
+which can be accessed with `ode.p.semi`.
+
+!!! warning "Accessing the time integration arrays"
+    When particles are sorted, the particle indices of the systems don't match
+    the particle indices in the time integration arrays.
+    Therefore, the time integration arrays must not be indexed with particle indices,
+    and `TrixiParticles.wrap_v` and `TrixiParticles.wrap_u` throw an error
+    for these arrays.
+    Callbacks and custom quantities receive copies of the time integration arrays
+    in the sorted order of the system arrays, for which `wrap_v` and `wrap_u`
+    work as usual.
+
 ```@autodocs
 Modules = [TrixiParticles]
-Pages = [joinpath("general", "neighborhood_search.jl")]
+Pages = [joinpath("general", "neighborhood_search.jl"),
+         joinpath("general", "particle_sorting.jl")]
 ```

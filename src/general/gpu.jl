@@ -8,6 +8,8 @@
 #
 # `Adapt.@adapt_structure` automatically generates the `adapt` function for our custom types.
 Adapt.@adapt_structure InitialCondition
+Adapt.@adapt_structure ParticleSorting
+Adapt.@adapt_structure SortedODEArray
 Adapt.@adapt_structure WeaklyCompressibleSPHSystem
 Adapt.@adapt_structure EntropicallyDampedSPHSystem
 Adapt.@adapt_structure WallBoundarySystem
@@ -68,18 +70,35 @@ function transfer2cpu(v_, u_)
     return v, u
 end
 
+# `arrays_to_sort` contains references to arrays of the systems. Adapting it regularly
+# would create copies, so that the adapted systems would not be sorted.
+# Therefore, `arrays_to_sort` is recreated from the adapted systems `systems`.
+adapt_particle_sorting(to, ::Nothing, systems) = nothing
+
+function adapt_particle_sorting(to, sorting::ParticleSorting, systems)
+    sorting_ = Adapt.adapt(to, @set sorting.arrays_to_sort = nothing)
+
+    # Recreate `arrays_to_sort` from the adapted systems.
+    arrays_to_sort = map(system -> unique_arrays(particle_arrays_to_sort(system)), systems)
+
+    return @set sorting_.arrays_to_sort = arrays_to_sort
+end
+
 function transfer2cpu(semi::Semidiscretization)
     # First move all systems and neighborhood searches to the CPU
     systems = Adapt.adapt(Array, semi.systems)
     neighborhood_search_handler = adapt_neighborhood_search_handler(Array,
                                                                     semi.neighborhood_search_handler)
 
-    semi_ = @set semi.systems = systems
-    semi__ = @set semi_.neighborhood_search_handler = neighborhood_search_handler
+    particle_sorting = adapt_particle_sorting(Array, semi.particle_sorting, systems)
+
+    semi1 = @set semi.systems = systems
+    semi2 = @set semi1.neighborhood_search_handler = neighborhood_search_handler
+    semi3 = @set semi2.particle_sorting = particle_sorting
 
     # Now, set the parallelization backend to `PolyesterBackend` to make sure that
     # `@threaded` loops still work as expected with this semidiscretization.
-    return @set semi__.parallelization_backend = PolyesterBackend()
+    return @set semi3.parallelization_backend = PolyesterBackend()
 end
 
 function transfer2cpu(v_::AbstractGPUArray, u_, semi_)
