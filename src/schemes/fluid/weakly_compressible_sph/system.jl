@@ -142,6 +142,8 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
                                                                      density_calculator,
                                                                      NDIMS, ELTYPE,
                                                                      correction)
+    check_tvf_pressure_formulation(shifting_technique, pressure_acceleration, NDIMS,
+                                   ELTYPE, correction)
 
     cache = (; create_cache_density(initial_condition, density_calculator)...,
              create_cache_correction(correction, initial_condition.density, NDIMS,

@@ -589,12 +589,42 @@ struct TransportVelocityAdami{modify_continuity_equation, T <: Real} <:
     end
 end
 
+check_tvf_pressure_formulation(shifting, formulation, NDIMS, ELTYPE, correction) = nothing
+
+function check_tvf_pressure_formulation(::TransportVelocityAdami, formulation, NDIMS,
+                                        ELTYPE, correction)
+    tensor_formulation = tvf_tensor_divergence_formulation(formulation)
+    tensor_formulation isa TVFTensorDivergence || return nothing
+
+    tensor_type = SMatrix{NDIMS, NDIMS, ELTYPE, NDIMS^2}
+    gradient_type = SVector{NDIMS, ELTYPE}
+    arg_types = (ELTYPE, ELTYPE, ELTYPE, ELTYPE, tensor_type, tensor_type, gradient_type)
+    if correction isa AsymmetricKernelGradientCorrection
+        arg_types = (arg_types..., gradient_type)
+    end
+
+    if !hasmethod(tensor_formulation.pressure_formulation, Tuple{arg_types...})
+        throw(ArgumentError("`TransportVelocityAdami` requires a custom pressure " *
+                            "acceleration formulation to accept `SMatrix` tensors in " *
+                            "the pressure arguments for the selected correction."))
+    end
+
+    return nothing
+end
+
 @propagate_inbounds function add_dv_shifting(dv_particle, ::TransportVelocityAdami,
                                              system, neighbor_system,
                                              v_system, v_neighbor_system, particle,
                                              neighbor,
                                              m_a, m_b, rho_a, rho_b, v_a, v_b, pos_diff,
                                              distance, grad_kernel, correction)
+    # A is a flux of fluid momentum. Its normal flux through an impermeable
+    # interface is zero in the wall frame, including for a moving structure.
+    # Setting only A_b = 0 would still transport momentum through the wall via A_a.
+    if neighbor_system isa Union{AbstractBoundarySystem, AbstractStructureSystem}
+        return dv_particle
+    end
+
     delta_v_a = delta_v(system, particle)
     delta_v_b = delta_v(neighbor_system, neighbor)
 
@@ -603,24 +633,60 @@ end
     A_a = rho_a * v_a * permutedims(delta_v_a)
     A_b = rho_b * v_b * permutedims(delta_v_b)
 
-    # The following term depends on the pressure acceleration formulation.
-    # See the large comment below. In the original paper (Adami et al., 2013), this is
-    #   (V_a^2 + V_b^2) / m_a * ((A_a + A_b) / 2) * ∇W_ab.
-    # With the most common pressure acceleration formulation, this is
-    #   m_b * (A_a + A_b) / (ρ_a * ρ_b) * ∇W_ab.
-    # In order to obtain this, we pass `p_a = A_a` and `p_b = A_b` to the
-    # `pressure_acceleration` function.
-    dv_particle += pressure_acceleration(system, neighbor_system, particle, neighbor,
-                                         m_a, m_b, A_a, A_b, rho_a, rho_b,
-                                         pos_diff, distance, grad_kernel, correction)
+    # For the default `ContinuityDensity` pressure formulation and antisymmetric
+    # gradients, the tensor acceleration is +m_b * (A_a + A_b) * ∇W_ab / (ρ_a * ρ_b).
+    # Adami's volume-weighted formulation uses an arithmetic tensor average instead.
+    # As for the background-pressure update below, reuse the inter-particle pair
+    # weights here. Pass A_a and A_b in the pressure slots of the tensor formulation
+    # so that this term stays separate from the physical boundary force.
+    formulation = tvf_tensor_divergence_formulation(pressure_acceleration_formulation(system))
+    dv_particle += pressure_acceleration_interparticle(formulation, neighbor_system,
+                                                       neighbor, m_a, m_b, A_a, A_b,
+                                                       rho_a, rho_b, pos_diff, distance,
+                                                       grad_kernel, correction)
 
     return dv_particle
 end
 
-# The function above misuses the pressure acceleration function by passing a Matrix as `p_a`.
-# This doesn't work with `tensile_instability_control`, so we disable TIC in this case.
-@inline function tensile_instability_control(m_a, m_b, rho_a, rho_b, p_a::SMatrix, p_b, W_a)
-    return pressure_acceleration_continuity_density(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
+# Reuse the pair weights of the selected pressure discretization, but take the
+# positive divergence of A rather than the negative pressure gradient.
+struct TVFTensorDivergence{F}
+    pressure_formulation::F
+end
+
+@inline function (divergence::TVFTensorDivergence)(m_a, m_b, rho_a, rho_b, A_a, A_b, W_a)
+    return -divergence.pressure_formulation(m_a, m_b, rho_a, rho_b, A_a, A_b, W_a)
+end
+
+@inline function (divergence::TVFTensorDivergence)(m_a, m_b, rho_a, rho_b, A_a, A_b, W_a,
+                                                   W_b)
+    return -divergence.pressure_formulation(m_a, m_b, rho_a, rho_b, A_a, A_b, W_a, W_b)
+end
+
+@inline function tvf_tensor_divergence_formulation(pressure_formulation::F) where {F}
+    return TVFTensorDivergence(pressure_formulation)
+end
+
+@inline function tvf_tensor_divergence_formulation(::typeof(tensile_instability_control))
+    # The absolute value in tensile instability control is a scalar pressure
+    # correction, not a tensor operation. Bypass it for the tensor divergence and
+    # use the unmodified continuity-density pair weights.
+    return tvf_tensor_divergence_formulation(pressure_acceleration_continuity_density)
+end
+
+@inline function tvf_tensor_divergence_formulation(::typeof(inter_particle_averaged_pressure))
+    return tvf_tensor_divergence_volume_weighted
+end
+
+@inline function tvf_tensor_divergence_volume_weighted(m_a, m_b, rho_a, rho_b, A_a, A_b,
+                                                       W_a)
+    # Adami et al. (2013), Eq. (8); Ramachandran & Puri (2019), Eq. (12).
+    # The tensor term is (V_a^2 + V_b^2) / m_a * ((A_a + A_b) / 2) * ∇W_ab.
+    # Unlike the pressure, the tensors use an arithmetic rather than density-weighted mean.
+    volume_a = m_a / rho_a
+    volume_b = m_b / rho_b
+    scale = (volume_a^2 + volume_b^2) / (2 * m_a)
+    return scale * ((A_a + A_b) * W_a)
 end
 
 @propagate_inbounds function continuity_equation_shifting_term(v_diff,
@@ -642,6 +708,24 @@ function update_shifting!(system, shifting::TransportVelocityAdami, v, u, v_ode,
     end
 end
 
+"""
+    tvf_shifting_quadrature_factors(neighbor_system)
+
+Return the mass factor and weight for the TVF background-pressure shift, or `nothing`
+if the pair operator uses the original neighbor mass and unit weight. For a
+Monaghan–Kajtar wall, the mass factor sets the nominal volume in the pair operator.
+The weight accounts for the wall length (2D) or area (3D) represented by the marker.
+It multiplies the whole pair acceleration, which need not be linear in the neighbor mass.
+"""
+@inline tvf_shifting_quadrature_factors(neighbor_system) = nothing
+
+@inline tvf_shifting_quadrature(::Nothing, m_b) = (m_b, one(m_b))
+
+@inline function tvf_shifting_quadrature(factors::Tuple, m_b)
+    mass_factor, weight = factors
+    return m_b * mass_factor, weight
+end
+
 function update_shifting_inner!(system, shifting::TransportVelocityAdami,
                                 v, u, v_ode, u_ode, semi)
     (; delta_v) = system.cache
@@ -660,6 +744,7 @@ function update_shifting_inner!(system, shifting::TransportVelocityAdami,
 
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
+        quadrature_factors = tvf_shifting_quadrature_factors(neighbor_system)
 
         foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                                semi;
@@ -681,19 +766,18 @@ function update_shifting_inner!(system, shifting::TransportVelocityAdami,
             # as follows:
             #   v_{1/2} = v_0 + Δt/2 * a,
             # where a is the regular SPH acceleration term (pressure, viscosity, etc.).
-            #   r_1 = r_0 + Δt * (v_{1/2},
-            # where ̃v_{1/2} = v_{1/2} + Δt/2 * p_0 / m_a * \sum_b[ (V_a^2 + V_b^2) * ∇W_ab ]
+            #   r_1 = r_0 + Δt * ṽ_{1/2},
+            # where ṽ_{1/2} = v_{1/2} - Δt/2 * p_0 / m_a * \sum_b[ (V_a^2 + V_b^2) * ∇W_ab ]
             # is the transport velocity.
-            # We call δv_{1/2} = ̃v_{1/2} - v_{1/2} the shifting velocity.
-            # We will call δv_{1/2} the shifting velocity, which is given by
+            # We call δv_{1/2} = ṽ_{1/2} - v_{1/2} the shifting velocity, which is given by
             #   δv = -Δt/2 * p_0 / m_a * \sum_b[ (V_a^2 + V_b^2) * ∇W_ab ],
             # where p_0 is the background pressure, V_a = m_a / ρ_a, V_b = m_b / ρ_b.
             # This term depends on the pressure acceleration formulation.
             # In Zhang et al. (2017), the pressure acceleration term
-            #   m_b * (p_a / ρ_a^2 + p_b / ρ_b^2) * ∇W_ab
+            #   -m_b * (p_a / ρ_a^2 + p_b / ρ_b^2) * ∇W_ab
             # is used. They consequently changed the shifting velocity to
             #   δv = -Δt/2 * p_0 * \sum_b[ m_b * (1 / ρ_a^2 + 1 / ρ_b^2) * ∇W_ab ].
-            # We therefore use the function `pressure_acceleration` to compute the
+            # We therefore use the inter-particle pressure operator to compute the
             # shifting velocity according to the used pressure acceleration formulation.
             # In most cases, this will be
             #   δv = -Δt/2 * p_0 * \sum_b[ m_b * (1 + 1) / (ρ_a * ρ_b) * ∇W_ab ].
@@ -710,13 +794,17 @@ function update_shifting_inner!(system, shifting::TransportVelocityAdami,
             # where h is the smoothing length and c is the sound speed.
             # Applying this equation as equality yields the shifting velocity
             #   δv = -p_0 / 8 * h / c * \sum_b[ m_b * (1 + 1) / (ρ_a * ρ_b) * ∇W_ab ].
-            # The last part is achieved by passing `p_a = 1` and `p_b = 1` to the
-            # `pressure_acceleration` function.
-            delta_v_ = background_pressure / 8 * h / sound_speed *
-                       pressure_acceleration(system, neighbor_system, particle, neighbor,
-                                             m_a, m_b, 1, 1, rho_a, rho_b, pos_diff,
-                                             distance, grad_kernel,
-                                             system_correction(system))
+            # The last part is achieved by passing `p_a = 1` and `p_b = 1` to
+            # `pressure_acceleration_interparticle`, which bypasses physical boundary repulsion.
+            formulation = pressure_acceleration_formulation(system)
+            quadrature_mass, weight = tvf_shifting_quadrature(quadrature_factors, m_b)
+            delta_v_ = background_pressure / 8 * h / sound_speed * weight *
+                       pressure_acceleration_interparticle(formulation, neighbor_system,
+                                                           neighbor, m_a, quadrature_mass,
+                                                           one(rho_a), one(rho_b), rho_a,
+                                                           rho_b, pos_diff, distance,
+                                                           grad_kernel,
+                                                           system_correction(system))
 
             # Write into the buffer
             for i in eachindex(delta_v_)

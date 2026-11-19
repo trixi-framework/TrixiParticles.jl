@@ -136,6 +136,8 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
                                                                      density_calculator,
                                                                      NDIMS, ELTYPE,
                                                                      correction)
+    check_tvf_pressure_formulation(shifting_technique, pressure_acceleration, NDIMS,
+                                   ELTYPE, correction)
 
     avg_pressure_reduction = Val(average_pressure_reduction)
 
@@ -320,6 +322,8 @@ function update_average_pressure!(system, ::Val{false}, v_ode, u_ode, semi)
     return system
 end
 
+@inline contributes_to_pressure_average(neighbor_system) = true
+
 # This technique by Basa et al. 2017 (10.1002/fld.1927) aims to reduce numerical errors
 # due to large pressures by subtracting the average pressure of neighboring particles.
 # It results in significant improvement for EDAC, especially with TVF,
@@ -340,8 +344,9 @@ function update_average_pressure!(system, ::Val{true}, v_ode, u_ode, semi)
         foreach_system_wrapped(semi, v_ode,
                                u_ode) do neighbor_system, v_neighbor_system,
                                          u_neighbor_system
-            if !has_system_interaction(system, neighbor_system, semi)
-                # No interaction between these systems.
+            if !has_system_interaction(system, neighbor_system, semi) ||
+               !contributes_to_pressure_average(neighbor_system)
+                # Omit pressureless repulsive markers from both the sum and the count.
                 return
             end
 
@@ -364,9 +369,14 @@ function update_average_pressure!(system, ::Val{true}, v_ode, u_ode, semi)
         end
     end
 
-    # We do not need to check for zero division here, as `neighbor_counter = 1`
-    # for zero neighbors. That is, the `particle` itself is also taken into account.
-    pressure_average ./= neighbor_counter
+    # Normally the average includes the particle itself. With self-interaction
+    # disabled and only pressureless neighbors, use its own pressure as the reference.
+    @threaded semi for particle in each_integrated_particle(system)
+        count = @inbounds neighbor_counter[particle]
+        @inbounds pressure_average[particle] = iszero(count) ?
+                                               current_pressure(v, system, particle) :
+                                               pressure_average[particle] / count
+    end
 
     return system
 end

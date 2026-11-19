@@ -96,10 +96,7 @@ end
 function choose_pressure_acceleration_formulation(pressure_acceleration,
                                                   density_calculator, NDIMS, ELTYPE,
                                                   correction)
-    if correction isa KernelCorrection ||
-       correction isa GradientCorrection ||
-       correction isa BlendedGradientCorrection ||
-       correction isa MixedKernelGradientCorrection
+    if correction isa AsymmetricKernelGradientCorrection
         if isempty(methods(pressure_acceleration,
                            (ELTYPE, ELTYPE, ELTYPE, ELTYPE, ELTYPE, ELTYPE,
                             SVector{NDIMS, ELTYPE}, SVector{NDIMS, ELTYPE})))
@@ -143,30 +140,45 @@ end
 
 @inline pressure_acceleration_formulation(system) = system.pressure_acceleration_formulation
 
-# Formulation using symmetric gradient formulation for corrections not depending on local neighborhood.
+# Boundary laws can specialize physical pressure without affecting the TVF operators.
 @inline function pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
                                        m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
                                        distance, W_a, correction)
-    # Without correction or with `AkinciFreeSurfaceCorrection`, the kernel gradient is
-    # symmetric, so call the symmetric version of the pressure acceleration formulation.
-    return pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
-                                                              p_a, p_b, W_a)
+    formulation = pressure_acceleration_formulation(particle_system)
+    return pressure_acceleration_interparticle(formulation, neighbor_system, neighbor,
+                                               m_a, m_b, p_a, p_b, rho_a, rho_b,
+                                               pos_diff, distance, W_a, correction)
 end
 
-# Formulation using asymmetric gradient formulation for corrections depending on local neighborhood.
-@inline function pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
-                                       m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                       distance, W_a,
-                                       correction::Union{KernelCorrection,
-                                                         GradientCorrection,
-                                                         BlendedGradientCorrection,
-                                                         MixedKernelGradientCorrection})
-    W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
+# Evaluate the inter-particle formulation without dispatching to a physical boundary
+# force. TVF uses scalar unit pressures for background-pressure shifting and tensors
+# for its momentum correction. Neither term should apply the radial repulsion law.
+@inline function pressure_acceleration_interparticle(formulation::F, neighbor_system,
+                                                     neighbor, m_a, m_b, value_a, value_b,
+                                                     rho_a, rho_b, pos_diff, distance,
+                                                     W_a, correction) where {F}
+    # With no correction, or with a correction that leaves the kernel gradient
+    # unchanged (such as `AkinciFreeSurfaceCorrection`), use the symmetric
+    # formulation: it assumes W_b = -W_a and takes only W_a.
+    return formulation(m_a, m_b, rho_a, rho_b, value_a, value_b, W_a)
+end
 
-    # With correction, the kernel gradient is not necessarily symmetric, so call the
-    # asymmetric version of the pressure acceleration formulation.
-    return pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
-                                                              p_a, p_b, W_a, W_b)
+@inline function pressure_acceleration_interparticle(formulation::F, neighbor_system,
+                                                     neighbor, m_a, m_b, value_a, value_b,
+                                                     rho_a, rho_b, pos_diff, distance,
+                                                     W_a,
+                                                     ::AsymmetricKernelGradientCorrection) where {F}
+    # These corrections depend on the local neighborhood and can break gradient
+    # antisymmetry. Call the asymmetric formulation with both gradients, evaluating
+    # W_b at the neighbor with the reversed displacement.
+    W_b = neighbor_pressure_kernel_grad(neighbor_system, -pos_diff, distance, neighbor,
+                                        W_a)
+    return formulation(m_a, m_b, rho_a, rho_b, value_a, value_b, W_a, W_b)
+end
+
+@inline function neighbor_pressure_kernel_grad(neighbor_system, pos_diff, distance,
+                                               neighbor, W_a)
+    return smoothing_kernel_grad(neighbor_system, pos_diff, distance, neighbor)
 end
 
 # The last argument is the kernel gradient `W_b` of the neighbor if it has already been
@@ -177,4 +189,16 @@ end
     return pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
                                  m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff, distance,
                                  W_a, correction)
+end
+
+# The structure RHS computes the boundary gradient once for both the pressure
+# acceleration and the continuity equation of the boundary particles.
+@inline function pressure_acceleration(particle_system, neighbor_system, particle, neighbor,
+                                       m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
+                                       distance, W_a, ::AsymmetricKernelGradientCorrection,
+                                       W_b::AbstractVector)
+    # As in the two-gradient method above, the correction can break antisymmetry.
+    # Use the supplied W_b instead of evaluating the neighbor gradient again.
+    return pressure_acceleration_formulation(particle_system)(m_a, m_b, rho_a, rho_b,
+                                                              p_a, p_b, W_a, W_b)
 end

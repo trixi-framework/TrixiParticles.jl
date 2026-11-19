@@ -148,15 +148,25 @@ end
                                      grad_kernel, particle, neighbor,
                                      pos_diff, distance, sound_speed, m_a, m_b,
                                      p_a, p_b, rho_a, rho_b, nu_edac)
+    # EDAC pressure evolution adds an acoustic term and a pressure-diffusion term.
+    # This is basically the continuity equation times `sound_speed^2`.
+    artificial_eos = m_b * rho_a / rho_b * sound_speed^2 * dot(v_diff, grad_kernel)
+    damping_term = pressure_diffusion_term(particle_system, neighbor_system, particle,
+                                           neighbor, pos_diff, distance, grad_kernel,
+                                           m_a, m_b, p_a, p_b, rho_a, rho_b, nu_edac)
+
+    # Pressure is stored in `v` right after the velocity.
+    dv[ndims(particle_system) + 1, particle] += artificial_eos + damping_term
+
+    return dv
+end
+
+@inline function pressure_diffusion_term(particle_system, neighbor_system, particle,
+                                         neighbor, pos_diff, distance, grad_kernel,
+                                         m_a, m_b, p_a, p_b, rho_a, rho_b, nu_edac)
     volume_a = m_a / rho_a
     volume_b = m_b / rho_b
     volume_term = (volume_a^2 + volume_b^2) / m_a
-
-    # EDAC pressure evolution
-    pressure_diff = p_a - p_b
-
-    # This is basically the continuity equation times `sound_speed^2`
-    artificial_eos = m_b * rho_a / rho_b * sound_speed^2 * dot(v_diff, grad_kernel)
 
     eta_a = rho_a * nu_edac
     eta_b = rho_b * nu_edac
@@ -177,10 +187,18 @@ end
     # See issue: https://github.com/trixi-framework/TrixiParticles.jl/issues/394
     #
     # This is similar to density diffusion in WCSPH
-    damping_term = volume_term * tmp * pressure_diff * dot(grad_kernel, pos_diff)
+    return volume_term * tmp * (p_a - p_b) * dot(grad_kernel, pos_diff)
+end
 
-    # Pressure is stored in `v` right after the velocity
-    dv[ndims(particle_system) + 1, particle] += artificial_eos + damping_term
-
-    return dv
+@inline function pressure_diffusion_term(particle_system,
+                                         neighbor_system::Union{WallBoundarySystem{<:BoundaryModelMonaghanKajtar},
+                                                                TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
+                                         particle, neighbor, pos_diff, distance,
+                                         grad_kernel,
+                                         m_a, m_b, p_a, p_b, rho_a, rho_b, nu_edac)
+    # Repulsive particles have no hydrodynamic pressure state or smoothing length.
+    # For TLSPH neighbors, the smoothing length is for solid mechanics only.
+    # Impose zero normal diffusive flux (equivalent to mirroring the fluid pressure)
+    # and retain the acoustic term.
+    return zero(p_a)
 end
