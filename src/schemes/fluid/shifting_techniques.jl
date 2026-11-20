@@ -559,6 +559,16 @@ function apply_particle_shifting!(u_ode, ::ParticleShiftingTechnique{true},
     return u_ode
 end
 
+# `ParticleShiftingTechnique{<:Any, false}` means `update_everystage=false`.
+# The shifting velocity is kept between updates from the `UpdateCallback`,
+# so it has to be permuted when sorting particles.
+function sort_cache!(system, ::ParticleShiftingTechnique{<:Any, false}, perm)
+    (; delta_v) = system.cache
+    delta_v .= delta_v[:, perm]
+
+    return system
+end
+
 """
     TransportVelocityAdami(; background_pressure::Real, modify_continuity_equation=false)
 

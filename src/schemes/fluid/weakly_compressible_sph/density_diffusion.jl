@@ -261,6 +261,16 @@ function update_density_diffusion_from_callback!(system,
     return system
 end
 
+# With `update_everystage=false`, the normalized density gradient is kept between
+# updates from the `UpdateCallback`, so it has to be permuted when sorting particles.
+# The correction matrix is only used within `update_density_diffusion!`.
+function sort_cache!(system, ::DensityDiffusionAntuono{<:Any, false}, perm)
+    gradient = system.cache.density_diffusion_normalized_density_gradient
+    gradient .= gradient[:, perm]
+
+    return system
+end
+
 @propagate_inbounds function add_density_diffusion(drho_particle,
                                                    density_diffusion::AbstractDensityDiffusion,
                                                    particle_system::Union{AbstractFluidSystem,
