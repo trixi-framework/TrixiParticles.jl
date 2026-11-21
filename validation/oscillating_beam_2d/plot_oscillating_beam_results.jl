@@ -16,10 +16,14 @@ elastic_plate = (length=0.35, thickness=0.02)
 ref = CSV.read(joinpath(validation_dir(), "oscillating_beam_2d/reference_turek.csv"),
                DataFrame)
 
+# Set to true to include simulation results in the `out` folder (if available).
+include_sim_results = false
+
 # Get the list of JSON files
 reference_files = glob("validation_reference_*.json",
                        joinpath(validation_dir(), "oscillating_beam_2d"))
-simulation_files = glob("validation_run_oscillating_beam_2d_*.json", "out")
+simulation_files = include_sim_results ?
+                   glob("validation_run_oscillating_beam_2d_*.json", "out") : []
 merged_files = vcat(reference_files, simulation_files)
 input_files = sort(merged_files, by=extract_number_from_filename)
 
@@ -39,7 +43,11 @@ for file_name in input_files
     json_data = JSON.parsefile(file_name)
 
     resolution = parse(Int, split(split(file_name, "_")[end], ".")[1])
-    particle_spacing_ = elastic_plate.thickness / (resolution - 1)
+    # The Turek setup places the particles cell-centered (`thickness / dp = resolution`),
+    # the O'Connor setup places them on the shell (`thickness / dp = resolution - 1`).
+    setup = occursin("turek", basename(file_name)) ? "Turek" : "O'Connor"
+    particle_spacing_ = setup == "Turek" ? elastic_plate.thickness / resolution :
+                        elastic_plate.thickness / (resolution - 1)
 
     matching_keys_x = sort(collect(filter(key -> occursin(key_pattern_x, key),
                                           keys(json_data))))
@@ -50,7 +58,8 @@ for file_name in input_files
         error("No matching keys found in: $file_name")
     end
 
-    label_prefix = occursin("reference", file_name) ? "Reference" : ""
+    label_prefix = (occursin("reference", basename(file_name)) ? "Reference " : "") *
+                   "$setup setup"
 
     for (matching_keys, ax) in ((matching_keys_x, ax1), (matching_keys_y, ax2))
         for key in matching_keys
@@ -62,7 +71,7 @@ for file_name in input_files
                           interpolated_mse(ref.time, ref.Ux, data["time"], displacements) :
                           interpolated_mse(ref.time, ref.Uy, data["time"], displacements)
 
-            label = "$label_prefix dp = $(@sprintf("%.8f", particle_spacing_)) mse=$(@sprintf("%.8f", mse_results))"
+            label = "$label_prefix, dp = $(@sprintf("%.8f", particle_spacing_)) mse=$(@sprintf("%.8f", mse_results))"
             lines!(ax, times, displacements; label)
         end
     end

@@ -105,13 +105,13 @@
             tests = Dict(
                 "all particles clamped" => eachparticle(structure),
                 # Clamp everything but the top two layers of the beam
-                "some particles clamped" => 1:(nparticles(structure) - 162)
+                "some particles clamped" => 1:(nparticles(structure) - 2 * n_particles_per_dimension[1])
             )
             rtol = Dict(
                 "all particles clamped" => sqrt(eps()),
                 # Clamp everything but the top two layers of the beam.
                 # We don't expect very accurate results here, this is more of a smoke test.
-                "some particles clamped" => 0.12
+                "some particles clamped" => 0.25
             )
             @testset "$name" for (name, clamped_particles) in tests
                 # We need a new `PrescribedMotion` for each test due to

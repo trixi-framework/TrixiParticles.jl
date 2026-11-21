@@ -131,9 +131,12 @@
         ode_restart = semidiscretize(semi, (0.5, 1.0);
                                      restart_with=restart_file)
 
-        sol_restart = solve(ode_restart, RDPK3SpFSAL49(), save_everystep=false, dt=1e-6)
+        # Use the same time integration as in the example.
+        # `dt` is overwritten by the `StepsizeCallback`.
+        sol_restart = solve(ode_restart, VelocityVerlet(), dt=1.0, save_everystep=false,
+                            callback=stepsize_callback)
 
-        # Compare the final particle velocities
-        @test isapprox(sol_restart.u[end].x[2], positions_full, rtol=8e-5)
+        # Compare the final particle positions.
+        @test isapprox(sol_restart.u[end].x[2], positions_full, rtol=1e-8)
     end
 end
