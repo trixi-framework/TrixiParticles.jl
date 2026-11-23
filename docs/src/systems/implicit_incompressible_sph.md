@@ -224,13 +224,13 @@ The updated discretized continuity equation becomes:
 \frac{\rho_i(t + \Delta t) - \rho_i(t)}{\Delta t} = \sum_f m_f \bm{v}_{if}(t+\Delta t) \cdot \nabla W_{if} + \sum_b m_b \bm{v}_{ib}(t+\Delta t) \cdot \nabla W_{ib}.
 ```
 
-Since boundary particles have zero velocity, the difference between the fluid
-particle's velocity and the boundary particle's velocity simplifies to just the fluid
-particle's velocity ``\bm{v}_{ib}(t+\Delta t) = \bm{v}_{i}(t+\Delta t)``.
-Accordingly, the predicted density ``\rho^{\text{adv}}`` becomes:
+For a stationary wall, ``\bm{v}_{ib}`` reduces to the fluid velocity. For a wall with
+prescribed motion, the predictor uses the physical wall velocity ``\bm{v}_b(t)`` at
+the current evaluation time. The no-slip ghost velocity is used only for viscosity.
+The predicted density ``\rho^{\text{adv}}`` is therefore:
 
 ```math
-\rho_i^{\text{adv}} = \rho_i (t) + \Delta t \sum_f m_f \bm{v}_{if}^{\text{adv}} \cdot \nabla W_{if}(t) + \Delta t \sum_b m_b \bm{v}_{i}^{\text{adv}} \cdot \nabla W_{ib}(t).
+\rho_i^{\text{adv}} = \rho_i(t) + \Delta t \sum_f m_f \bm{v}_{if}^{\text{adv}} \cdot \nabla W_{if}(t) + \Delta t \sum_b m_b \left(\bm{v}_{i}^{\text{adv}} - \bm{v}_b(t)\right) \cdot \nabla W_{ib}(t).
 ```
 
 This leads to the following updated formulation of the linear system:
@@ -239,8 +239,8 @@ This leads to the following updated formulation of the linear system:
 \Delta t^2 \sum_f m_f \left(  \frac{\bm{F}_i^p(t)}{m_i} - \frac{\bm{F}_f^p(t)}{m_f} \right) \cdot \nabla W_{if} + \Delta t^2 \sum_b m_b \frac{\bm{F}_i^p(t)}{m_i} \cdot \nabla W_{ib} = \rho_0 - \rho_i^{\text{adv}}.
 ```
 
-Note that, since boundary particles are fixed, the force ``F_b^p`` is zero and does not appear
-in this equation.
+Boundary particles do not accelerate in response to pressure, so ``F_b^p`` does not
+appear in this equation. This also holds for prescribed wall motion.
 
 The pressure force acting on a fluid particle is computed as:
 
@@ -302,14 +302,26 @@ p_i^{l+1} = (1 - \omega) p_i^l + \omega \frac{1}{a_{ii}} &\left( \rho_0 - \rho_i
 \end{align*}
 ```
 
-### Pressure Extrapolation
+### [Pressure Extrapolation](@id iisph_pressure_extrapolation)
 The density calculators [`AdamiPressureExtrapolation`](@ref) and [`BernoulliPressureExtrapolation`](@ref)
-can also be used with IISPH.
-Neither method adds a wall pressure unknown to the PPE. The linear system treats wall
-pressure as zero (``p_b=0``), while the final pressure acceleration uses the extrapolated
-wall pressure. If the wall has an equation of state, the extrapolation also supplies wall
-density for the final advection prediction and force evaluation. That density is computed
-from a provisional solve and held fixed, as described under [boundary models](@ref boundary_models).
+can also be used with IISPH. Neither method adds a wall pressure unknown to the PPE.
+With an equation of state, the [wall predictor](@ref boundary_models) extrapolates
+wall pressure from a provisional solve and uses the equation of state to obtain wall
+density. Both are held fixed during the final solve and force evaluation.
+
+In the final prediction, the known pressure acceleration from those walls is
+```math
+\bm{a}_i^{\mathrm{wall}} = -\sum_b m_b \frac{p_b}{\rho_b^2} \nabla W_{ib}.
+```
+The solver adds ``\Delta t\,\bm{a}_i^{\mathrm{wall}}`` to each fluid's predicted
+velocity before assembling the density prediction. This puts the known wall force
+on the PPE right-hand side, including in rows for neighboring fluid particles and
+for [`PressureBoundaries`](@ref). The PPE matrix does not change. The final fluid
+pressures do not feed back into the frozen wall values within the same evaluation.
+
+Without a wall equation of state, IISPH uses one solve that omits the extrapolated
+wall pressure from the PPE and applies it in the final force. To solve for wall
+pressure as an unknown, use [`PressureBoundaries`](@ref).
 
 ### Pressure Boundaries
 The [`PressureBoundaries`](@ref) density calculator was introduced by

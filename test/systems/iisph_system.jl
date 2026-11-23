@@ -368,6 +368,170 @@
         end
     end
 
+    @testset "IISPH wall pressure and normal motion in the density balance" begin
+        kernel = SchoenbergCubicSplineKernel{2}()
+        rho0 = 1000.0
+        h = 1.0
+        weight = TrixiParticles.kernel(kernel, 0.0, h) +
+                 TrixiParticles.kernel(kernel, h, h)
+
+        function evaluate_pair(calculator; dt=0.005, rho=rho0, wall_speed=0.0,
+                               gravity=0.0, eos=nothing, reverse_order=false,
+                               min_iterations=2)
+            # Equal masses give both particles the specified kernel-summation density.
+            mass = rho / weight
+            fluid_ic = InitialCondition(; coordinates=zeros(2, 1), density=rho0, mass,
+                                        particle_spacing=h)
+            wall_ic = InitialCondition(; coordinates=reshape([h, 0.0], 2, 1),
+                                       density=rho0, mass, particle_spacing=h)
+            # Configure a distinct ghost velocity without adding a viscous force: zero
+            # wall viscosity makes the harmonic viscosity of the wall pair zero.
+            fluid_viscosity = eos === nothing ? nothing : ViscosityAdami(nu=0.1)
+            wall_viscosity = eos === nothing ? nothing : ViscosityAdami(nu=0.0)
+            fluid = ImplicitIncompressibleSPHSystem(fluid_ic; smoothing_kernel=kernel,
+                                                    smoothing_length=h, time_step=dt,
+                                                    reference_density=rho0, omega=0.4,
+                                                    min_iterations, max_iterations=100,
+                                                    max_error=1e-9,
+                                                    viscosity=fluid_viscosity,
+                                                    acceleration=(gravity, 0.0))
+            model = BoundaryModelDummyParticles(wall_ic.density, wall_ic.mass, calculator,
+                                                kernel, h; state_equation=eos,
+                                                viscosity=wall_viscosity)
+            motion = PrescribedMotion((coords, t) -> coords + SVector(wall_speed * t, 0.0),
+                                      t -> true)
+            wall = WallBoundarySystem(wall_ic, model; prescribed_motion=motion)
+            systems = reverse_order ? (wall, fluid) : (fluid, wall)
+            semi = Semidiscretization(systems...; parallelization_backend=SerialBackend())
+            ode = semidiscretize(semi, (0.0, dt))
+            v, u = ode.u0.x
+            dv = zero(v)
+            TrixiParticles.kick!(dv, v, u, ode.p, 0.0)
+
+            grad_x = TrixiParticles.smoothing_kernel_grad(fluid, SVector(-h, 0.0), h, 1)[1]
+            acceleration = TrixiParticles.wrap_v(dv, fluid, ode.p.semi)[1, 1]
+            # Apply the continuity linearization to the actual fluid RHS and wall motion.
+            updated_density = rho + dt * mass * (dt * acceleration - wall_speed) * grad_x
+            return (; predicted_density=only(fluid.predicted_density),
+                    fluid_pressure=only(fluid.pressure), wall_pressure=only(model.pressure),
+                    wall_density=only(model.cache.density), acceleration, updated_density,
+                    density_weight=mass * grad_x,
+                    ghost_speed=wall_viscosity === nothing ? 0.0 :
+                                model.cache.wall_velocity[1, 1])
+        end
+
+        @testset "Invalid seed, admissible solved pressure" begin
+            # With zero fluid pressure, the hydrostatic term alone is below the Cole
+            # inverse's lower limit. The provisional fluid pressure makes it admissible.
+            rho = 1005.0
+            gravity = -10.0
+            c = 5.0
+            exponent = 7
+            eos = StateEquationCole(; sound_speed=c, reference_density=rho0, exponent)
+            @test gravity * rho * h < -rho0 * c^2 / exponent
+            for calculator in
+                (AdamiPressureExtrapolation(), BernoulliPressureExtrapolation())
+                result = evaluate_pair(calculator; dt=0.023, rho, gravity, eos)
+                @test -rho0 * c^2 / exponent < result.wall_pressure < 0.0
+                @test eos(result.wall_density) ≈ result.wall_pressure
+                @test result.updated_density≈rho0 atol=2e-8 rtol=0
+            end
+        end
+
+        @testset "Normal wall motion and frozen pressure" begin
+            wall_speed = -1.0
+            dt = 0.005
+            eos = StateEquationCole(; sound_speed=40.0, reference_density=rho0, exponent=7)
+            for calculator in
+                (AdamiPressureExtrapolation(), BernoulliPressureExtrapolation())
+                result = evaluate_pair(calculator; dt, eos, wall_speed)
+                reversed = evaluate_pair(calculator; dt, eos, wall_speed,
+                                         reverse_order=true)
+                @test all(isapprox.(values(result), values(reversed)))
+                @test result.wall_pressure > 0
+                @test result.fluid_pressure > 0
+                @test result.ghost_speed ≈ 2wall_speed
+                # The default wall interpolation supplies pressure but not a movable
+                # pressure DOF. Its frozen acceleration is known during the final solve.
+                wall_velocity_increment = -dt * result.density_weight *
+                                          result.wall_pressure / result.wall_density^2
+                predicted_density = rho0 +
+                                    dt * result.density_weight *
+                                    (wall_velocity_increment - wall_speed)
+                @test result.predicted_density≈predicted_density atol=1e-10 rtol=0
+                @test result.updated_density≈rho0 atol=2e-8 rtol=0
+            end
+        end
+
+        @testset "Active PressureBoundaries in both system orders" begin
+            wall_speed = -1.0
+            dt = 0.005
+            calculator = PressureBoundaries(; time_step=dt)
+            # Force enough iterations to test the ordering independently of the legacy
+            # stopping criterion used when there are no staged extrapolating walls.
+            result = evaluate_pair(calculator; dt, wall_speed, min_iterations=60)
+            reversed = evaluate_pair(calculator; dt, wall_speed, min_iterations=60,
+                                     reverse_order=true)
+            @test all(isapprox.(values(result), values(reversed)))
+            @test result.wall_pressure > 0
+            @test result.fluid_pressure > 0
+            @test result.predicted_density ≈ rho0 - dt * result.density_weight * wall_speed
+            @test result.updated_density≈rho0 atol=2e-8 rtol=0
+        end
+    end
+
+    @testset "EOS wall contact uses the fluid kernel and the current positions" begin
+        kernel = SchoenbergCubicSplineKernel{2}()
+        rho = 1000.0
+        mass = (rho + 1) / (TrixiParticles.kernel(kernel, 0.0, 1.0) +
+                TrixiParticles.kernel(kernel, 1.0, 1.0))
+        fluid_ic = InitialCondition(; coordinates=zeros(2, 1), particle_spacing=1.0,
+                                    density=rho, mass)
+        wall_ic = InitialCondition(; coordinates=reshape([1.5, 0.0], 2, 1),
+                                   particle_spacing=1.0, density=rho)
+        fluid = ImplicitIncompressibleSPHSystem(fluid_ic; smoothing_kernel=kernel,
+                                                smoothing_length=1.0, reference_density=rho,
+                                                time_step=0.001, min_iterations=1,
+                                                max_iterations=1)
+        eos = StateEquationCole(; sound_speed=5.0, reference_density=rho, exponent=7)
+        model = BoundaryModelDummyParticles(wall_ic.density, wall_ic.mass,
+                                            AdamiPressureExtrapolation(), kernel, 0.5;
+                                            state_equation=eos)
+        motion = PrescribedMotion((coords, t) -> coords + SVector(t, 0.0), t -> true)
+        wall = WallBoundarySystem(wall_ic, model; prescribed_motion=motion)
+        # Keep the pressure diagonal nonzero even when the moving wall is out of range.
+        fixed_ic = InitialCondition(; coordinates=reshape([-1.0, 0.0], 2, 1),
+                                    particle_spacing=1.0, density=rho, mass)
+        fixed_model = BoundaryModelDummyParticles(fixed_ic.density, fixed_ic.mass,
+                                                  PressureZeroing(), kernel, 1.0)
+        fixed_wall = WallBoundarySystem(fixed_ic, fixed_model)
+        semi = Semidiscretization(fluid, wall, fixed_wall;
+                                  parallelization_backend=SerialBackend())
+        ode = semidiscretize(semi, (0.0, 1.0))
+        v, u = ode.u0.x
+        dv = zero(v)
+
+        TrixiParticles.kick!(dv, v, u, ode.p, 0.0)
+        @test TrixiParticles.has_iisph_wall_contact(fluid)
+        @test iszero(only(model.cache.volume)) # The wall kernel cannot see the fluid.
+
+        fluid.pressure .= 0.0
+        TrixiParticles.kick!(dv, v, u, ode.p, 1.0)
+        cold_pressure = only(fluid.pressure)
+        @test !TrixiParticles.has_iisph_wall_contact(fluid)
+        # A single warm-started iteration retains this fraction of the old pressure.
+        # Running a provisional solve would reset it and discard this increment.
+        fluid.pressure .= 40.0
+        TrixiParticles.kick!(dv, v, u, ode.p, 1.0)
+        @test only(fluid.pressure) - cold_pressure ≈ (1 - fluid.omega) * 20.0
+
+        TrixiParticles.kick!(dv, v, u, ode.p, 0.0)
+        @test TrixiParticles.has_iisph_wall_contact(fluid)
+        ode.p.semi.interaction_matrix[1, 2] = false
+        TrixiParticles.kick!(dv, v, u, ode.p, 0.0)
+        @test !TrixiParticles.has_iisph_wall_contact(fluid)
+    end
+
     # Validate helper routines that build the IISPH linear system and update pressures
     @trixi_testset "Solver helper calculations" begin
         smoothing_kernel = Val(:smoothing_kernel)
@@ -520,7 +684,8 @@
             # density_error = 997-1000 = -3 (signed deviation).
             # For particle 2: the pressure is clamped to zero, so the stale buffer
             # entry 99.0 from the previous iteration is explicitly cleared.
-            relative_error = TrixiParticles.pressure_update(system_pressure,
+            mode = TrixiParticles.StandardIISPHPressure()
+            relative_error = TrixiParticles.pressure_update(mode, system_pressure,
                                                             system_pressure.pressure,
                                                             system_pressure.reference_density,
                                                             system_pressure.a_ii,

@@ -105,6 +105,21 @@ After Shepard normalization, the boundary pressure and density are recomputed
 from the corrected fluid density for the force calculation. This one-pass predictor
 does not solve for a common boundary density across the two stages.
 
+For IISPH, the default fluid–wall interaction uses a two-stage pressure solve when a
+fluid particle's kernel samples an Adami or Bernoulli wall with an equation of state.
+The first pass extrapolates wall pressure with zero IISPH fluid pressure, retaining
+hydrostatic terms, any Bernoulli term, and the pressure offset. It inverts the wall
+equation of state to seed density; if the inverse does not give a positive, finite
+density, or the equation of state is custom, the seed uses the initial wall density.
+When no-slip viscosity is configured, this pass also updates the ghost velocity.
+
+After the provisional solve, IISPH extrapolates the wall pressure again and obtains the
+wall density from the equation of state. It holds the wall state fixed for the second
+solve and force evaluation. The second solve accounts for the known wall-pressure
+force without adding a wall pressure unknown. See [IISPH pressure extrapolation](@ref iisph_pressure_extrapolation).
+Both solves span the full IISPH semidiscretization. When there is no such contact,
+IISPH performs only its regular pressure solve.
+
 #### 1. [`AdamiPressureExtrapolation`](@ref)
 
 The pressure of the boundary particles is obtained by extrapolating the pressure of the fluid
@@ -185,16 +200,8 @@ v_w = 2 v_a - \frac{\sum_b v_b W_{ab}}{\sum_b W_{ab}},
 ```
 where the sum is over all fluid particles.
 
-For IISPH with an equation of state on an Adami or Bernoulli wall, the wall pressure
-and density are first extrapolated with zero fluid pressure; hydrostatic, dynamic, and
-pressure-offset terms still apply. IISPH then performs a provisional pressure solve and
-extrapolates the wall pressure and density again from that result. It holds both values
-fixed through the final advection prediction, pressure solve, and force evaluation.
-The density prediction uses the physical wall velocity; viscosity uses the no-slip ghost
-velocity.
-
-This is a lagged approximation. To include wall pressure as an unknown in the pressure
-solve, use [`PressureBoundaries`](@ref).
+In IISPH the continuity term uses the physical wall velocity at the current evaluation
+time. Only the viscosity term uses the no-slip ghost velocity.
 
 By choosing the viscosity model [`ViscosityAdami`](@ref) for `viscosity`, a no-slip
 condition is imposed. It is recommended to choose `nu` in the order of either the kinematic

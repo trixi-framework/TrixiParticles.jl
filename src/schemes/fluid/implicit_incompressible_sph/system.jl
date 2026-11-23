@@ -136,7 +136,7 @@ function ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
     sum_term = zeros(ELTYPE, n_particles)
     density_error = zeros(ELTYPE, n_particles)
 
-    cache = (;
+    cache = (; extrapolating_wall_contact=zeros(Bool, n_particles),
              create_cache_refinement(initial_condition, particle_refinement,
                                      smoothing_length)...,)
 
@@ -221,74 +221,116 @@ end
 function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
     (; density) = system
+    (; extrapolating_wall_contact) = system.cache
 
-    # Compute density by kernel summation
-    summation_density!(system, semi, u, u_ode, density)
+    # Record contact during the existing density loop. Each parallel work item writes
+    # only its own particle's flag for this wall, with byte storage (not a BitVector).
+    set_zero!(extrapolating_wall_contact)
+    function mark_wall_contact(particle, weight)
+        if !iszero(weight)
+            @inbounds extrapolating_wall_contact[particle] = true
+        end
+        return nothing
+    end
+    neighbor_callback(neighbor) = iisph_extrapolating_wall_pair(system, neighbor, semi) ?
+                                  mark_wall_contact : ignore_density_neighbor
+    summation_density!(system, semi, u, u_ode, density; neighbor_callback)
 
     return system
 end
 
 @inline uses_iisph_wall_density_prediction(system, semi) = false
 
+@inline iisph_extrapolating_wall_pair(fluid, wall, semi) = false
+
+@inline function iisph_extrapolating_wall_pair(fluid::ImplicitIncompressibleSPHSystem,
+                                               wall::WallBoundarySystem, semi)
+    # Only the default interaction has the pressure force modeled by the PPE.
+    return has_pressure_extrapolated_density(wall) &&
+           system_interaction(fluid, wall, semi) === true
+end
+
 @inline function uses_iisph_wall_density_prediction(wall::WallBoundarySystem, semi)
     has_pressure_extrapolated_density(wall) || return false
-    return any(neighbor -> neighbor isa ImplicitIncompressibleSPHSystem &&
-                           has_system_interaction(neighbor, wall, semi), semi.systems)
+    return any(neighbor -> iisph_extrapolating_wall_pair(neighbor, wall, semi),
+               semi.systems)
 end
 
-# Walk the heterogeneous tuple directly to avoid allocating in the RHS.
-@inline any_iisph_wall_needs_prediction(::Tuple{}, semi) = false
+@inline has_iisph_wall_contact(system) = false
 
-@inline function any_iisph_wall_needs_prediction(systems, semi)
-    return uses_iisph_wall_density_prediction(first(systems), semi) ||
-           any_iisph_wall_needs_prediction(Base.tail(systems), semi)
+@inline function has_iisph_wall_contact(system::ImplicitIncompressibleSPHSystem)
+    return any(system.cache.extrapolating_wall_contact)
 end
 
-function seed_iisph_wall_densities!(semi, v_ode, u_ode)
+@inline function iisph_pressure_mode(systems)
+    return any(has_iisph_wall_contact, systems) ? FrozenWallIISPHPressure() :
+           StandardIISPHPressure()
+end
+
+@inline preserve_iisph_wall_state(::IISPHPressureMode, system, semi) = false
+
+@inline function preserve_iisph_wall_state(::FrozenWallIISPHPressure,
+                                           wall::WallBoundarySystem, semi)
+    return uses_iisph_wall_density_prediction(wall, semi)
+end
+
+seed_iisph_wall_densities!(::StandardIISPHPressure, semi, v_ode, u_ode) = semi
+
+reset_iisph_pressure!(system) = nothing
+
+function reset_iisph_pressure!(system::Union{ImplicitIncompressibleSPHSystem,
+                                             WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}})
+    set_zero!(current_pressure(nothing, system))
+    return nothing
+end
+
+function seed_iisph_wall_densities!(::FrozenWallIISPHPressure, semi, v_ode, u_ode)
     # Start the provisional solve from the current ODE state, never from cached pressure
     # left by a previous evaluation. The zero-pressure extrapolation retains hydrostatic,
     # dynamic, and offset terms that are already known at the current state.
-    foreach_system(semi) do system
-        if system isa ImplicitIncompressibleSPHSystem ||
-           system isa
-           WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}
-            set_zero!(current_pressure(nothing, system))
-        end
+    foreach_system(reset_iisph_pressure!, semi)
+    foreach_system_wrapped(semi, v_ode, u_ode) do wall, v, u
+        uses_iisph_wall_density_prediction(wall, semi) || return
+        model = wall.boundary_model
+        predict_pressure_extrapolated_density!(model, wall, v, u, v_ode, u_ode, semi;
+                                               viscosity=model.viscosity)
     end
-    extrapolate_iisph_wall_density!(semi, v_ode, u_ode)
 end
 
-function extrapolate_iisph_wall_density!(semi, v_ode, u_ode)
+function freeze_iisph_wall_state!(semi, v_ode, u_ode)
     foreach_system_wrapped(semi, v_ode, u_ode) do wall, v, u
         uses_iisph_wall_density_prediction(wall, semi) || return
         update_pressure!(wall.boundary_model, wall, v, u, v_ode, u_ode, semi)
     end
 end
 
-function update_implicit_sph!(semi, v_ode, u_ode, predict_wall_density::Bool)
+function update_implicit_sph!(mode::StandardIISPHPressure, semi, v_ode, u_ode)
     # This check is performed statically by the compiler and has no overhead
     if !any(system -> system isa ImplicitIncompressibleSPHSystem, semi.systems)
         return semi
     end
 
-    if predict_wall_density
-        # A single deferred correction: use provisional fluid pressures for the wall
-        # extrapolation, then keep the wall state fixed in the final solve and RHS.
-        @trixi_timeit timer() "provisional IISPH pressure" begin
-            predict_and_solve_iisph!(semi, v_ode, u_ode)
-            extrapolate_iisph_wall_density!(semi, v_ode, u_ode)
-        end
-    end
-
-    return predict_and_solve_iisph!(semi, v_ode, u_ode)
+    return predict_and_solve_iisph!(mode, semi, v_ode, u_ode)
 end
 
-function predict_and_solve_iisph!(semi, v_ode, u_ode)
+function update_implicit_sph!(mode::FrozenWallIISPHPressure, semi, v_ode, u_ode)
+    # Use provisional pressures to update the extrapolating walls once, then keep
+    # their state fixed in the final solve and RHS.
+    @trixi_timeit timer() "provisional IISPH pressure" begin
+        predict_and_solve_iisph!(StandardIISPHPressure(), semi, v_ode, u_ode)
+        freeze_iisph_wall_state!(semi, v_ode, u_ode)
+    end
+
+    return predict_and_solve_iisph!(mode, semi, v_ode, u_ode)
+end
+
+function predict_and_solve_iisph!(mode, semi, v_ode, u_ode)
     # Predict every fluid velocity before computing coefficients that use neighboring
     # predictions, including those of `PressureBoundaries`, regardless of system order.
     @trixi_timeit timer() "predict advection" begin
         foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
-            calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi)
+            calculate_predicted_velocity_and_d_ii_values!(mode, system, v, u, v_ode, u_ode,
+                                                          semi)
         end
         foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
             calculate_diagonal_elements_and_predicted_density!(system, v, u, v_ode, u_ode,
@@ -296,16 +338,18 @@ function predict_and_solve_iisph!(semi, v_ode, u_ode)
         end
     end
 
-    @trixi_timeit timer() "pressure solver" pressure_solve!(semi, v_ode, u_ode)
+    @trixi_timeit timer() "pressure solver" pressure_solve!(mode, semi, u_ode)
 
     return semi
 end
 
-function calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi)
+function calculate_predicted_velocity_and_d_ii_values!(mode, system, v, u, v_ode, u_ode,
+                                                       semi)
     return system
 end
 
-function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompressibleSPHSystem,
+function calculate_predicted_velocity_and_d_ii_values!(mode,
+                                                       system::ImplicitIncompressibleSPHSystem,
                                                        v, u, v_ode, u_ode, semi)
     (; advection_velocity, time_step) = system
     d_ii_array = system.d_ii
@@ -313,8 +357,6 @@ function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompres
     v_particle_system = wrap_v(v_ode, system, semi)
 
     set_zero!(d_ii_array)
-
-    sound_speed = system_sound_speed(system) # TODO
 
     @threaded semi for particle in each_integrated_particle(system)
         # Initialize the advection velocity with the current velocity plus the system acceleration
@@ -337,46 +379,77 @@ function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompres
 
         system_coords = current_coordinates(u, system)
         neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
-
-        foreach_point_neighbor(system, neighbor_system,
-                               system_coords, neighbor_system_coords, semi;
-                               points=each_integrated_particle(system)) do particle,
-                                                                           neighbor,
-                                                                           pos_diff,
-                                                                           distance
-            m_a = @inbounds hydrodynamic_mass(system, particle)
-            m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
-
-            rho_a = @inbounds current_density(v_particle_system, system, particle)
-            rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
-
-            v_a = @inbounds current_velocity(v_particle_system, system, particle)
-            v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
-
-            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
-
-            dv_viscosity_ = @inbounds add_dv_viscosity(zero(pos_diff), system,
-                                                       neighbor_system,
-                                                       v_particle_system, v_neighbor_system,
-                                                       particle, neighbor, pos_diff,
-                                                       distance,
-                                                       sound_speed, m_a, m_b, rho_a, rho_b,
-                                                       v_a, v_b, grad_kernel)
-            # Add all other non-pressure forces
-            for i in 1:ndims(system)
-                @inbounds advection_velocity[i,
-                                             particle] += time_step * dv_viscosity_[i]
-            end
-            # Calculate d_ii with eq. 9 in Ihmsen et al. (2013)
-            for i in 1:ndims(system)
-                d_ii_array[i,
-                           particle] += calculate_d_ii(neighbor_system, m_b, rho_a,
-                                                       grad_kernel[i], time_step)
-            end
-        end
+        wall_pressure = frozen_wall_pressure(mode, system, neighbor_system, semi)
+        accumulate_iisph_prediction!(wall_pressure, system, neighbor_system,
+                                     v_particle_system, v_neighbor_system, system_coords,
+                                     neighbor_system_coords, semi)
     end
 
     return system
+end
+
+@inline frozen_wall_pressure(mode, fluid, wall, semi) = nothing
+
+@inline function frozen_wall_pressure(::FrozenWallIISPHPressure, fluid,
+                                      wall::WallBoundarySystem, semi)
+    return iisph_extrapolating_wall_pair(fluid, wall, semi) ?
+           current_pressure(nothing, wall) : nothing
+end
+
+@inline function add_frozen_wall_acceleration(acceleration, ::Nothing, neighbor, m_a,
+                                              m_b, rho_a, rho_b, grad_kernel)
+    return acceleration
+end
+
+@propagate_inbounds function add_frozen_wall_acceleration(acceleration, wall_pressure,
+                                                          neighbor, m_a, m_b, rho_a, rho_b,
+                                                          grad_kernel)
+    # Only the known p_b / rho_b^2 part of the pair force. Adding its velocity increment
+    # moves its density contribution to the right-hand side in all neighboring PPE rows.
+    p_b = wall_pressure[neighbor]
+    return acceleration + pressure_acceleration_summation_density(m_a, m_b, rho_a, rho_b,
+                                                   zero(p_b), p_b, grad_kernel)
+end
+
+# Specialize the pair loop on the presence of a known wall pressure contribution.
+@inline function accumulate_iisph_prediction!(wall_pressure, system, neighbor_system,
+                                              v_particle_system, v_neighbor_system,
+                                              system_coords, neighbor_system_coords, semi)
+    (; advection_velocity, time_step) = system
+    d_ii_array = system.d_ii
+    sound_speed = system_sound_speed(system)
+
+    foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_system_coords,
+                           semi;
+                           points=each_integrated_particle(system)) do particle,
+                                                                       neighbor,
+                                                                       pos_diff,
+                                                                       distance
+        m_a = @inbounds hydrodynamic_mass(system, particle)
+        m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
+        rho_a = @inbounds current_density(v_particle_system, system, particle)
+        rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
+        v_a = @inbounds current_velocity(v_particle_system, system, particle)
+        v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
+        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
+
+        dv_viscosity = @inbounds add_dv_viscosity(zero(pos_diff), system, neighbor_system,
+                                                  v_particle_system, v_neighbor_system,
+                                                  particle, neighbor, pos_diff, distance,
+                                                  sound_speed, m_a, m_b, rho_a, rho_b,
+                                                  v_a, v_b, grad_kernel)
+        acceleration = @inbounds add_frozen_wall_acceleration(dv_viscosity, wall_pressure,
+                                                              neighbor, m_a, m_b, rho_a,
+                                                              rho_b, grad_kernel)
+        for i in 1:ndims(system)
+            @inbounds advection_velocity[i, particle] += time_step * acceleration[i]
+            # Calculate d_ii with eq. 9 in Ihmsen et al. (2013).
+            @inbounds d_ii_array[i,
+                                 particle] += calculate_d_ii(neighbor_system, m_b,
+                                                             rho_a, grad_kernel[i],
+                                                             time_step)
+        end
+    end
 end
 
 function calculate_diagonal_elements_and_predicted_density!(system, v, u, v_ode, u_ode,
@@ -472,7 +545,7 @@ function calculate_diagonal_elements_and_predicted_density(a_ii, predicted_densi
 end
 
 # Calculate pressure values with iterative pressure solver (relaxed Jacobi scheme)
-function pressure_solve!(semi, v_ode, u_ode)
+function pressure_solve!(mode, semi, u_ode)
     foreach_system(semi) do system
         initialize_pressure!(system, semi)
     end
@@ -490,7 +563,8 @@ function pressure_solve!(semi, v_ode, u_ode)
     l = 1
     while (!terminate)
         @trixi_timeit timer() "pressure solver iteration" begin
-            avg_density_error = pressure_solve_iteration(semi, u_ode, n_iisph_particles_)
+            avg_density_error = pressure_solve_iteration(mode, semi, u_ode,
+                                                         n_iisph_particles_)
             # Update termination condition
             terminate = (avg_density_error <= max_error && l >= min_iters) ||
                         l >= max_iters
@@ -516,7 +590,7 @@ function initialize_pressure!(system::Union{ImplicitIncompressibleSPHSystem,
     end
 end
 
-function pressure_solve_iteration(semi, u_ode, n_particles)
+function pressure_solve_iteration(mode, semi, u_ode, n_particles)
     foreach_system(semi) do system
         u = wrap_u(u_ode, system, semi)
         calculate_sum_d_ij_pj!(system, u, u_ode, semi)
@@ -529,8 +603,7 @@ function pressure_solve_iteration(semi, u_ode, n_particles)
     # Wrap with `Ref` to allow modification inside the anonymous function below (without implicit boxing)
     total_density_error = Ref(0.0)
     foreach_system(semi) do system
-        u = wrap_u(u_ode, system, semi)
-        total_density_error[] += pressure_update(system, semi)
+        total_density_error[] += pressure_update(mode, system, semi)
     end
     avg_density_error = total_density_error[] / n_particles
 
@@ -621,49 +694,64 @@ function calculate_sum_term!(sum_term, system, neighbor_system, u, u_ode, semi, 
     end
 end
 
-function pressure_update(system, semi)
+function pressure_update(mode, system, semi)
     return 0.0
 end
 
-function pressure_update(system::ImplicitIncompressibleSPHSystem, semi)
+function pressure_update(mode, system::ImplicitIncompressibleSPHSystem, semi)
     (; pressure, sum_term, reference_density, a_ii, omega, density_error) = system
 
     # Update the pressure values
-    relative_density_error = pressure_update(system, pressure, reference_density, a_ii,
+    relative_density_error = pressure_update(mode, system, pressure, reference_density,
+                                             a_ii,
                                              sum_term, omega, density_error, semi)
 
     return relative_density_error
 end
 
-function pressure_update(system, pressure, reference_density, a_ii, sum_term, omega,
+function pressure_update(mode, system, pressure, reference_density, a_ii, sum_term, omega,
                          density_error, semi)
     relative_density_error = zero(eltype(system))
 
     @threaded semi for particle in eachparticle(system)
         # Removing instabilities by avoiding to divide by very low values of `a_ii`.
         # This is not mentioned in the paper but done in SPlisHSPlasH as well.
-        if abs(a_ii[particle]) > 1.0e-9
-            pressure[particle] = max((1 - omega) * pressure[particle] +
-                                     omega / a_ii[particle] *
-                                     (iisph_source_term(system, particle) -
-                                      sum_term[particle]), 0)
-        else
+        diagonal = a_ii[particle]
+        if !(abs(diagonal) > 1.0e-9)
             pressure[particle] = zero(pressure[particle])
-        end
-        # Calculate the density error for the termination condition, explicitly
-        # clearing zero-pressure entries (no stale values from previous iterations).
-        if pressure[particle] != 0.0
-            new_density = a_ii[particle] * pressure[particle] + sum_term[particle] -
-                          iisph_source_term(system, particle) +
-                          reference_density
-            density_error[particle] = new_density - reference_density
-        else
             density_error[particle] = zero(eltype(density_error))
+            return
         end
+
+        old_pressure = pressure[particle]
+        source = iisph_source_term(system, particle)
+        off_diagonal = sum_term[particle]
+        new_pressure = max((1 - omega) * old_pressure +
+                           omega / diagonal * (source - off_diagonal), 0)
+        pressure[particle] = new_pressure
+
+        density_error[particle] = iisph_density_residual(mode, old_pressure, new_pressure,
+                                                         diagonal, off_diagonal, source)
     end
     relative_density_error = sum(density_error) / reference_density
 
     return relative_density_error
+end
+
+@inline function iisph_density_residual(::StandardIISPHPressure, old_pressure, new_pressure,
+                                        diagonal, off_diagonal, source)
+    return iszero(new_pressure) ? zero(new_pressure) :
+           diagonal * new_pressure + off_diagonal - source
+end
+
+@inline function iisph_density_residual(::FrozenWallIISPHPressure, old_pressure,
+                                        new_pressure,
+                                        diagonal, off_diagonal, source)
+    # The frozen wall force can make the provisional pressure an overestimate. Use
+    # the residual at the old iterate, the one used to compute the off-diagonal term.
+    # At zero pressure, underdensity is allowed by the nonnegative pressure bound.
+    residual = diagonal * old_pressure + off_diagonal - source
+    return iszero(old_pressure) ? max(residual, zero(residual)) : abs(residual)
 end
 @propagate_inbounds function predicted_velocity(system::ImplicitIncompressibleSPHSystem,
                                                 particle)

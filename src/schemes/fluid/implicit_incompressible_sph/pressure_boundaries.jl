@@ -94,14 +94,16 @@ function calculate_sum_term_values!(system::WallBoundarySystem{<:BoundaryModelDu
     end
 end
 
-function pressure_update(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}},
+function pressure_update(mode,
+                         system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}},
                          semi)
     (; boundary_model) = system
     (; reference_density, a_ii, sum_term, omega, density_error) = boundary_model.cache
     (; pressure) = boundary_model
 
     # Update the pressure values
-    relative_density_error = pressure_update(system, pressure, reference_density, a_ii,
+    relative_density_error = pressure_update(mode, system, pressure, reference_density,
+                                             a_ii,
                                              sum_term, omega, density_error, semi)
 
     return relative_density_error
