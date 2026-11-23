@@ -54,7 +54,6 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   background-pressure shifting operators (#1344).
 - Shared the physical fluid-pair momentum operator with structure reactions so
   transport-only terms do not contribute to structural loads (#1345).
-- Fixed precomputed neighborhood search capacity for unequal particle counts (#1350).
 - Fixed correction-cache updates after open-boundary interpolation and particle transfers
   so callback-based particle shifting uses current density and gradients (#1353).
 - Fixed the no-slip wall velocity for `SummationDensity`, `ContinuityDensity`,
