@@ -162,6 +162,29 @@ end
     return extract_svector(system.boundary_model.cache.wall_velocity, system, particle)
 end
 
+# Neighbor velocity in the velocity gradient of the property correction after shifting
+# (see `correct_properties!`)
+@propagate_inbounds function correction_velocity(v_neighbor,
+                                                 neighbor_system::WallBoundarySystem,
+                                                 neighbor, v_a)
+    return correction_velocity(v_neighbor, neighbor_system,
+                               neighbor_system.boundary_model.viscosity, neighbor, v_a)
+end
+
+# Free-slip wall: Return `v_a`, so that the wall does not contribute to the gradient.
+# The tangential velocity of the fluid does not change towards a free-slip wall, but the
+# wall particles carry the wall velocity (zero for resting walls). Using this velocity
+# would produce a nonphysical gradient that slows down particles shifted towards the wall.
+@inline function correction_velocity(v_neighbor, neighbor_system, ::Nothing, neighbor, v_a)
+    return v_a
+end
+
+# No-slip wall: The velocity gradient towards the wall is physical
+@propagate_inbounds function correction_velocity(v_neighbor, neighbor_system, viscosity,
+                                                 neighbor, v_a)
+    return current_velocity(v_neighbor, neighbor_system, neighbor)
+end
+
 @inline function current_density(v, system::WallBoundarySystem)
     return current_density(v, system.boundary_model, system)
 end

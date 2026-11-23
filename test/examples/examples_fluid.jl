@@ -393,6 +393,17 @@
         @test count_rhs_allocations(sol) == 0
     end
 
+    @trixi_testset "fluid/periodic_channel_2d.jl with PST and property correction" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "periodic_channel_2d.jl"),
+                                         tspan=(0.0, 0.2),
+                                         shifting_technique=ParticleShiftingTechniqueSun2017(correct_properties=true),
+                                         extra_callback=UpdateCallback())
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol) == 0
+    end
+
     @trixi_testset "fluid/periodic_channel_2d.jl with TVF" begin
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
