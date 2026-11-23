@@ -90,24 +90,35 @@ end
                                     density_calculator=ContinuityDensity(),
                                     state_equation=nothing)
     end
-    for template in (PrecomputedNeighborhoodSearch{2}(), GridNeighborhoodSearch{2}(),
-         TrixiParticles.TrivialNeighborhoodSearch{2}()),
-        (system, neighbor, expected) in ((systems[1], systems[2], [1, 1, 0]),
-         (systems[2], systems[1], [2]))
+    trivial = TrixiParticles.TrivialNeighborhoodSearch{2}()
+    templates = (PrecomputedNeighborhoodSearch{2}(),
+                 PrecomputedNeighborhoodSearch{2}(; update_neighborhood_search=trivial),
+                 GridNeighborhoodSearch{2}(), trivial)
+    cases = ((systems[1], systems[2], [1, 1, 0], [0, 0, 1]),
+             (systems[2], systems[1], [2], [1]))
 
-        x,
-        y = TrixiParticles.initial_coordinates(system),
-            TrixiParticles.initial_coordinates(neighbor)
-        search = TrixiParticles.create_neighborhood_search(template, system, neighbor)
-        PointNeighbors.initialize!(search, x, y; parallelization_backend=SerialBackend())
-        counts = zeros(Int, nparticles(system))
+    function count_neighbors(search, x, y)
+        counts = zeros(Int, size(x, 2))
         PointNeighbors.foreach_point_neighbor(x, y, search;
                                               parallelization_backend=SerialBackend()) do particle,
-                                                                                          neighbor,
-                                                                                          pos_diff,
-                                                                                          distance
+                                                                                          _,
+                                                                                          _,
+                                                                                          _
             counts[particle] += 1
         end
-        @test counts == expected
+        return counts
+    end
+
+    for template in templates, (system, neighbor, expected, expected_moved) in cases
+        x = TrixiParticles.initial_coordinates(system)
+        y = copy(TrixiParticles.initial_coordinates(neighbor))
+        search = TrixiParticles.create_neighborhood_search(template, system, neighbor)
+        PointNeighbors.initialize!(search, x, y; parallelization_backend=SerialBackend())
+        @test count_neighbors(search, x, y) == expected
+
+        y[1, 1] += 4.0
+        PointNeighbors.update!(search, x, y; points_moving=(false, true),
+                               parallelization_backend=SerialBackend())
+        @test count_neighbors(search, x, y) == expected_moved
     end
 end

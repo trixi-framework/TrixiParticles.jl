@@ -552,10 +552,12 @@
 
                     # TLSPH does not support `ContinuityDensity` boundaries.
                     boundary_densities = if structure_type === TotalLagrangianSPHSystem
-                        (AdamiPressureExtrapolation(), PressureZeroing(),
+                        (AdamiPressureExtrapolation(), SummationDensity(),
+                         PressureZeroing(),
                          PressureMirroring())
                     else
                         (AdamiPressureExtrapolation(), SummationDensity(),
+                         PressureZeroing(),
                          ContinuityDensity(), PressureMirroring())
                     end
 

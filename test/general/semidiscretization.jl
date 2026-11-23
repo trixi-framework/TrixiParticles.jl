@@ -169,6 +169,7 @@
 
                 # Missing boundary model.
                 structure = create_structure_system(structure_type, nothing)
+                @test_nowarn Semidiscretization(structure; neighborhood_search=nothing)
                 error_str = "a boundary model for `$structure_type` must be specified " *
                             "when simulating a fluid-structure interaction."
                 @test_throws ArgumentError(error_str) Semidiscretization(fluid_system,

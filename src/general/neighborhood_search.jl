@@ -218,11 +218,22 @@ end
 
 # === Neighborhood search creation ===
 function create_neighborhood_search(neighborhood_search, system, neighbor)
-    # Pair-local lists also need capacity for the query particles.
-    n_points = PointNeighbors.requires_update(neighborhood_search)[1] ?
-               max(nparticles(system), nparticles(neighbor)) : nparticles(neighbor)
-    return copy_neighborhood_search(neighborhood_search, compact_support(system, neighbor),
-                                    n_points)
+    return copy_pair_neighborhood_search(neighborhood_search,
+                                         compact_support(system, neighbor),
+                                         nparticles(system), nparticles(neighbor))
+end
+
+function copy_pair_neighborhood_search(search, search_radius, n_query, n_neighbor)
+    return copy_neighborhood_search(search, search_radius, n_neighbor)
+end
+
+function copy_pair_neighborhood_search(search::PrecomputedNeighborhoodSearch,
+                                       search_radius, n_query, n_neighbor)
+    # Workaround until PointNeighbors.jl #207 is released. The one-count API sizes both
+    # the precomputed lists (query particles) and the internal grid buffers (neighbors).
+    # An internal trivial search must still iterate over only the neighbor indices.
+    return copy_neighborhood_search(search, search_radius, max(n_query, n_neighbor);
+                                    eachpoint=1:n_neighbor)
 end
 
 function create_neighborhood_search(neighborhood_search, system::TotalLagrangianSPHSystem,
@@ -335,9 +346,8 @@ function PairsNHSHandler(neighborhood_search::AbstractNeighborhoodSearch, system
         radius = hydrodynamic_support(system)
         return map(systems) do neighbor
             uses_regular_hydrodynamic_search(neighbor) && return nothing
-            n_points = PointNeighbors.requires_update(neighborhood_search)[1] ?
-                       max(nparticles(system), nparticles(neighbor)) : nparticles(neighbor)
-            return copy_neighborhood_search(neighborhood_search, radius, n_points)
+            return copy_pair_neighborhood_search(neighborhood_search, radius,
+                                                 nparticles(system), nparticles(neighbor))
         end
     end
 
