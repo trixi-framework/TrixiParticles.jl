@@ -387,6 +387,11 @@ end
     return model.pressure
 end
 
+@inline function has_pressure_extrapolated_density(model::BoundaryModelDummyParticles{<:Union{AdamiPressureExtrapolation,
+                                                                                              BernoulliPressureExtrapolation}})
+    return !isnothing(model.state_equation)
+end
+
 @inline function update_density!(boundary_model::BoundaryModelDummyParticles,
                                  system, v, u, v_ode, u_ode, semi)
     (; density_calculator) = boundary_model

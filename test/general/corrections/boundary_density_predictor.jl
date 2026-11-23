@@ -73,3 +73,67 @@
         @test setup.fluid.pressure == setup.fluid.state_equation.(setup.fluid.cache.density)
     end
 end
+
+@testset "Zhang inlet (wall first: $wall_first)" for wall_first in (false, true)
+    particle_spacing = 0.1
+    smoothing_length = 2particle_spacing
+    smoothing_kernel = WendlandC6Kernel{2}()
+    state_equation = StateEquationCole(; sound_speed=10.0, reference_density=1000.0,
+                                       exponent=1)
+    fluid_particles = RectangularShape(particle_spacing, (7, 7), (0.0, 0.0);
+                                       density=1100.0)
+    fluid = WeaklyCompressibleSPHSystem(fluid_particles; smoothing_kernel, smoothing_length,
+                                        state_equation,
+                                        density_calculator=SummationDensity(),
+                                        density_correction=ShepardKernelCorrection(),
+                                        buffer_size=10)
+    zone = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 0.7]), face_normal=[1.0, 0.0],
+                        boundary_type=InFlow(), open_boundary_layers=10, density=1000.0,
+                        particle_spacing)
+    inlet = OpenBoundarySystem(zone; fluid_system=fluid, buffer_size=10,
+                               boundary_model=BoundaryModelDynamicalPressureZhang())
+
+    # The wall shares its pressure extrapolation neighborhood with the fluid and inlet.
+    wall_particles = RectangularShape(particle_spacing, (17, 3), (-1.0, -0.3);
+                                      density=1000.0)
+    boundary_model = BoundaryModelDummyParticles(wall_particles.density,
+                                                 wall_particles.mass,
+                                                 AdamiPressureExtrapolation(),
+                                                 smoothing_kernel,
+                                                 smoothing_length; state_equation)
+    wall = WallBoundarySystem(wall_particles, boundary_model)
+    systems = wall_first ? (fluid, wall, inlet) : (fluid, inlet, wall)
+    cell_list = FullGridCellList(; min_corner=[-2.0, -1.0], max_corner=[2.0, 2.0])
+    neighborhood_search = GridNeighborhoodSearch{2}(; cell_list,
+                                                    update_strategy=ParallelUpdate())
+    semi = Semidiscretization(systems...; neighborhood_search,
+                              parallelization_backend=SerialBackend())
+    ode = semidiscretize(semi, (0.0, 1.0); reset_threads=false)
+    (; semi) = ode.p
+    fluid, system_a, system_b = semi.systems
+    wall, inlet = wall_first ? (system_a, system_b) : (system_b, system_a)
+    v_ode, u_ode = ode.u0.x
+    dv_ode = zero(v_ode)
+    # This test calls the RHS directly, without taking an integrator step.
+    semi.update_callback_used[] = true
+    TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0)
+    density = copy(fluid.cache.density)
+    wall_pressure = copy(wall.boundary_model.pressure)
+    inlet_pressure = copy(inlet.cache.pressure)
+    rhs = copy(dv_ode)
+
+    # A rejected trial with a different inlet density must not leave stale inlet pressure.
+    initial_v = copy(v_ode)
+    GC.@preserve v_ode begin
+        v_inlet = TrixiParticles.wrap_v(v_ode, inlet, semi)
+        inlet_density = TrixiParticles.current_density(v_inlet, inlet)
+        inlet_density[TrixiParticles.each_integrated_particle(inlet)] .+= 100.0
+    end
+    TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0)
+    @test inlet.cache.pressure != inlet_pressure
+    copyto!(v_ode, initial_v)
+    TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0)
+    @test fluid.cache.density == density
+    @test wall.boundary_model.pressure == wall_pressure
+    @test dv_ode == rhs
+end
