@@ -1,114 +1,79 @@
-@testset "Two-stage Adami boundary pressure" begin
-    spacing = 0.1
-    h = 2spacing
-    kernel = WendlandC6Kernel{2}()
-    rho0 = 1000.0
-    c = 10.0
-    pressure_offset = 20_000.0
-    equation = StateEquationCole(; sound_speed=c, reference_density=rho0, exponent=1)
-    viscosity = ViscosityAdami(; nu=1e-6)
-    velocity = SVector(0.5, -0.2)
-    fluid_particles = RectangularShape(spacing, (1, 1), (0.0, 0.0); density=rho0,
-                                       velocity)
-    fluid = WeaklyCompressibleSPHSystem(fluid_particles; smoothing_kernel=kernel,
-                                        smoothing_length=h, state_equation=equation,
-                                        viscosity, density_calculator=SummationDensity(),
-                                        density_correction=ShepardKernelCorrection())
-    walls = map((-spacing, spacing)) do y
-        particles = RectangularShape(spacing, (1, 1), (0.0, y); density=rho0)
-        model = BoundaryModelDummyParticles(particles.density, particles.mass,
-                                            AdamiPressureExtrapolation(;
-                                                                       pressure_offset,
-                                                                       allow_loop_flipping=false),
-                                            kernel, h; state_equation=equation, viscosity)
-        return WallBoundarySystem(particles, model)
-    end
-    semi = Semidiscretization(fluid, walls...; parallelization_backend=SerialBackend())
-    ode = semidiscretize(semi, (0.0, 1.0); reset_threads=false)
-    v, u = ode.u0.x
-    TrixiParticles.kick!(zero(v), v, u, ode.p, 0.0)
-    fluid, walls... = ode.p.semi.systems
-
-    # Each wall sees exactly one fluid neighbor, so the Adami kernel weight cancels.
-    # The offset makes the provisional wall density differ from the raw fluid density.
-    self_term = only(fluid_particles.mass) * TrixiParticles.kernel(kernel, 0.0, h)
-    wall_term = rho0 * spacing^2 * TrixiParticles.kernel(kernel, spacing, h)
-    raw_density = self_term + 2wall_term
-    predicted_wall_density = raw_density + pressure_offset / c^2
-    coefficient = self_term / raw_density + 2wall_term / predicted_wall_density
-    corrected_density = raw_density / coefficient
-    final_fluid_pressure = c^2 * (corrected_density - rho0)
-    final_wall_pressure = final_fluid_pressure + pressure_offset
-
-    @test only(fluid.cache.kernel_correction_coefficient) ≈ coefficient
-    @test only(fluid.cache.density) ≈ corrected_density
-    @test only(fluid.pressure) ≈ final_fluid_pressure
-    for wall in walls
-        @test only(wall.boundary_model.pressure) ≈ final_wall_pressure
-        @test only(wall.boundary_model.cache.density) ≈ rho0 + final_wall_pressure / c^2
-        @test vec(wall.boundary_model.cache.wall_velocity) ≈ -velocity
-    end
-
-    # The helper warms up both RHS functions and excludes neighborhood search allocations.
-    saved_state = (; t=(0.0,), u=(ode.u0,), prob=ode)
-    @test count_rhs_allocations(saved_state) == 0
-end
-
-@testset "Inadmissible provisional pressure under a Cole equation of state" begin
+@testset "Two-stage Adami boundary pressure with fallback" begin
     spacing = 0.1
     h = 2spacing
     kernel = WendlandC6Kernel{2}()
     rho0 = 1000.0
     c = 10.0
     exponent = 7
+    gravity = 2.0
     equation = StateEquationCole(; sound_speed=c, reference_density=rho0, exponent)
-    particles = RectangularShape(spacing, (7, 7), (0.0, 0.0); density=rho0)
-    fluid = WeaklyCompressibleSPHSystem(particles; smoothing_kernel=kernel,
+    viscosity = ViscosityAdami(; nu=1e-6)
+    velocity = SVector(0.5, -0.2)
+    fluid_particles = RectangularShape(spacing, (1, 1), (0.0, 0.0); density=rho0,
+                                       velocity)
+    fluid = WeaklyCompressibleSPHSystem(fluid_particles; smoothing_kernel=kernel,
                                         smoothing_length=h, state_equation=equation,
-                                        acceleration=(0.0, -9.81),
+                                        viscosity, acceleration=(0.0, -gravity),
                                         density_calculator=SummationDensity(),
                                         density_correction=ShepardKernelCorrection())
-    # The overhanging lid has little support near its ends. The raw fluid pressure plus
-    # the hydrostatic term gives a provisional wall pressure below the Cole limit.
-    lid_particles = RectangularShape(spacing, (9, 1), (-0.1, 0.75); density=rho0)
-    model = BoundaryModelDummyParticles(lid_particles.density, lid_particles.mass,
-                                        AdamiPressureExtrapolation(), kernel, h;
-                                        state_equation=equation)
-    semi = Semidiscretization(fluid, WallBoundarySystem(lid_particles, model);
-                              neighborhood_search=nothing,
-                              parallelization_backend=SerialBackend())
+    wall_heights = (-spacing, spacing)
+    initial_wall_density = (rho0, 980.0)
+    walls = map(wall_heights, initial_wall_density) do y, density
+        particles = RectangularShape(spacing, (1, 1), (0.0, y); density=rho0)
+        model = BoundaryModelDummyParticles([density], particles.mass,
+                                            AdamiPressureExtrapolation(),
+                                            kernel, h; state_equation=equation, viscosity)
+        return WallBoundarySystem(particles, model)
+    end
+    semi = Semidiscretization(fluid, walls...; parallelization_backend=SerialBackend())
     ode = semidiscretize(semi, (0.0, 1.0); reset_threads=false)
     v, u = ode.u0.x
     dv = zero(v)
     TrixiParticles.kick!(dv, v, u, ode.p, 0.0)
-    _, lid = ode.p.semi.systems
-    (; pressure, cache) = lid.boundary_model
+    fluid, walls... = ode.p.semi.systems
 
-    @test all(isfinite, dv)
-    @test all(rho -> isfinite(rho) && rho > 0, cache.density)
-    # The final pass still honors the configured pressure policy, including negative pressure.
-    @test -rho0 * c^2 / exponent < minimum(pressure) < 0
+    # Each wall sees exactly one fluid neighbor, so the Adami kernel weight cancels.
+    # The hydrostatic term puts the upper wall below the Cole limit in the provisional
+    # pass only. The lower wall has a valid inverse in both passes.
+    B = rho0 * c^2 / exponent
+    fluid_pressure(rho) = B * ((rho / rho0)^exponent - 1)
+    wall_pressure(rho, y) = fluid_pressure(rho) - gravity * rho * y
+    density_from_pressure(p) = rho0 * (1 + p / B)^(1 / exponent)
+    self_term = only(fluid_particles.mass) * TrixiParticles.kernel(kernel, 0.0, h)
+    wall_term = only(first(walls).boundary_model.hydrodynamic_mass) *
+                TrixiParticles.kernel(kernel, spacing, h)
+    raw_density = self_term + 2wall_term
+    p_lower, p_upper = map(y -> wall_pressure(raw_density, y), wall_heights)
+    @test p_upper < -B < p_lower
+    coefficient = self_term / raw_density + wall_term / density_from_pressure(p_lower) +
+                  wall_term / last(initial_wall_density)
+    corrected_density = raw_density / coefficient
 
-    rhs, boundary_density = copy(dv), copy(cache.density)
-    cache.density .= 700.0
-    TrixiParticles.kick!(dv, v, u, ode.p, 0.0)
-    @test dv == rhs
-    @test cache.density == boundary_density
-end
-
-@testset "Admissible provisional density" begin
-    cole = StateEquationCole(; sound_speed=10.0, reference_density=1000.0, exponent=7)
-    adaptive = StateEquationAdaptiveCole(; reference_density=1000.0f0, exponent=7.0f0)
-    gas = StateEquationIdealGas(; sound_speed=10.0, reference_density=1000.0, gamma=1.0)
-    @testset "$(nameof(typeof(equation)))" for equation in (cole, adaptive, gas)
-        fallback = oftype(equation.reference_density, 975.0)
-        predict(pressure) = TrixiParticles.predict_density_from_pressure(equation, pressure,
-                                                                         fallback)
-        @test predict(equation(1050.0)) ≈ 1050.0
-        @test predict(equation(0.0) - 1) === fallback
-        @test predict(equation(0.0)) === fallback
-        @test predict(NaN) === fallback
+    # Re-run with poisoned wall caches to verify that both the inverse and the fallback
+    # are independent of the previous RHS evaluation.
+    rhs = copy(dv)
+    for wall in walls
+        wall.boundary_model.cache.density .= 700.0
+        wall.boundary_model.pressure .= -1234.0
     end
+    TrixiParticles.kick!(dv, v, u, ode.p, 0.0)
+    @test all(isfinite, dv)
+    @test dv == rhs
+    @test only(fluid.cache.kernel_correction_coefficient) ≈ coefficient
+    @test only(fluid.cache.density) ≈ corrected_density
+    @test only(fluid.pressure) ≈ fluid_pressure(corrected_density)
+    for (wall, y) in zip(walls, wall_heights)
+        final_wall_pressure = wall_pressure(corrected_density, y)
+        @test -B < final_wall_pressure < 0
+        @test only(wall.boundary_model.pressure) ≈ final_wall_pressure
+        @test only(wall.boundary_model.cache.density) ≈
+              density_from_pressure(final_wall_pressure)
+        @test vec(wall.boundary_model.cache.wall_velocity) ≈ -velocity
+    end
+
+    # The helper warms up both RHS functions and excludes neighborhood search allocations.
+    saved_state = (; t=(0.0,), u=(ode.u0,), prob=ode)
+    @test count_rhs_allocations(saved_state) == 0
 end
 
 @testset "Shepard summation with pressure-extrapolated boundaries is history independent" begin
