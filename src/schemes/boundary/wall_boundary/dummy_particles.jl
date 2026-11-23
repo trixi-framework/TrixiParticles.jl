@@ -162,6 +162,14 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
         cache = (; cache..., volume=similar(cache.wall_velocity, n_particles))
     end
 
+    if state_equation !== nothing &&
+       density_calculator isa
+       Union{AdamiPressureExtrapolation, BernoulliPressureExtrapolation}
+        all(density -> isfinite(density) && density > 0, initial_density) ||
+            throw(ArgumentError("initial density of pressure-extrapolated boundary particles must be positive and finite"))
+        cache = (; cache..., prediction_fallback_density=copy(initial_density))
+    end
+
     # If the `reference_density_spacing` is set calculate the `ideal_neighbor_count`
     if reference_particle_spacing > 0
         # `reference_particle_spacing` has to be set for surface normals to be determined
@@ -483,6 +491,11 @@ end
     return model.pressure
 end
 
+@inline function has_pressure_extrapolated_density(model::BoundaryModelDummyParticles{<:Union{AdamiPressureExtrapolation,
+                                                                                              BernoulliPressureExtrapolation}})
+    return !isnothing(model.state_equation)
+end
+
 @inline function update_density!(boundary_model::BoundaryModelDummyParticles,
                                  system, v, u, v_ode, u_ode, semi)
     (; density_calculator) = boundary_model
@@ -656,7 +669,32 @@ function compute_pressure!(boundary_model,
                            ::Union{AdamiPressureExtrapolation,
                                    BernoulliPressureExtrapolation},
                            system, v, u, v_ode, u_ode, semi)
-    (; pressure, cache, viscosity) = boundary_model
+    extrapolate_boundary_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi,
+                                   boundary_model.viscosity)
+
+    @trixi_timeit timer() "inverse state equation" @threaded semi for particle in
+                                                                      eachparticle(system)
+        compute_adami_density!(boundary_model, system, v, particle)
+    end
+end
+
+function predict_pressure_extrapolated_density!(boundary_model, system, v, u, v_ode, u_ode,
+                                                semi)
+    # The provisional pass only supplies volumes for Shepard normalization. Skip the
+    # no-slip velocity interpolation; the final extrapolation computes it once.
+    extrapolate_boundary_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi,
+                                   nothing)
+
+    @threaded semi for particle in eachparticle(system)
+        predict_adami_density!(boundary_model, particle)
+    end
+
+    return boundary_model
+end
+
+function extrapolate_boundary_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi,
+                                        viscosity)
+    (; pressure, cache) = boundary_model
     (; allow_loop_flipping) = boundary_model.density_calculator
 
     set_zero!(pressure)
@@ -697,14 +735,12 @@ function compute_pressure!(boundary_model,
             # to extrapolate fluid pressure to the boundaries.
             boundary_pressure_extrapolation!(Val(parallelize), boundary_model, system,
                                              neighbor_system, system_coords,
-                                             neighbor_coords, v, v_neighbor_system, semi)
+                                             neighbor_coords, v, v_neighbor_system, semi;
+                                             viscosity)
         end
     end
 
-    @trixi_timeit timer() "inverse state equation" @threaded semi for particle in
-                                                                      eachparticle(system)
-        compute_adami_density!(boundary_model, system, v, particle)
-    end
+    return boundary_model
 end
 
 # Use this function to avoid passing closures to Polyester.jl with `@batch` (`@threaded`).
@@ -712,26 +748,41 @@ end
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
 function compute_adami_density!(boundary_model, system, v, particle)
     (; pressure, state_equation, cache, viscosity) = boundary_model
-    (; volume, density) = cache
 
-    # The summation is only over fluid particles, thus the volume stays zero when a boundary
-    # particle isn't surrounded by fluid particles.
-    # Check the volume to avoid NaNs in pressure and velocity.
-    if @inbounds volume[particle] > eps()
-        @inbounds pressure[particle] /= volume[particle]
+    @inbounds pressure[particle] = normalized_boundary_pressure(boundary_model, particle)
 
+    if @inbounds cache.volume[particle] > eps()
         # To impose no-slip condition
         compute_wall_velocity!(viscosity, system, v, particle)
     end
 
-    # Clip pressure to avoid sticking artifacts from negative pressures at free surfaces.
-    # This is determined statically and has therefore no overhead.
-    if clip_negative_pressure(boundary_model)
-        @inbounds pressure[particle] = max(pressure[particle], 0)
+    # Apply inverse state equation to compute density (not used with EDAC)
+    inverse_state_equation!(cache.density, state_equation, pressure, particle)
+end
+
+@inline function predict_adami_density!(boundary_model, particle)
+    (; state_equation, cache) = boundary_model
+    p = normalized_boundary_pressure(boundary_model, particle)
+    # A raw kernel sum can underestimate fluid density near incomplete support. If the
+    # resulting pressure has no admissible inverse, use the initial hydrodynamic density.
+    fallback = @inbounds cache.prediction_fallback_density[particle]
+    @inbounds cache.density[particle] = predict_density_from_pressure(state_equation, p,
+                                                                      fallback)
+end
+
+@inline function normalized_boundary_pressure(boundary_model, particle)
+    p = @inbounds boundary_model.pressure[particle]
+    volume = @inbounds boundary_model.cache.volume[particle]
+    if volume > eps()
+        p /= volume
     end
 
-    # Apply inverse state equation to compute density (not used with EDAC)
-    inverse_state_equation!(density, state_equation, pressure, particle)
+    # Clip pressure to avoid sticking artifacts at free surfaces when requested.
+    if clip_negative_pressure(boundary_model)
+        p = max(p, 0)
+    end
+
+    return p
 end
 
 function compute_pressure!(boundary_model,
@@ -804,7 +855,7 @@ end
 @inline function boundary_pressure_extrapolation!(parallel, boundary_model, system,
                                                   neighbor_system, system_coords,
                                                   neighbor_coords, v, v_neighbor_system,
-                                                  semi)
+                                                  semi; viscosity=boundary_model.viscosity)
     return boundary_model
 end
 
@@ -851,8 +902,9 @@ end
                                                   neighbor_system::Union{AbstractFluidSystem,
                                                                          OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
                                                   system_coords, neighbor_coords, v,
-                                                  v_neighbor_system, semi)
-    (; pressure, cache, viscosity, density_calculator) = boundary_model
+                                                  v_neighbor_system, semi;
+                                                  viscosity=boundary_model.viscosity)
+    (; pressure, cache, density_calculator) = boundary_model
 
     @boundscheck checkbounds(pressure, eachparticle(system))
 
@@ -876,8 +928,9 @@ end
                                                   neighbor_system::Union{AbstractFluidSystem,
                                                                          OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
                                                   system_coords, neighbor_coords,
-                                                  v, v_neighbor_system, semi)
-    (; pressure, cache, viscosity, density_calculator) = boundary_model
+                                                  v, v_neighbor_system, semi;
+                                                  viscosity=boundary_model.viscosity)
+    (; pressure, cache, density_calculator) = boundary_model
 
     @boundscheck checkbounds(pressure, eachparticle(system))
 

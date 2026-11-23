@@ -227,6 +227,10 @@ function update_quantities!(system::WallBoundarySystem, v, u, v_ode, u_ode, semi
     return system
 end
 
+@inline function has_pressure_extrapolated_density(system::WallBoundarySystem)
+    return has_pressure_extrapolated_density(system.boundary_model)
+end
+
 function update_density_correction_values!(system::WallBoundarySystem{<:BoundaryModelDummyParticles},
                                            v, u, v_ode, u_ode, semi, t)
     update_density_correction_values!(system.boundary_model, system, v, u, v_ode, u_ode,
