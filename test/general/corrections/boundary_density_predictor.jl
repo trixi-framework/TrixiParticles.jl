@@ -77,20 +77,19 @@
 end
 
 @testset "Shepard summation with pressure-extrapolated boundaries is history independent" begin
-    function predictor_setup(kind; reverse_order=false,
-                             calculator=AdamiPressureExtrapolation())
+    function predictor_setup(fluid_type, kind, calculator; reverse_order=false)
         spacing = 0.1
         kernel = WendlandC6Kernel{2}()
-        equation = StateEquationCole(; sound_speed=10.0, reference_density=1000.0,
-                                     exponent=1)
+        sound_speed = 10.0
+        equation = StateEquationCole(; sound_speed, reference_density=1000.0, exponent=1)
         initial = RectangularShape(spacing, (7, 7), (0.0, 0.0); density=1100.0,
+                                   pressure=1200.0,
                                    velocity=pos -> SVector(0.1+pos[1], -0.2-pos[2]))
-        fluid = WeaklyCompressibleSPHSystem(initial; smoothing_kernel=kernel,
-                                            smoothing_length=2spacing,
-                                            density_calculator=SummationDensity(),
-                                            state_equation=equation,
-                                            acceleration=(0.0, -1.0),
-                                            density_correction=ShepardKernelCorrection())
+        pressure_kwargs = fluid_type === EntropicallyDampedSPHSystem ? (; sound_speed) :
+                          (; state_equation=equation)
+        fluid = fluid_type(initial; smoothing_kernel=kernel, smoothing_length=2spacing,
+                           density_calculator=SummationDensity(), acceleration=(0.0, -1.0),
+                           density_correction=ShepardKernelCorrection(), pressure_kwargs...)
         geometry = RectangularShape(spacing, (7, 3), (0.0, -0.3); density=1200.0)
         model = BoundaryModelDummyParticles(fill(1000.0, nparticles(geometry)),
                                             fill(1000spacing^2, nparticles(geometry)),
@@ -108,8 +107,7 @@ end
                                   parallelization_backend=SerialBackend())
         ode = semidiscretize(semi, (0.0, 1.0); reset_threads=false)
         runtime = ode.p.semi
-        fluid = only(filter(s->s isa WeaklyCompressibleSPHSystem, runtime.systems))
-        boundary = only(filter(s->!(s isa WeaklyCompressibleSPHSystem), runtime.systems))
+        fluid, boundary = reverse_order ? reverse(runtime.systems) : runtime.systems
         return (; semi=runtime, fluid, boundary, v=Array(ode.u0.x[1]), u=Array(ode.u0.x[2]))
     end
     function predictor_rhs(setup)
@@ -119,30 +117,40 @@ end
         # Report derivatives in physical system order, independent of storage order.
         fluid_rhs = dv[semi.ranges_v[TrixiParticles.system_indices(fluid, semi)]]
         boundary_rhs = dv[semi.ranges_v[TrixiParticles.system_indices(boundary, semi)]]
-        return (; density=copy(fluid.cache.density), pressure=copy(fluid.pressure),
+        pressure = GC.@preserve v begin
+            v_fluid = TrixiParticles.wrap_v(v, fluid, semi)
+            copy(TrixiParticles.current_pressure(v_fluid, fluid))
+        end
+        return (; density=copy(fluid.cache.density), pressure,
                 boundary_density=copy(boundary.boundary_model.cache.density),
                 boundary_pressure=copy(boundary.boundary_model.pressure), fluid_rhs,
                 boundary_rhs)
     end
     calculators = (AdamiPressureExtrapolation(), BernoulliPressureExtrapolation())
-    cases = Iterators.product((:wall, :rigid, :tlsph), calculators)
-    @testset "$kind / $(nameof(typeof(calculator)))" for (kind, calculator) in cases
-        setup = predictor_setup(kind; calculator)
-        baseline = predictor_rhs(setup)
-        # Boundary density is an output, not hidden state of the next normalizer.
-        setup.boundary.boundary_model.cache.density .= 700.0
-        setup.boundary.boundary_model.pressure .= -1234.0
-        @test predictor_rhs(setup) == baseline
-        # Simulate a rejected trial evaluation, then restore the exact input state.
-        coordinates = copy(setup.u)
-        fluid_index = TrixiParticles.system_indices(setup.fluid, setup.semi)
-        setup.u[first(setup.semi.ranges_u[fluid_index])] += 0.01
-        @test predictor_rhs(setup).boundary_density != baseline.boundary_density
-        copyto!(setup.u, coordinates)
-        @test predictor_rhs(setup) == baseline
-        reversed = predictor_rhs(predictor_setup(kind; reverse_order=true, calculator))
-        @test all(isapprox(a, b; rtol=5e-12, atol=1e-9)
-                  for (a, b) in zip(reversed, baseline))
+    cases = [(WeaklyCompressibleSPHSystem, kind, calculator)
+             for kind in (:wall, :rigid, :tlsph) for calculator in calculators]
+    # EDAC takes pressure from the ODE state. Only its fluid density uses Shepard correction.
+    push!(cases, (EntropicallyDampedSPHSystem, :wall, AdamiPressureExtrapolation()))
+    for (fluid_type, kind, calculator) in cases
+        @testset "$(nameof(fluid_type)) / $kind / $(nameof(typeof(calculator)))" begin
+            setup = predictor_setup(fluid_type, kind, calculator)
+            baseline = predictor_rhs(setup)
+            # Boundary density is an output, not hidden state of the next normalizer.
+            setup.boundary.boundary_model.cache.density .= 700.0
+            setup.boundary.boundary_model.pressure .= -1234.0
+            @test predictor_rhs(setup) == baseline
+            # Simulate a rejected trial evaluation, then restore the exact input state.
+            coordinates = copy(setup.u)
+            fluid_index = TrixiParticles.system_indices(setup.fluid, setup.semi)
+            setup.u[first(setup.semi.ranges_u[fluid_index])] += 0.01
+            @test predictor_rhs(setup).boundary_density != baseline.boundary_density
+            copyto!(setup.u, coordinates)
+            @test predictor_rhs(setup) == baseline
+            reversed = predictor_rhs(predictor_setup(fluid_type, kind, calculator;
+                                                     reverse_order=true))
+            @test all(isapprox(a, b; rtol=5e-12, atol=1e-9)
+                      for (a, b) in zip(reversed, baseline))
+        end
     end
 end
 

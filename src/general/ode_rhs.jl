@@ -156,6 +156,12 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
     end
 end
 
+function requires_density_boundary_prediction(system::Union{WeaklyCompressibleSPHSystem,
+                                                            EntropicallyDampedSPHSystem})
+    return system.density_calculator isa SummationDensity &&
+           correction_density(system.correction) isa ShepardKernelCorrection
+end
+
 function needs_boundary_density_prediction(system, semi)
     has_pressure_extrapolated_density(system) || return false
     return any(neighbor -> requires_density_boundary_prediction(neighbor) &&
@@ -176,6 +182,7 @@ function predict_boundary_densities!(semi, v_ode, u_ode, t)
 
     # Shepard's boundary volumes m_b/ρ_b use a provisional density from the current
     # uncorrected fluid state. The final extrapolation uses the Shepard-corrected density.
+    # EDAC pressure is already available in the ODE state.
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_pressure!(system, v, u, v_ode, u_ode, semi, t)
     end

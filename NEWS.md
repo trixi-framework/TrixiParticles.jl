@@ -26,9 +26,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Fixed Shepard density correction to handle invalid normalization coefficients,
   finalize corrected density before pressure evaluation, and use evolved continuity
   density for particle volumes during density reinitialization (#1292).
-- Fixed a stale boundary-density cache in Shepard-corrected WCSPH with summation density
-  and Adami or Bernoulli pressure extrapolation. Shepard normalization now uses a boundary
-  density predicted from the current uncorrected fluid density (#1368).
+- Fixed a stale boundary-density cache in Shepard-corrected WCSPH and EDAC with summation
+  density and Adami or Bernoulli pressure extrapolation. Shepard normalization now uses
+  a boundary density predicted from the current fluid state (#1368).
 - Updated Zhang open-boundary pressures before dummy-wall pressure extrapolation so
   the wall uses the current inlet or outlet pressure regardless of system order (#1368).
 - Fixed `KernelCorrection` to fall back to uncorrected gradients for invalid normalization
