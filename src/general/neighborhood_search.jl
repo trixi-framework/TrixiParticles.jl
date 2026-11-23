@@ -213,7 +213,7 @@ end
 # === Neighborhood search creation ===
 function create_neighborhood_search(neighborhood_search, system, neighbor)
     return copy_neighborhood_search(neighborhood_search, compact_support(system, neighbor),
-                                    nparticles(neighbor))
+                                    nparticles(system), nparticles(neighbor))
 end
 
 function create_neighborhood_search(neighborhood_search, system::TotalLagrangianSPHSystem,
