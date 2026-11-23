@@ -88,13 +88,9 @@ We provide six options to compute the boundary density and pressure, determined 
    momentum equation.
    This option is not recommended due to stability issues. See [`PressureMirroring`](@ref)
    for more details.
-
-Pressure mirroring also applies to TLSPH and rigid-body boundary models. In EDAC,
-the mirrored pressure is used in the momentum equation, the pressure evolution
-equation, and the average-pressure reduction. Mirroring makes the pressure
-diffusion contribution from a fluid-boundary pair zero.
-With a viscosity model, the wall velocity of the no-slip condition (see below)
-is computed in the same way as with [`AdamiPressureExtrapolation`](@ref).
+   In EDAC, the mirrored pressure is used in the momentum equation,
+   the pressure evolution equation, and the average-pressure reduction.
+   Mirroring makes the pressure diffusion contribution from a fluid-boundary pair zero.
 
 #### 1. [`AdamiPressureExtrapolation`](@ref)
 

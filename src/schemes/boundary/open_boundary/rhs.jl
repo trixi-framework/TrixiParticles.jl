@@ -43,7 +43,7 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         p_a = @inbounds current_pressure(v_particle_system, particle_system, particle)
         # Equivalent to `current_pressure(v_neighbor_system, neighbor_system, neighbor)`,
-        # but returns `p_a` for boundaries and structures using `PressureMirroring`
+        # but returns `p_a` for boundaries and structures using `PressureMirroring`.
         p_b = @inbounds neighbor_pressure(v_neighbor_system, neighbor_system,
                                           neighbor, p_a)
 
