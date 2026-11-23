@@ -212,11 +212,8 @@ end
 
 # === Neighborhood search creation ===
 function create_neighborhood_search(neighborhood_search, system, neighbor)
-    # Pair-local lists also need capacity for the query particles.
-    n_points = PointNeighbors.requires_update(neighborhood_search)[1] ?
-               max(nparticles(system), nparticles(neighbor)) : nparticles(neighbor)
     return copy_neighborhood_search(neighborhood_search, compact_support(system, neighbor),
-                                    n_points)
+                                    nparticles(system), nparticles(neighbor))
 end
 
 function create_neighborhood_search(neighborhood_search, system::TotalLagrangianSPHSystem,
