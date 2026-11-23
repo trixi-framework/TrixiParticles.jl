@@ -105,20 +105,22 @@ After Shepard normalization, the boundary pressure and density are recomputed
 from the corrected fluid density for the force calculation. This one-pass predictor
 does not solve for a common boundary density across the two stages.
 
-For IISPH, the default fluid–wall interaction uses a two-stage pressure solve when a
-fluid particle's kernel samples an Adami or Bernoulli wall with an equation of state.
-The first pass extrapolates wall pressure with zero IISPH fluid pressure, retaining
-hydrostatic terms, any Bernoulli term, and the pressure offset. It inverts the wall
-equation of state to seed density; if the inverse does not give a positive, finite
-density, or the equation of state is custom, the seed uses the initial wall density.
-When no-slip viscosity is configured, this pass also updates the ghost velocity.
+For IISPH, all interacting Adami and Bernoulli walls in a pressure-coupled component
+must either omit the equation of state or use the same [`StateEquationCole`](@ref) or
+[`StateEquationIdealGas`](@ref) with identical parameters. The EOS reference density
+must match the fluid reference density, and its inverse at zero pressure must give a
+positive, finite density. EOS-backed walls require the default fluid–wall interaction.
+If the EOS clips negative pressures, enable `clip_negative_pressure` on the wall model
+as well. `PressureZeroing`, `PressureMirroring`, and `PressureBoundaries` walls do not
+need to supply the shared EOS.
 
-After the provisional solve, IISPH extrapolates the wall pressure again and obtains the
-wall density from the equation of state. It holds the wall state fixed for the second
-solve and force evaluation. The second solve accounts for the known wall-pressure
-force without adding a wall pressure unknown. See [IISPH pressure extrapolation](@ref iisph_pressure_extrapolation).
-Both solves span the full IISPH semidiscretization. When there is no such contact,
-IISPH performs only its regular pressure solve.
+When the fluid kernel samples an EOS-backed wall, that component uses two pressure
+solves. The seed extrapolates with zero IISPH pressure, retaining hydrostatic terms,
+any Bernoulli term, and the pressure offset. It uses the initial wall density if the
+seed pressure has no positive, finite inverse, and refreshes the no-slip ghost velocity
+when configured. The provisional solve must produce an admissible wall pressure before
+the final solve freezes wall pressure and density. Disconnected components keep their
+own pressure solve. See [IISPH pressure extrapolation](@ref iisph_pressure_extrapolation).
 
 #### 1. [`AdamiPressureExtrapolation`](@ref)
 

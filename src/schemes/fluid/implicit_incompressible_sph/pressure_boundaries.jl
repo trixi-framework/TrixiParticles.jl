@@ -90,7 +90,9 @@ function calculate_sum_term_values!(system::WallBoundarySystem{<:BoundaryModelDu
     foreach_system(semi) do neighbor_system
         has_system_interaction(system, neighbor_system, semi) || return
 
-        calculate_sum_term!(sum_term, system, neighbor_system, u, u_ode, semi, time_step)
+        # These particles have PPE rows even though their positions are not integrated.
+        calculate_sum_term!(sum_term, system, neighbor_system, u, u_ode, semi, time_step;
+                            points=eachparticle(system))
     end
 end
 

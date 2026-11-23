@@ -377,7 +377,8 @@
 
         function evaluate_pair(calculator; dt=0.005, rho=rho0, wall_speed=0.0,
                                gravity=0.0, eos=nothing, reverse_order=false,
-                               min_iterations=2)
+                               min_iterations=2, max_iterations=100, max_error=1e-9,
+                               omega=0.4)
             # Equal masses give both particles the specified kernel-summation density.
             mass = rho / weight
             fluid_ic = InitialCondition(; coordinates=zeros(2, 1), density=rho0, mass,
@@ -390,9 +391,9 @@
             wall_viscosity = eos === nothing ? nothing : ViscosityAdami(nu=0.0)
             fluid = ImplicitIncompressibleSPHSystem(fluid_ic; smoothing_kernel=kernel,
                                                     smoothing_length=h, time_step=dt,
-                                                    reference_density=rho0, omega=0.4,
-                                                    min_iterations, max_iterations=100,
-                                                    max_error=1e-9,
+                                                    reference_density=rho0, omega,
+                                                    min_iterations, max_iterations,
+                                                    max_error,
                                                     viscosity=fluid_viscosity,
                                                     acceleration=(gravity, 0.0))
             model = BoundaryModelDummyParticles(wall_ic.density, wall_ic.mass, calculator,
@@ -418,6 +419,28 @@
                     density_weight=mass * grad_x,
                     ghost_speed=wall_viscosity === nothing ? 0.0 :
                                 model.cache.wall_velocity[1, 1])
+        end
+
+        @testset "Provisional density tolerance does not bypass the EOS domain" begin
+            # With the default tolerance, the first two Jacobi iterations give wall
+            # pressure -4050, below the Cole lower limit of about -3571. The third
+            # iteration moves back into the domain without a history-based warm start.
+            rho = 1005.0
+            gravity = -10.0
+            mass_gradient = rho * (-TrixiParticles.kernel_deriv(kernel, h, h)) / weight
+            dt = sqrt((rho - rho0) / (8000 * (mass_gradient / rho)^2 -
+                       gravity * mass_gradient))
+            eos = StateEquationCole(; sound_speed=5.0, reference_density=rho0, exponent=7)
+            options = (; dt, rho, gravity, eos, omega=0.5, max_error=0.1)
+            for calculator in
+                (AdamiPressureExtrapolation(), BernoulliPressureExtrapolation())
+                result = evaluate_pair(calculator; options...)
+                @test -rho0 * 5.0^2 / 7 < result.wall_pressure < 0.0
+                @test eos(result.wall_density) ≈ result.wall_pressure
+                @test_throws "did not find an admissible wall pressure after 2 iterations" evaluate_pair(calculator;
+                                                                                                         options...,
+                                                                                                         max_iterations=2)
+            end
         end
 
         @testset "Invalid seed, admissible solved pressure" begin
@@ -478,6 +501,141 @@
             @test result.predicted_density ≈ rho0 - dt * result.density_weight * wall_speed
             @test result.updated_density≈rho0 atol=2e-8 rtol=0
         end
+
+        @testset "Frozen extrapolating force in a PressureBoundaries row" begin
+            tp = TrixiParticles
+            dt = 0.005
+            eos = StateEquationCole(; sound_speed=40.0, reference_density=rho0, exponent=7)
+            w0 = tp.kernel(kernel, 0.0, h)
+            w1 = tp.kernel(kernel, h, h)
+            eos_mass = 1200.0
+            # Set the raw summation densities to rho0 + 9 in the fluid row and
+            # rho0 + 5 in the solved wall row, with noncollinear wall forces.
+            fluid_mass = (rho0 + 9 - eos_mass * w1 - (rho0 + 5) * w1 / w0) /
+                         (w0 - w1^2 / w0)
+            solved_wall_mass = (rho0 + 5 - fluid_mass * w1) / w0
+            wall_position = SVector(0.6, 0.8)
+            solved_wall_position = SVector(1.0, 0.0)
+
+            function point(coords, mass)
+                return InitialCondition(; coordinates=reshape(collect(coords), 2, 1),
+                                        density=rho0, mass, particle_spacing=h)
+            end
+            initial = point(SVector(0.0, 0.0), fluid_mass)
+            fluid = ImplicitIncompressibleSPHSystem(initial; smoothing_kernel=kernel,
+                                                    smoothing_length=h, time_step=dt,
+                                                    reference_density=rho0, omega=0.4,
+                                                    max_iterations=1500, max_error=1e-9)
+            function make_wall(coords, wall_mass, calculator; state_equation=nothing)
+                ic = point(coords, wall_mass)
+                model = BoundaryModelDummyParticles(ic.density, ic.mass, calculator,
+                                                    kernel, h; state_equation)
+                return WallBoundarySystem(ic, model)
+            end
+            solved_wall = make_wall(solved_wall_position, solved_wall_mass,
+                                    PressureBoundaries(; time_step=dt))
+            eos_wall = make_wall(wall_position, eos_mass, AdamiPressureExtrapolation();
+                                 state_equation=eos)
+            interactions = Bool[1 1 1; 1 1 0; 1 0 1]
+            semi = Semidiscretization(fluid, solved_wall, eos_wall;
+                                      parallelization_backend=SerialBackend(),
+                                      interaction_matrix=interactions)
+            ode = semidiscretize(semi, (0.0, dt))
+            v, u = ode.u0.x
+            dv = zero(v)
+            tp.kick!(dv, v, u, ode.p, 0.0)
+
+            model = eos_wall.boundary_model
+            grad_eos = tp.smoothing_kernel_grad(fluid, -wall_position, h, 1)
+            grad_solved = tp.smoothing_kernel_grad(solved_wall, solved_wall_position, h, 1)
+            eos_force = -eos_mass * only(model.pressure) / only(model.cache.density)^2 .*
+                        grad_eos
+            cache = solved_wall.boundary_model.cache
+            @test only(model.pressure) > 0
+            @test only(solved_wall.boundary_model.pressure) > 0
+            @test only(cache.predicted_density) ≈
+                  only(cache.density) - dt^2 * fluid_mass * dot(eos_force, grad_solved)
+            # Measure the constraint using the actual fluid force, not the PPE sums.
+            fluid_acceleration = SVector{2}(tp.wrap_v(dv, fluid, ode.p.semi))
+            density = only(cache.density) -
+                      dt^2 * fluid_mass * dot(fluid_acceleration, grad_solved)
+            @test density≈rho0 atol=2e-8 rtol=0
+        end
+    end
+
+    @testset "EOS compatibility and pressure-component isolation" begin
+        tp = TrixiParticles
+        rho = 1000.0
+        h = 1.0
+        dt = 0.005
+        kernel = SchoenbergCubicSplineKernel{2}()
+        weight = tp.kernel(kernel, 0.0, h) + tp.kernel(kernel, h, h)
+        mass = (rho + 10) / weight
+        eos = StateEquationCole(; sound_speed=40.0, reference_density=rho, exponent=7)
+        other_eos = StateEquationCole(; sound_speed=41.0, reference_density=rho, exponent=7)
+        function point(x)
+            return InitialCondition(; coordinates=reshape([x, 0.0], 2, 1), density=rho,
+                                    mass, particle_spacing=h)
+        end
+        function make_fluid(x)
+            return ImplicitIncompressibleSPHSystem(point(x); smoothing_kernel=kernel,
+                                                   smoothing_length=h, time_step=dt,
+                                                   reference_density=rho,
+                                                   min_iterations=1, max_iterations=1)
+        end
+        function make_wall(x, calculator; state_equation=nothing, prescribed_motion=nothing)
+            ic = point(x)
+            model = BoundaryModelDummyParticles(ic.density, ic.mass, calculator, kernel, h;
+                                                state_equation)
+            return WallBoundarySystem(ic, model; prescribed_motion)
+        end
+        fluid = make_fluid(0.0)
+        separated = make_fluid(20.0)
+        motion = PrescribedMotion((coords, t) -> coords + SVector(t, 0.0), t -> true)
+        staged = make_wall(1.99, AdamiPressureExtrapolation(); state_equation=eos,
+                           prescribed_motion=motion)
+        no_eos = make_wall(21.0, BernoulliPressureExtrapolation())
+        different_eos = make_wall(21.0, BernoulliPressureExtrapolation();
+                                  state_equation=other_eos)
+        same_eos = make_wall(21.0, BernoulliPressureExtrapolation(); state_equation=eos)
+        invalid_eos = make_wall(1.0, AdamiPressureExtrapolation();
+                                state_equation=StateEquationCole(; sound_speed=0.0,
+                                                                 reference_density=rho,
+                                                                 exponent=7))
+
+        @test_throws "must use the same EOS and parameters" Semidiscretization(fluid,
+                                                                               staged,
+                                                                               no_eos)
+        @test_throws "must use the same EOS and parameters" Semidiscretization(fluid,
+                                                                               staged,
+                                                                               different_eos)
+        @test_throws "needs a valid StateEquationCole or StateEquationIdealGas" Semidiscretization(fluid,
+                                                                                                   invalid_eos)
+        @test Semidiscretization(fluid, staged, same_eos) isa Semidiscretization
+
+        # The two pressure blocks do not interact in either direction. A no-EOS wall
+        # in the second block is valid, and its solver cannot be reset by the first.
+        interactions = Bool[1 1 0 0; 1 1 0 0; 0 0 1 1; 0 0 1 1]
+        @test Semidiscretization(fluid, staged, separated, different_eos;
+                                 interaction_matrix=interactions) isa Semidiscretization
+        semi = Semidiscretization(fluid, staged, separated, no_eos;
+                                  interaction_matrix=interactions,
+                                  parallelization_backend=SerialBackend())
+        ode = semidiscretize(semi, (0.0, 1.0))
+        v, u = ode.u0.x
+        dv = zero(v)
+        function evaluate_separated(t)
+            separated.pressure[1] = 20_000.0
+            tp.kick!(dv, v, u, ode.p, t)
+            return (; pressure=only(separated.pressure),
+                    acceleration=copy(tp.wrap_v(dv, separated, ode.p.semi)),
+                    contact=tp.has_iisph_wall_contact(fluid))
+        end
+        touching = evaluate_separated(0.0099)
+        detached = evaluate_separated(0.0101)
+        @test touching.contact && !detached.contact
+        @test touching.pressure == detached.pressure
+        @test touching.acceleration == detached.acceleration
     end
 
     @testset "EOS wall contact uses the fluid kernel and the current positions" begin
@@ -684,7 +842,7 @@
             # density_error = 997-1000 = -3 (signed deviation).
             # For particle 2: the pressure is clamped to zero, so the stale buffer
             # entry 99.0 from the previous iteration is explicitly cleared.
-            mode = TrixiParticles.StandardIISPHPressure()
+            mode = TrixiParticles.LegacyIISPHResidual()
             relative_error = TrixiParticles.pressure_update(mode, system_pressure,
                                                             system_pressure.pressure,
                                                             system_pressure.reference_density,

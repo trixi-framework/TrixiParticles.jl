@@ -307,7 +307,11 @@ The density calculators [`AdamiPressureExtrapolation`](@ref) and [`BernoulliPres
 can also be used with IISPH. Neither method adds a wall pressure unknown to the PPE.
 With an equation of state, the [wall predictor](@ref boundary_models) extrapolates
 wall pressure from a provisional solve and uses the equation of state to obtain wall
-density. Both are held fixed during the final solve and force evaluation.
+density. The provisional PPE omits the wall-pressure force. If the extrapolated pressure
+does not have a positive, finite inverse, the provisional solve continues up to
+`max_iterations` and reports an error if the pressure remains outside the EOS domain.
+An admissible wall pressure and density are held fixed during the final solve and force
+evaluation.
 
 In the final prediction, the known pressure acceleration from those walls is
 ```math
@@ -319,13 +323,27 @@ on the PPE right-hand side, including in rows for neighboring fluid particles an
 for [`PressureBoundaries`](@ref). The PPE matrix does not change. The final fluid
 pressures do not feed back into the frozen wall values within the same evaluation.
 
-Without a wall equation of state, IISPH uses one solve that omits the extrapolated
-wall pressure from the PPE and applies it in the final force. To solve for wall
-pressure as an unknown, use [`PressureBoundaries`](@ref).
+When a pressure component omits the wall EOS, IISPH uses one solve that omits the
+extrapolated wall pressure from the PPE and applies it in the final force. To solve
+for wall pressure as a PPE unknown, use [`PressureBoundaries`](@ref).
+
+The EOS-backed method is a lagged approximation: satisfying the final density
+tolerance does not guarantee an accurate wall pressure or load. For example, with
+one fluid neighbor, zero gravity, and zero pressure offset, self-consistent Adami
+extrapolation would give ``p_b=p_f``. In a one-pair compression test, the lagged wall
+pressure was 1.85 and 1.76 times the self-consistent pressure when halving the timestep
+from 0.005 to 0.0025, although the final linearized density reached the target in both
+cases. Check pressure or load sensitivity independently of density error when those
+quantities are of interest. The reproducible column and piston comparison in
+`validation/general/iisph_wall_pressure.jl` reports both, together with iteration counts
+and RHS timings. For example, at particle spacing 0.04 and time 0.02, halving the
+timestep from 0.001 to 0.0005 changed the column's bottom load from about 2208 to 1671
+per unit depth (equilibrium target: 1568), and the piston load from about 400,000 to
+103,000 per unit depth. These are short transients, not equilibrium or convergence tests.
 
 ### Pressure Boundaries
 The [`PressureBoundaries`](@ref) density calculator was introduced by
-[Band et al. (2008)](@cite Band2018b) specifically for IISPH fluid systems and can therefore
+[Band et al. (2018)](@cite Band2018b) specifically for IISPH fluid systems and can therefore
 only be used with IISPH.
 In the standard IISPH method the PPE is solved only for fluid particles. The
 pressure values for the boundary particles are then approximated, for example by using
