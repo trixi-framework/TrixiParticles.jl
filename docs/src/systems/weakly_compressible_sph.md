@@ -170,6 +170,16 @@ The constants are fixed to ``R = 0.2`` and ``n = 4``.
 The ``\delta``-SPH method (WCSPH with density diffusion) together with this formulation
 of PST is commonly referred to as ``\delta^+``-SPH.
 
+With `integrate_shifting_velocity=false`, the particle positions are shifted in a callback
+after each time step, but the particle properties are kept by default.
+With `correct_properties=true`, the velocity is corrected with a first-order Taylor expansion
+```math
+\bm{v}_a' = \bm{v}_a + \sum_b \frac{m_b}{\rho_b}
+    \left( \delta \bm{r}_a \cdot \nabla_a W_{ab} \right) \left( \bm{v}_b - \bm{v}_a \right).
+```
+Walls without a viscosity in their boundary model (free-slip) are not included in this sum.
+Density and pressure are currently not corrected.
+
 To apply particle shifting, use the keyword argument `shifting_technique` in the constructor
 of a system that supports it.
 

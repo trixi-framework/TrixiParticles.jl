@@ -16,12 +16,15 @@ particle_shifting_from_callback!(u_ode, shifting, system, v_ode, semi, integrato
 
 create_cache_shifting(initial_condition, ::Nothing) = (;)
 
-function create_cache_shifting(initial_condition, ::AbstractShiftingTechnique)
+function create_cache_shifting(initial_condition, shifting::AbstractShiftingTechnique)
     delta_v = zeros(eltype(initial_condition), ndims(initial_condition),
                     nparticles(initial_condition))
 
-    return (; delta_v)
+    return (; delta_v, create_cache_property_correction(initial_condition, shifting)...)
 end
+
+# No correction of the particle properties by default
+create_cache_property_correction(initial_condition, shifting) = (;)
 
 # `δv` is the correction to the particle velocity due to the shifting.
 # Particles are advected with the velocity `v + δv`.
@@ -64,7 +67,8 @@ end
                               modify_continuity_equation=true,
                               second_continuity_equation_term=ContinuityEquationTermSun2019(),
                               momentum_equation_term=MomentumEquationTermSun2019(),
-                              v_max_factor=1, sound_speed_factor=0)
+                              v_max_factor=1, sound_speed_factor=0,
+                              correct_properties=false)
 
 Particle Shifting Technique by [Sun et al. (2017)](@cite Sun2017)
 and [Sun et al. (2019)](@cite Sun2019).
@@ -133,6 +137,14 @@ We provide the following convenience constructors for common variants of the met
                                 `sound_speed_factor * c`, where `c` is the speed of sound.
                                 Only one of `v_max_factor` and `sound_speed_factor`
                                 can be non-zero.
+- `correct_properties`:         If `true`, the particle properties are corrected with a
+                                first-order Taylor expansion to account for the change of
+                                the particle positions when the shifting is applied.
+                                Currently, only the velocity is corrected.
+                                Density and pressure are not corrected.
+                                This requires `integrate_shifting_velocity=false`.
+                                With `integrate_shifting_velocity=true`, use
+                                `momentum_equation_term` instead.
 
 !!! warning
     The Particle Shifting Technique needs to be disabled close to the free surface
@@ -143,6 +155,7 @@ struct ParticleShiftingTechnique{integrate_shifting_velocity,
                                  update_everystage,
                                  modify_continuity_equation,
                                  compute_v_max,
+                                 correct_properties,
                                  ELTYPE, S, M} <: AbstractShiftingTechnique
     v_factor                        :: ELTYPE
     second_continuity_equation_term :: S
@@ -153,7 +166,8 @@ struct ParticleShiftingTechnique{integrate_shifting_velocity,
                                        modify_continuity_equation=true,
                                        second_continuity_equation_term=ContinuityEquationTermSun2019(),
                                        momentum_equation_term=MomentumEquationTermSun2019(),
-                                       v_max_factor=1, sound_speed_factor=0)
+                                       v_max_factor=1, sound_speed_factor=0,
+                                       correct_properties=false)
         if !integrate_shifting_velocity && update_everystage
             throw(ArgumentError("ParticleShiftingTechnique: " *
                                 "integrate_shifting_velocity=false requires " *
@@ -178,6 +192,12 @@ struct ParticleShiftingTechnique{integrate_shifting_velocity,
                                 "integrate_shifting_velocity=true"))
         end
 
+        if integrate_shifting_velocity && correct_properties
+            throw(ArgumentError("ParticleShiftingTechnique: " *
+                                "correct_properties=true requires " *
+                                "integrate_shifting_velocity=false"))
+        end
+
         if v_max_factor > 0 && sound_speed_factor > 0
             throw(ArgumentError("ParticleShiftingTechnique: " *
                                 "Only one of v_max_factor and sound_speed_factor " *
@@ -196,7 +216,8 @@ struct ParticleShiftingTechnique{integrate_shifting_velocity,
         new{integrate_shifting_velocity,
             update_everystage,
             modify_continuity_equation,
-            compute_v_max, typeof(v_factor),
+            compute_v_max,
+            correct_properties, typeof(v_factor),
             typeof(second_continuity_equation_term),
             typeof(momentum_equation_term)}(v_factor,
                                             second_continuity_equation_term,
@@ -218,10 +239,11 @@ ParticleShiftingTechnique(integrate_shifting_velocity=false,
                           modify_continuity_equation=false,
                           second_continuity_equation_term=nothing,
                           momentum_equation_term=nothing,
-                          v_max_factor=1, sound_speed_factor=0)
+                          v_max_factor=1, sound_speed_factor=0,
+                          correct_properties=false)
 
 # output
-ParticleShiftingTechnique{false, false, false, true, Int64, Nothing, Nothing}(1, nothing, nothing)
+ParticleShiftingTechnique{false, false, false, true, false, Int64, Nothing, Nothing}(1, nothing, nothing)
 ```
 
 See [ParticleShiftingTechnique](@ref ParticleShiftingTechnique) for all available options.
@@ -234,7 +256,7 @@ See [ParticleShiftingTechnique](@ref ParticleShiftingTechnique) for all availabl
 shifting_technique = ParticleShiftingTechniqueSun2017()
 
 # output
-ParticleShiftingTechnique{false, false, false, true, Int64, Nothing, Nothing}(1, nothing, nothing)
+ParticleShiftingTechnique{false, false, false, true, false, Int64, Nothing, Nothing}(1, nothing, nothing)
 ```
 
 !!! warning
@@ -249,6 +271,7 @@ function ParticleShiftingTechniqueSun2017(; kwargs...)
                                      second_continuity_equation_term=nothing,
                                      momentum_equation_term=nothing,
                                      v_max_factor=1, sound_speed_factor=0,
+                                     correct_properties=false,
                                      kwargs...)
 end
 
@@ -264,10 +287,11 @@ ParticleShiftingTechnique(integrate_shifting_velocity=true,
                           modify_continuity_equation=true,
                           second_continuity_equation_term=ContinuityEquationTermSun2019(),
                           momentum_equation_term=MomentumEquationTermSun2019(),
-                          v_max_factor=0, sound_speed_factor=0.1f0)
+                          v_max_factor=0, sound_speed_factor=0.1f0,
+                          correct_properties=false)
 
 # output
-ParticleShiftingTechnique{true, true, true, false, Float32, ContinuityEquationTermSun2019, MomentumEquationTermSun2019}(0.1f0, ContinuityEquationTermSun2019(), MomentumEquationTermSun2019())
+ParticleShiftingTechnique{true, true, true, false, false, Float32, ContinuityEquationTermSun2019, MomentumEquationTermSun2019}(0.1f0, ContinuityEquationTermSun2019(), MomentumEquationTermSun2019())
 ```
 
 See [ParticleShiftingTechnique](@ref ParticleShiftingTechnique) for all available options.
@@ -287,7 +311,7 @@ See [ParticleShiftingTechnique](@ref ParticleShiftingTechnique) for all availabl
 shifting_technique = ConsistentShiftingSun2019()
 
 # output
-ParticleShiftingTechnique{true, true, true, false, Float32, ContinuityEquationTermSun2019, MomentumEquationTermSun2019}(0.1f0, ContinuityEquationTermSun2019(), MomentumEquationTermSun2019())
+ParticleShiftingTechnique{true, true, true, false, false, Float32, ContinuityEquationTermSun2019, MomentumEquationTermSun2019}(0.1f0, ContinuityEquationTermSun2019(), MomentumEquationTermSun2019())
 ```
 
 !!! warning
@@ -302,12 +326,24 @@ function ConsistentShiftingSun2019(; kwargs...)
                                      second_continuity_equation_term=ContinuityEquationTermSun2019(),
                                      momentum_equation_term=MomentumEquationTermSun2019(),
                                      v_max_factor=0, sound_speed_factor=0.1f0,
+                                     correct_properties=false,
                                      kwargs...)
 end
 
 # `ParticleShiftingTechnique{<:Any, false}` means `update_everystage=false`,
 # so the `UpdateCallback` is required to update the shifting velocity.
 requires_update_callback(::ParticleShiftingTechnique{<:Any, false}) = true
+
+# `ParticleShiftingTechnique{<:Any, <:Any, <:Any, <:Any, true}`
+# means `correct_properties=true`
+function create_cache_property_correction(initial_condition,
+                                          ::ParticleShiftingTechnique{<:Any, <:Any, <:Any,
+                                                                      <:Any, true})
+    velocity_correction = zeros(eltype(initial_condition), ndims(initial_condition),
+                                nparticles(initial_condition))
+
+    return (; velocity_correction)
+end
 
 # `ParticleShiftingTechnique{false}` means `integrate_shifting_velocity=false`.
 # Zero if PST is applied in a callback as a position correction
@@ -522,6 +558,10 @@ function particle_shifting_from_callback!(u_ode,
     # Update the shifting velocity
     update_shifting_from_callback!(system, shifting, v_ode, u_ode, semi)
 
+    # Correct the particle properties for the shift that is applied below.
+    # The neighborhood searches and densities are only valid for the unshifted positions.
+    correct_properties!(v_ode, u_ode, shifting, system, semi, integrator.dt)
+
     @trixi_timeit timer() "apply particle shifting" begin
         # Update the particle positions with the shifting velocity
         apply_particle_shifting!(u_ode, shifting, system, semi, integrator.dt)
@@ -557,6 +597,98 @@ end
 function apply_particle_shifting!(u_ode, ::ParticleShiftingTechnique{true},
                                   system, semi, dt)
     return u_ode
+end
+
+# No correction of the particle properties by default
+@inline correct_properties!(v_ode, u_ode, shifting, system, semi, dt) = v_ode
+
+# `ParticleShiftingTechnique{<:Any, <:Any, <:Any, <:Any, true}`
+# means `correct_properties=true`, which requires `integrate_shifting_velocity=false`.
+#
+# The properties of the shifted particle are approximated with a first-order
+# Taylor expansion around its unshifted position,
+#   ϕ(r_a + δr_a) ≈ ϕ_a + (∇ϕ)_a ⋅ δr_a,
+# where δr_a = Δt δv_a is the shift and
+#   (∇ϕ)_a = \sum_b m_b / ρ_b (ϕ_b - ϕ_a) ∇W_ab.
+# The neighbors `b` in this sum are the particles of
+# - this system and all other fluid systems, with their particle velocity,
+# - open boundaries, with their particle velocity,
+# - structures (TLSPH and rigid bodies), with their particle velocity,
+#   both with and without a viscosity in their boundary model,
+# - no-slip walls (with a viscosity in the boundary model), with the physical wall velocity
+#   (zero for resting walls) and not with the extrapolated velocity used in the viscosity.
+# Free-slip walls (without a viscosity in the boundary model) do not contribute
+# (see `correction_velocity`).
+# Systems for which `has_system_interaction` is `false` do not contribute either.
+# The sum uses the mass and density of the boundary model for walls and structures,
+# and the kernel gradient of this system (including its kernel gradient correction, if any)
+# for all neighbors.
+#
+# TODO: Only the velocity is corrected so far. Correct density and pressure as well.
+function correct_properties!(v_ode, u_ode,
+                             ::ParticleShiftingTechnique{false, <:Any, <:Any, <:Any, true},
+                             system, semi, dt)
+    (; velocity_correction) = system.cache
+
+    v = wrap_v(v_ode, system, semi)
+    u = wrap_u(u_ode, system, semi)
+
+    @trixi_timeit timer() "correct particle properties" begin
+        # Compute (∇v)_a ⋅ δv_a for all particles before changing any velocity
+        set_zero!(velocity_correction)
+
+        foreach_system_wrapped(semi, v_ode,
+                               u_ode) do neighbor_system, v_neighbor, u_neighbor
+            if !has_system_interaction(system, neighbor_system, semi)
+                # No interaction between these systems.
+                return
+            end
+
+            system_coords = current_coordinates(u, system)
+            neighbor_coords = current_coordinates(u_neighbor, neighbor_system)
+
+            foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
+                                   semi;
+                                   points=each_integrated_particle(system)) do particle,
+                                                                               neighbor,
+                                                                               pos_diff,
+                                                                               distance
+                m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
+                rho_b = @inbounds current_density(v_neighbor, neighbor_system, neighbor)
+                v_a = @inbounds current_velocity(v, system, particle)
+                v_b = @inbounds correction_velocity(v_neighbor, neighbor_system,
+                                                    neighbor, v_a)
+
+                # The function `delta_v` returns zero with `integrate_shifting_velocity=false`
+                delta_v_a = @inbounds extract_svector(system.cache.delta_v, system,
+                                                      particle)
+
+                grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
+
+                correction = m_b / rho_b * dot(grad_kernel, delta_v_a) * (v_b - v_a)
+
+                for i in eachindex(correction)
+                    @inbounds velocity_correction[i, particle] += correction[i]
+                end
+            end
+        end
+
+        @threaded semi for particle in each_integrated_particle(system)
+            # The velocity is stored in the first `ndims(system)` rows of `v`
+            for i in axes(velocity_correction, 1)
+                @inbounds v[i, particle] += dt * velocity_correction[i, particle]
+            end
+        end
+    end
+
+    return v_ode
+end
+
+# The neighbor velocity `v_b` in the velocity gradient used in `correct_properties!`.
+# This is the particle velocity for all systems except for free-slip walls
+# (see the methods for `WallBoundarySystem`).
+@propagate_inbounds function correction_velocity(v_neighbor, neighbor_system, neighbor, v_a)
+    return current_velocity(v_neighbor, neighbor_system, neighbor)
 end
 
 """
