@@ -52,6 +52,9 @@ end
 
 initialize!(system, semi) = system
 
+requires_density_boundary_prediction(system) = false
+has_pressure_extrapolated_density(system) = false
+
 # This should not be dispatched by system type. We always expect the first index of `A`
 # to enumerate spatial dimensions.
 @propagate_inbounds function extract_svector(A, system, i...)

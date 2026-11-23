@@ -92,6 +92,19 @@ the mirrored pressure is used in the momentum equation, the pressure evolution
 equation, and the average-pressure reduction. Mirroring makes the pressure
 diffusion contribution from a fluid-boundary pair zero.
 
+With WCSPH or EDAC using [`SummationDensity`](@ref) and [`ShepardKernelCorrection`](@ref),
+Adami and Bernoulli boundaries with an equation of state use a provisional density
+to compute the boundary particle volumes in the Shepard normalization. This pass uses
+the uncorrected fluid density and, for EDAC, the pressure from the ODE state. If the predicted
+pressure cannot yield a positive, finite density with a built-in equation of state,
+or if a custom equation of state is used, the provisional volume uses the boundary
+particle's initial hydrodynamic density. Supply positive, finite `initial_density`
+values for pressure extrapolation with an equation of state.
+
+After Shepard normalization, the boundary pressure and density are recomputed
+from the corrected fluid density for the force calculation. This one-pass predictor
+does not solve for a common boundary density across the two stages.
+
 #### 1. [`AdamiPressureExtrapolation`](@ref)
 
 The pressure of the boundary particles is obtained by extrapolating the pressure of the fluid
