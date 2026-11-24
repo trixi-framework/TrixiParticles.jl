@@ -107,8 +107,6 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
         update_quantities!(system, v, u, v_ode, u_ode, semi, t)
     end
 
-    update_implicit_sph!(semi, v_ode, u_ode, t)
-
     # Refresh structure summation densities over the current hydrodynamic neighborhood
     # before assembling any correction moments. This phase is not part of the isolated
     # structural updates used by `SplitIntegrationCallback`.
@@ -132,6 +130,10 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_pressure!(system, v, u, v_ode, u_ode, semi, t)
     end
+
+    # The IISPH pressure solve extrapolates the wall pressure in every iteration. Walls can
+    # also extrapolate from other systems, so solve after all other pressures are final.
+    update_implicit_sph!(semi, v_ode, u_ode, t)
 
     # Extrapolate the final wall pressure and density using the updated fluid quantities.
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u

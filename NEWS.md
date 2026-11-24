@@ -17,6 +17,12 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Custom functions passed as `pressure_acceleration` must accept both pair gradients
   (`W_a`, `W_b`) when either interacting system uses an asymmetric gradient correction
   (#1289).
+- Adami and Bernoulli walls that exert forces on an `ImplicitIncompressibleSPHSystem`
+  must not have a state equation, since the fluid is incompressible, and must use the
+  default fluid–wall interaction (#1394).
+- The relaxation parameter `omega` of `ImplicitIncompressibleSPHSystem` must be between
+  0 and 1 (exclusive), since the relaxed Jacobi scheme can diverge for `omega >= 1`
+  (#1394).
 
 ### Important Bugfixes
 
@@ -31,6 +37,20 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   a boundary density predicted from the current fluid state (#1368).
 - Updated Zhang open-boundary pressures before dummy-wall pressure extrapolation so
   the wall uses the current inlet or outlet pressure regardless of system order (#1368).
+- Fixed the coupling of IISPH with Adami and Bernoulli walls. The pressure solve treated
+  the wall pressure as zero, while the forces used the extrapolated wall pressure. The
+  wall pressure is now extrapolated from the fluid pressure in every iteration of the
+  pressure solve, so the forces satisfy the solved density balance. The solve runs after
+  the pressure updates of all other systems, whose pressure the walls can also extrapolate.
+  With these walls, the solve starts from zero pressure and terminates on the average
+  absolute density error. This changes results and requires more iterations, about
+  3 times as many in the 2D dam break example (#1394).
+- Fixed the IISPH prediction to use the no-slip velocity of Adami and Bernoulli walls
+  computed from the current fluid velocity (#1394).
+- Fixed the IISPH density prediction to use the velocity of moving walls, and made the
+  IISPH prediction independent of the order of systems (#1394).
+- Fixed missing off-diagonal pressure contributions in IISPH `PressureBoundaries` rows
+  (#1394).
 - Fixed `KernelCorrection` to fall back to uncorrected gradients for invalid normalization
   coefficients and preserve Float32 boundary correction caches (#1291).
 - Fixed gradient correction matrices to use raw kernel gradients, scale-independent

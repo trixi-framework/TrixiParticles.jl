@@ -224,13 +224,13 @@ The updated discretized continuity equation becomes:
 \frac{\rho_i(t + \Delta t) - \rho_i(t)}{\Delta t} = \sum_f m_f \bm{v}_{if}(t+\Delta t) \cdot \nabla W_{if} + \sum_b m_b \bm{v}_{ib}(t+\Delta t) \cdot \nabla W_{ib}.
 ```
 
-Since boundary particles have zero velocity, the difference between the fluid
-particle's velocity and the boundary particle's velocity simplifies to just the fluid
-particle's velocity ``\bm{v}_{ib}(t+\Delta t) = \bm{v}_{i}(t+\Delta t)``.
-Accordingly, the predicted density ``\rho^{\text{adv}}`` becomes:
+For a stationary wall, ``\bm{v}_{ib}`` reduces to the fluid velocity. For a wall with
+prescribed motion, the predictor uses the physical wall velocity ``\bm{v}_b(t)`` at
+the current evaluation time. The no-slip ghost velocity is used only for viscosity.
+The predicted density ``\rho^{\text{adv}}`` is therefore:
 
 ```math
-\rho_i^{\text{adv}} = \rho_i (t) + \Delta t \sum_f m_f \bm{v}_{if}^{\text{adv}} \cdot \nabla W_{if}(t) + \Delta t \sum_b m_b \bm{v}_{i}^{\text{adv}} \cdot \nabla W_{ib}(t).
+\rho_i^{\text{adv}} = \rho_i(t) + \Delta t \sum_f m_f \bm{v}_{if}^{\text{adv}} \cdot \nabla W_{if}(t) + \Delta t \sum_b m_b \left(\bm{v}_{i}^{\text{adv}} - \bm{v}_b(t)\right) \cdot \nabla W_{ib}(t).
 ```
 
 This leads to the following updated formulation of the linear system:
@@ -239,8 +239,8 @@ This leads to the following updated formulation of the linear system:
 \Delta t^2 \sum_f m_f \left(  \frac{\bm{F}_i^p(t)}{m_i} - \frac{\bm{F}_f^p(t)}{m_f} \right) \cdot \nabla W_{if} + \Delta t^2 \sum_b m_b \frac{\bm{F}_i^p(t)}{m_i} \cdot \nabla W_{ib} = \rho_0 - \rho_i^{\text{adv}}.
 ```
 
-Note that, since boundary particles are fixed, the force ``F_b^p`` is zero and does not appear
-in this equation.
+Boundary particles do not accelerate in response to pressure, so ``F_b^p`` does not
+appear in this equation. This also holds for prescribed wall motion.
 
 The pressure force acting on a fluid particle is computed as:
 
@@ -302,19 +302,80 @@ p_i^{l+1} = (1 - \omega) p_i^l + \omega \frac{1}{a_{ii}} &\left( \rho_0 - \rho_i
 \end{align*}
 ```
 
-### Pressure Extrapolation
+### [Pressure Extrapolation](@id iisph_pressure_extrapolation)
 The density calculators [`AdamiPressureExtrapolation`](@ref) and [`BernoulliPressureExtrapolation`](@ref)
-can also be used with IISPH.
-When using one of these pressure extrapolation methods the calculation of the PPE is exactly
-the same as when using pressure zeroing.
-So within the linear system the boundary pressures are treated as zero (``p_b=0``), exactly
-as in pressure zeroing. Only in the pressure acceleration, the extrapolated
-pressure values are used for the boundary particles. For more information on these two methods,
-refer to the docs for the [boundary models](@ref boundary_models).
+can also be used with IISPH. Neither method adds a wall pressure unknown to the PPE.
+Instead, the wall pressure is a function of the fluid pressure,
+```math
+p_b = \sum_f E_{bf} p_f + e_b,
+```
+where ``E_{bf}`` are the normalized kernel weights of the [extrapolation](@ref boundary_models)
+and ``e_b`` collects the hydrostatic and dynamic terms and the pressure offset.
+For an incompressible fluid, this extrapolation is a boundary condition for the pressure.
+Since the fluid density does not change, the wall density does not change either.
+Walls that exert forces on an IISPH system must therefore not have a state equation,
+and their density is their initial density.
+
+Writing the density change caused by the wall pressure force
+``-\sum_b m_b p_b / \rho_b^2 \nabla W_{ib}`` as ``\bm{M} \bm{p}_b``, the PPE becomes
+```math
+(\bm{A} + \bm{M} \bm{E}) \bm{p} = \bm{\rho}_0 - \bm{\rho}^{\text{adv}} - \bm{M} \bm{e}.
+```
+This system is solved with the relaxed Jacobi scheme by evaluating the extrapolation
+in every iteration. Before computing ``\sum_j d_{ij} p_j^l``, the wall pressure ``p_b^l``
+is extrapolated from the current pressure iterate ``p^l``. The wall particles then enter
+the displacement of each fluid particle like the particles of [`PressureBoundaries`](@ref),
+```math
+\sum_j d_{ij} p_j^l = \sum_f d_{if} p_f^l + \sum_b d_{ib} p_b^l,
+\qquad d_{ib} = -\Delta t^2 \frac{m_b}{\rho_b^2} \nabla W_{ib}.
+```
+This displacement enters the off-diagonal part of the rows of the particle, of its fluid
+neighbors, and of [`PressureBoundaries`](@ref).
+The diagonal elements ``a_{ii}`` are unchanged, so the dependence of ``p_b`` on ``p_i``
+is lagged by one iteration. For one fluid neighbor with ``\rho_i = \rho_b``, the iteration
+contracts with the factor ``|1 - 2\omega|``, which vanishes for the default ``\omega = 0.5``.
+
+After the solve, the regular boundary update extrapolates the solved fluid pressure
+for the force calculation, so the forces use the wall pressure of the solved PPE.
+For example, with one fluid neighbor, zero gravity, and zero pressure offset,
+the wall pressure equals the fluid pressure. The viscous force of the walls is part of
+the prediction ``\rho^{\text{adv}}``. It uses the no-slip velocity of the walls, which
+is computed from the current fluid velocity before the prediction.
+A wall can also extrapolate the pressure of other fluid systems. Therefore, the solve runs
+after the density corrections and pressure updates of all other systems.
+
+With these walls, the solve differs from the standard IISPH solve in two ways:
+- It starts from zero pressure instead of half the previous pressure, so that the solution
+  does not depend on the previous RHS evaluation. In a resting water column with
+  20 particles across and the default tolerance, the fluid came to rest within 5 seconds
+  when starting from zero pressure, but not when starting from half the previous pressure.
+- The termination criterion uses the average absolute residual, to which particles with
+  zero pressure only contribute when they are overdense. Positive and negative errors do
+  not cancel, so `max_error` approximately bounds the average density error of the actual
+  RHS. The bound is not strict, since the residual is evaluated for the pressure before
+  the last update of the iteration.
+
+Both require more iterations than the standard solve.
+To solve for the wall pressure as a PPE unknown, use [`PressureBoundaries`](@ref).
+
+Without a free surface, the pressure level of the fluid is only fixed by the density
+error, as these walls act like Neumann conditions on the pressure. A wall that compresses
+a completely filled, closed domain therefore leads to a nearly singular pressure equation,
+and the solver can reach `max_iterations` before the density tolerance.
+
+The script `validation/general/iisph_wall_pressure.jl` checks this coupling.
+With one fluid neighbor, the wall pressure equals the analytic solution of the pair.
+In the first time steps of a water column, it reports the density error of the actual RHS,
+the deviation of the wall pressure from the extrapolation of the solved fluid pressure,
+iteration counts, and RHS timings. It also integrates a resting water column and a water
+column in a tank that accelerates upward with ``g/2`` until the fluid rests relative to
+the tank. At particle spacings 0.04 and 0.02, the time-averaged pressure of the first
+wall layer deviates by at most 3.1 % from the hydrostatic value, and the load on the
+bottom by at most 1.3 % from the weight of the fluid in the accelerated frame.
 
 ### Pressure Boundaries
 The [`PressureBoundaries`](@ref) density calculator was introduced by
-[Band et al. (2008)](@cite Band2018b) specifically for IISPH fluid systems and can therefore
+[Band et al. (2018)](@cite Band2018b) specifically for IISPH fluid systems and can therefore
 only be used with IISPH.
 In the standard IISPH method the PPE is solved only for fluid particles. The
 pressure values for the boundary particles are then approximated, for example by using

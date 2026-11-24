@@ -27,7 +27,8 @@ See [Implicit Incompressible SPH](@ref iisph) for more details on the method.
 - `viscosity`:                  Currently, only [`ViscosityMorris`](@ref)
                                 and [`ViscosityAdami`](@ref) are supported.
 - `acceleration`:               Acceleration vector for the system. (default: zero vector)
-- `omega = 0.5`:                Relaxation parameter for the relaxed Jacobi scheme
+- `omega = 0.5`:                Relaxation parameter for the relaxed Jacobi scheme.
+                                Must be between 0 and 1 (exclusive).
 - `max_error = 0.1`:            Maximum error (in %) for the termination condition in the relaxed Jacobi scheme
 - `min_iterations = 2`:         Minimum number of iterations in the relaxed Jacobi scheme, independent from the termination condition
 - `max_iterations = 20`:        Maximum number of iterations in the relaxed Jacobi scheme, independent from the termination condition
@@ -111,6 +112,10 @@ function ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
 
     if !(0 < max_error <= 100)
         throw(ArgumentError("`max_error` is given in percentage, so it must be a number between 0 and 100"))
+    end
+
+    if !(0 < omega < 1)
+        throw(ArgumentError("`omega` must be a number between 0 and 1 (exclusive), since the relaxed Jacobi scheme can diverge for `omega >= 1`"))
     end
 
     if min_iterations < 1
@@ -217,7 +222,7 @@ end
 
 @inline density_calculator(system::ImplicitIncompressibleSPHSystem) = nothing
 
-# Calculates the pressure values by solving a linear system with a relaxed Jacobi scheme
+# Compute density before the prediction and pressure solve in `update_implicit_sph!`.
 function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
     (; density) = system
@@ -225,8 +230,7 @@ function update_quantities!(system::ImplicitIncompressibleSPHSystem, v, u,
     # Compute density by kernel summation
     summation_density!(system, semi, u, u_ode, density)
 
-    @trixi_timeit timer() "predict advection" predict_advection!(system, v, u, v_ode, u_ode,
-                                                                 semi)
+    return system
 end
 
 function update_implicit_sph!(semi, v_ode, u_ode, t)
@@ -235,19 +239,34 @@ function update_implicit_sph!(semi, v_ode, u_ode, t)
         return semi
     end
 
-    @trixi_timeit timer() "pressure solver" pressure_solve!(semi, v_ode, u_ode)
+    if has_iisph_wall_extrapolation(semi)
+        # The prediction uses the no-slip velocity of the walls, which is otherwise only
+        # computed after the solve. Compute it from the current fluid velocity.
+        refresh_iisph_wall_velocities!(semi, v_ode, u_ode)
+        predict_and_solve_iisph!(WallExtrapolationIISPHSolve(), semi, v_ode, u_ode)
+    else
+        predict_and_solve_iisph!(StandardIISPHSolve(), semi, v_ode, u_ode)
+    end
 
     return semi
 end
 
-function predict_advection!(system::Union{ImplicitIncompressibleSPHSystem,
-                                          WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}},
-                            v, u, v_ode, u_ode, semi)
-    calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi)
+function predict_and_solve_iisph!(mode, semi, v_ode, u_ode)
+    # Predict every fluid velocity before computing coefficients that use neighboring
+    # predictions, including those of `PressureBoundaries`, regardless of system order.
+    @trixi_timeit timer() "predict advection" begin
+        foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+            calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi)
+        end
+        foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+            calculate_diagonal_elements_and_predicted_density!(system, v, u, v_ode, u_ode,
+                                                               semi)
+        end
+    end
 
-    calculate_diagonal_elements_and_predicted_density!(system, v, u, v_ode, u_ode, semi)
+    @trixi_timeit timer() "pressure solver" pressure_solve!(mode, semi, v_ode, u_ode)
 
-    return system
+    return semi
 end
 
 function calculate_predicted_velocity_and_d_ii_values!(system, v, u, v_ode, u_ode, semi)
@@ -421,9 +440,9 @@ function calculate_diagonal_elements_and_predicted_density(a_ii, predicted_densi
 end
 
 # Calculate pressure values with iterative pressure solver (relaxed Jacobi scheme)
-function pressure_solve!(semi, v_ode, u_ode)
+function pressure_solve!(mode, semi, v_ode, u_ode)
     foreach_system(semi) do system
-        initialize_pressure!(system, semi)
+        initialize_pressure!(mode, system, semi)
     end
 
     # Determine global number of particles included in the PPE solver
@@ -439,7 +458,8 @@ function pressure_solve!(semi, v_ode, u_ode)
     l = 1
     while (!terminate)
         @trixi_timeit timer() "pressure solver iteration" begin
-            avg_density_error = pressure_solve_iteration(semi, u_ode, n_iisph_particles_)
+            avg_density_error = pressure_solve_iteration(mode, semi, v_ode, u_ode,
+                                                         n_iisph_particles_)
             # Update termination condition
             terminate = (avg_density_error <= max_error && l >= min_iters) ||
                         l >= max_iters
@@ -450,11 +470,12 @@ function pressure_solve!(semi, v_ode, u_ode)
     return semi
 end
 
-function initialize_pressure!(system, semi)
+function initialize_pressure!(mode, system, semi)
     return system
 end
 
-function initialize_pressure!(system::Union{ImplicitIncompressibleSPHSystem,
+function initialize_pressure!(::StandardIISPHSolve,
+                              system::Union{ImplicitIncompressibleSPHSystem,
                                             WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}},
                               semi)
 
@@ -465,7 +486,22 @@ function initialize_pressure!(system::Union{ImplicitIncompressibleSPHSystem,
     end
 end
 
-function pressure_solve_iteration(semi, u_ode, n_particles)
+function initialize_pressure!(::WallExtrapolationIISPHSolve,
+                              system::Union{ImplicitIncompressibleSPHSystem,
+                                            WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}},
+                              semi)
+    # Start from zero pressure, so that the solution does not depend on the pressure
+    # of the previous RHS evaluation
+    set_zero!(current_pressure(nothing, system))
+
+    return system
+end
+
+function pressure_solve_iteration(mode, semi, v_ode, u_ode, n_particles)
+    # Extrapolate the pressure of Adami and Bernoulli walls from the current pressure
+    # iterate. It enters the sums d_ij * p_j below.
+    update_iisph_wall_pressures!(mode, semi, v_ode, u_ode)
+
     foreach_system(semi) do system
         u = wrap_u(u_ode, system, semi)
         calculate_sum_d_ij_pj!(system, u, u_ode, semi)
@@ -478,8 +514,7 @@ function pressure_solve_iteration(semi, u_ode, n_particles)
     # Wrap with `Ref` to allow modification inside the anonymous function below (without implicit boxing)
     total_density_error = Ref(0.0)
     foreach_system(semi) do system
-        u = wrap_u(u_ode, system, semi)
-        total_density_error[] += pressure_update(system, semi)
+        total_density_error[] += pressure_update(mode, system, semi)
     end
     avg_density_error = total_density_error[] / n_particles
 
@@ -502,10 +537,13 @@ function calculate_sum_d_ij_pj!(system::ImplicitIncompressibleSPHSystem, u, u_od
     end
 end
 
-# With `PressureBoundaries`, the boundary particles have their own pressure values that contribute to the sum_j d_ij*p_j
+# Neighbors with a pressure that is updated in every iteration contribute to sum_j d_ij*p_j:
+# IISPH particles, `PressureBoundaries` particles, which have their own pressure values,
+# and Adami and Bernoulli walls, whose pressure is extrapolated from the current iterate.
 function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
                                 neighbor_system::Union{ImplicitIncompressibleSPHSystem,
-                                                       WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}}},
+                                                       WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}},
+                                                       IISPHExtrapolatingWall},
                                 u, u_ode, semi)
     (; time_step) = system
 
@@ -531,7 +569,7 @@ function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
     return sum_d_ij_pj
 end
 
-# For everything but IISPH system and `PressureBoundaries`, there is no contribution to sum_j d_ij*p_j
+# For all other neighbors, there is no contribution to sum_j d_ij*p_j
 function calculate_sum_d_ij_pj!(sum_d_ij_pj, system,
                                 neighbor_system, u, u_ode, semi)
     return sum_d_ij_pj
@@ -555,65 +593,85 @@ function calculate_sum_term_values!(system::ImplicitIncompressibleSPHSystem, u, 
 end
 
 # Function barrier for type stability
-function calculate_sum_term!(sum_term, system, neighbor_system, u, u_ode, semi, time_step)
+function calculate_sum_term!(sum_term, system, neighbor_system, u, u_ode, semi, time_step;
+                             points=each_integrated_particle(system))
     u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
     system_coords = current_coordinates(u, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     foreach_point_neighbor(system, neighbor_system, system_coords,
                            neighbor_system_coords, semi;
-                           points=each_integrated_particle(system)) do particle, neighbor,
-                                                                       pos_diff, distance
+                           points) do particle, neighbor,
+                                      pos_diff, distance
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
         sum_term[particle] += calculate_sum_term(system, neighbor_system, particle,
                                                  neighbor, grad_kernel, time_step)
     end
 end
 
-function pressure_update(system, semi)
+function pressure_update(mode, system, semi)
     return 0.0
 end
 
-function pressure_update(system::ImplicitIncompressibleSPHSystem, semi)
+function pressure_update(mode, system::ImplicitIncompressibleSPHSystem, semi)
     (; pressure, sum_term, reference_density, a_ii, omega, density_error) = system
 
     # Update the pressure values
-    relative_density_error = pressure_update(system, pressure, reference_density, a_ii,
+    relative_density_error = pressure_update(mode, system, pressure, reference_density,
+                                             a_ii,
                                              sum_term, omega, density_error, semi)
 
     return relative_density_error
 end
 
-function pressure_update(system, pressure, reference_density, a_ii, sum_term, omega,
+function pressure_update(mode, system, pressure, reference_density, a_ii, sum_term, omega,
                          density_error, semi)
     relative_density_error = zero(eltype(system))
 
     @threaded semi for particle in eachparticle(system)
         # Removing instabilities by avoiding to divide by very low values of `a_ii`.
         # This is not mentioned in the paper but done in SPlisHSPlasH as well.
-        if abs(a_ii[particle]) > 1.0e-9
-            pressure[particle] = max((1 - omega) * pressure[particle] +
-                                     omega / a_ii[particle] *
-                                     (iisph_source_term(system, particle) -
-                                      sum_term[particle]), 0)
-        else
+        diagonal = a_ii[particle]
+        if !(abs(diagonal) > 1.0e-9)
             pressure[particle] = zero(pressure[particle])
-        end
-        # Calculate the density error for the termination condition, explicitly
-        # clearing zero-pressure entries (no stale values from previous iterations).
-        if pressure[particle] != 0.0
-            new_density = a_ii[particle] * pressure[particle] + sum_term[particle] -
-                          iisph_source_term(system, particle) +
-                          reference_density
-            density_error[particle] = new_density - reference_density
-        else
             density_error[particle] = zero(eltype(density_error))
+            return
         end
+
+        old_pressure = pressure[particle]
+        source = iisph_source_term(system, particle)
+        off_diagonal = sum_term[particle]
+        new_pressure = max((1 - omega) * old_pressure +
+                           omega / diagonal * (source - off_diagonal), 0)
+        pressure[particle] = new_pressure
+
+        density_error[particle] = iisph_density_residual(mode, old_pressure, new_pressure,
+                                                         diagonal, off_diagonal, source)
     end
     relative_density_error = sum(density_error) / reference_density
 
     return relative_density_error
 end
+
+# Density error of Ihmsen et al. (2013) as implemented in SPlisHSPlasH
+@inline function iisph_density_residual(::StandardIISPHSolve, old_pressure, new_pressure,
+                                        diagonal, off_diagonal, source)
+    return iszero(new_pressure) ? zero(new_pressure) :
+           diagonal * new_pressure + off_diagonal - source
+end
+
+# Projected residual of the PPE with the bound p >= 0. Positive and negative errors do not
+# cancel, so the tolerance approximately bounds the average density error of the actual RHS.
+# It is evaluated for the pressure before the update, which the RHS does not use.
+@inline function iisph_density_residual(::WallExtrapolationIISPHSolve, old_pressure,
+                                        new_pressure,
+                                        diagonal, off_diagonal, source)
+    # Use the residual at the old iterate, the one used to compute the off-diagonal term.
+    # At zero pressure, underdensity is allowed by the nonnegative pressure bound.
+    residual = diagonal * old_pressure + off_diagonal - source
+    return iszero(old_pressure) ? max(residual, zero(residual)) : abs(residual)
+end
+
 @propagate_inbounds function predicted_velocity(system::ImplicitIncompressibleSPHSystem,
                                                 particle)
     return extract_svector(system.advection_velocity, system, particle)

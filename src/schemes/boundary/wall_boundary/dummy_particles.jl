@@ -532,12 +532,9 @@ end
 
 function compute_density!(boundary_model, ::PressureBoundaries, system, v, u, v_ode, u_ode,
                           semi)
-    (; cache) = boundary_model
-    (; density) = cache # Density is in the cache for `SummationDensity`
+    (; density) = boundary_model.cache
 
     summation_density!(system, semi, u, u_ode, density; particles=eachparticle(system))
-
-    predict_advection!(system, v, u, v_ode, u_ode, semi)
 end
 
 function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityDensity},
@@ -657,13 +654,21 @@ function compute_adami_density!(boundary_model, system, v, particle)
 
     @inbounds pressure[particle] = normalized_boundary_pressure(boundary_model, particle)
 
-    if @inbounds cache.volume[particle] > eps()
-        # To impose no-slip condition
-        compute_wall_velocity!(viscosity, system, v, particle)
-    end
+    update_extrapolated_wall_velocity!(cache, viscosity, system, v, particle)
 
     # Apply inverse state equation to compute density (not used with EDAC)
     inverse_state_equation!(cache.density, state_equation, pressure, particle)
+end
+
+@inline function update_extrapolated_wall_velocity!(cache, viscosity, system, v, particle)
+    if @inbounds cache.volume[particle] > eps()
+        compute_wall_velocity!(viscosity, system, v, particle)
+    end
+    return nothing
+end
+
+@inline function update_extrapolated_wall_velocity!(cache, ::Nothing, system, v, particle)
+    return nothing
 end
 
 @inline function predict_adami_density!(boundary_model, particle)

@@ -289,6 +289,21 @@
         end
     end
 
+    @trixi_testset "fluid/dam_break_2d_iisph.jl with AdamiPressureExtrapolation and no-slip walls" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "dam_break_2d_iisph.jl"),
+                                         tspan=(0.0, 0.1),
+                                         boundary_density_calculator=AdamiPressureExtrapolation(),
+                                         viscosity_wall=ViscosityAdami(nu=1e-4)) [
+            r"┌ Info: The desired tank length in y-direction .*\n",
+            r"└ New tank length in y-direction.*\n"
+        ]
+        @test sol.retcode == ReturnCode.Success
+        @test TrixiParticles.has_iisph_wall_extrapolation(sol.prob.p.semi)
+        @test count_rhs_allocations(sol) <= (VERSION < v"1.11" ? 32 : 0)
+    end
+
     @trixi_testset "fluid/dam_break_2d_iisph.jl with PressureBoundaries" begin
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
