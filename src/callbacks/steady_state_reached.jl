@@ -125,11 +125,14 @@ end
     @trixi_timeit timer() "update dvdu" begin
         # Don't create sub-timers here to avoid cluttering the timer output
         @notimeit timer() dvdu_ode = get_dvdu(integrator)
-        dv_ode, du_ode = dvdu_ode.x
+        dv_ode_, du_ode_ = dvdu_ode.x
     end
 
-    v_ode, u_ode = integrator.u.x
     semi = integrator.p.semi
+
+    # When particles are sorted, copy all arrays to system order (see `particle_sorting.jl`).
+    v_ode, u_ode = sorted_ode_arrays(integrator.u.x..., semi)
+    dv_ode, du_ode = sorted_copies(dv_ode_, du_ode_, semi)
 
     # Calculate kinetic energy
     ekin = sum(semi.systems) do system

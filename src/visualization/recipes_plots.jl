@@ -9,13 +9,25 @@ const TrixiParticlesODESolution = ODESolution{<:Any, <:Any, <:Any, <:Any, <:Any,
 
 # This is the main recipe
 RecipesBase.@recipe function f(sol::TrixiParticlesODESolution)
-    # Redirect everything to the next recipe
-    return sol.u[end].x..., sol.prob.p.semi
+    semi = sol.prob.p.semi
+
+    # When particles are sorted, copy the integration arrays to system order
+    # (see `particle_sorting.jl`).
+    v_ode, u_ode = sorted_ode_arrays(sol.u[end].x..., semi)
+
+    # Redirect everything to the next recipe.
+    return v_ode, u_ode, semi
 end
 
 RecipesBase.@recipe function f(system::AbstractSystem, sol::TrixiParticlesODESolution)
-    # Redirect everything to the single-system recipe
-    return system, sol.u[end].x..., sol.prob.p.semi
+    semi = sol.prob.p.semi
+
+    # When particles are sorted, copy the integration arrays to system order
+    # (see `particle_sorting.jl`).
+    v_ode, u_ode = sorted_ode_arrays(sol.u[end].x..., semi)
+
+    # Redirect everything to the single-system recipe.
+    return system, v_ode, u_ode, semi
 end
 
 function get_system_plot_data(u_ode, system, semi, particle_spacing)
@@ -49,6 +61,8 @@ RecipesBase.@recipe function f(system::AbstractSystem, v_ode::AbstractArray,
                                u_ode::AbstractArray, semi::Semidiscretization)
     # Move data to the CPU if on the GPU.
     # `transfer2cpu` also validates that `system` is in `semi.systems`, even on the CPU.
+    # When particles are sorted, `v_ode` and `u_ode` must be sorted copies of the
+    # integration arrays (see `particle_sorting.jl`).
     v_ode_, u_ode_, system_, semi_ = transfer2cpu(v_ode, u_ode, system, semi)
 
     particle_spacing = system_.initial_condition.particle_spacing
@@ -64,6 +78,8 @@ RecipesBase.@recipe function f(v_ode::AbstractArray, u_ode::AbstractArray,
                                xlims=(-Inf, Inf), ylims=(-Inf, Inf))
     # Move data to the CPU if on the GPU.
     # `transfer2cpu` also validates that all systems are in `semi.systems`, even on the CPU.
+    # When particles are sorted, `v_ode` and `u_ode` must be sorted copies of the
+    # integration arrays (see `particle_sorting.jl`).
     v_ode_, u_ode_, semi_ = transfer2cpu(v_ode, u_ode, semi)
 
     # Find the minimum and maximum coordinates across all systems,

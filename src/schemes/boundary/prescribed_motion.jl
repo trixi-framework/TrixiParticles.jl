@@ -77,6 +77,25 @@ function initialize_prescribed_motion!(prescribed_motion::PrescribedMotion,
     return prescribed_motion
 end
 
+# Update the indices of the moving particles when the particles are sorted
+# (see `update_particle_indices!`).
+update_moving_particles!(::Nothing, system, compute_new_index!, semi) = nothing
+
+function update_moving_particles!(prescribed_motion::PrescribedMotion, system,
+                                  compute_new_index!, semi)
+    (; moving_particles) = prescribed_motion
+
+    # When all particles are moving, `moving_particles` always contains all particles.
+    length(moving_particles) == nparticles(system) && return nothing
+
+    new_index = compute_new_index!()
+    @threaded semi for i in eachindex(moving_particles)
+        @inbounds moving_particles[i] = new_index[moving_particles[i]]
+    end
+
+    return prescribed_motion
+end
+
 function initialize_prescribed_motion!(::Nothing, initial_condition,
                                        n_clamped_particles=nparticles(initial_condition))
     return nothing

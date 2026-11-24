@@ -34,6 +34,7 @@ using TrixiBase: @trixi_timeit, timer, timeit_debug_enabled,
                  disable_debug_timings, enable_debug_timings, TrixiBase
 @reexport using TrixiBase: trixi_include, trixi_include_changeprecision
 @reexport using PointNeighbors: TrivialNeighborhoodSearch, GridNeighborhoodSearch,
+                                SortingGridNeighborhoodSearch,
                                 PrecomputedNeighborhoodSearch, PeriodicBox,
                                 ParallelUpdate, SemiParallelUpdate, SerialUpdate,
                                 SerialIncrementalUpdate,
@@ -55,16 +56,18 @@ include("schemes/schemes.jl")
 include("custom_quantities/custom_quantities.jl")
 # `neighborhood_search.jl` requires the system types to be defined
 include("general/neighborhood_search.jl")
-# `callbacks.jl` requires the system types to be defined
-include("callbacks/callbacks.jl")
 include("preprocessing/preprocessing.jl")
 
 # Note that `semidiscretization.jl` depends on the system types and has to be
 # included separately. The following files in turn depend on the semidiscretization type.
 include("general/semidiscretization.jl")
+include("general/particle_sorting.jl")
 include("general/time_integration.jl")
 include("general/ode_rhs.jl")
 include("general/gpu.jl")
+# `callbacks.jl` requires the system types, the semidiscretization and the particle sorting
+# to be defined.
+include("callbacks/callbacks.jl")
 include("io/io.jl")
 include("general/restart.jl")
 include("visualization/recipes_plots.jl")

@@ -243,6 +243,11 @@ end
 
 @inline buffer(system::WeaklyCompressibleSPHSystem) = system.buffer
 
+# See `particle_sorting.jl`. All other arrays are recomputed in every update after sorting.
+function particle_arrays_to_sort(system::WeaklyCompressibleSPHSystem)
+    return (system.mass, shifting_arrays_to_sort(system, shifting_technique(system))...)
+end
+
 system_correction(system::WeaklyCompressibleSPHSystem) = system.correction
 
 @propagate_inbounds function current_velocity(v, system::WeaklyCompressibleSPHSystem)

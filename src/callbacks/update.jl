@@ -81,7 +81,7 @@ end
 function (update_callback!::UpdateCallback)(integrator)
     t = integrator.t
     semi = integrator.p.semi
-    v_ode, u_ode = integrator.u.x
+    v_ode_, u_ode_ = integrator.u.x
 
     # An empty update without calling any of the functions below does not modify
     # the results of the right-hand side.
@@ -91,9 +91,11 @@ function (update_callback!::UpdateCallback)(integrator)
     @trixi_timeit timer() "update callback" begin
         # Update quantities that are stored in the systems. These quantities (e.g. pressure)
         # still have the values from the last stage of the previous step if not updated here.
-        @trixi_timeit timer() "update systems and nhs" begin
+        # When particles are sorted, this returns copies of the integration arrays
+        # in system order (see `particle_sorting.jl`).
+        v_ode, u_ode = @trixi_timeit timer() "update systems and nhs" begin
             # Don't create sub-timers here to avoid cluttering the timer output
-            @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t)
+            @notimeit timer() update_systems_and_nhs(v_ode_, u_ode_, semi, t)
         end
 
         # Update open boundaries first, since particles might be activated or deactivated
@@ -122,6 +124,10 @@ function (update_callback!::UpdateCallback)(integrator)
                 compute_averaged_velocity!(system, v_ode, semi, t)
             end
         end
+
+        # When particles are sorted, copy the modified sorted copies back
+        # to the integration arrays.
+        unsort_ode_arrays!(v_ode_, u_ode_, v_ode, u_ode, semi)
     end
 
     return integrator

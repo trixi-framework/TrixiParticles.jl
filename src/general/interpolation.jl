@@ -59,7 +59,9 @@ function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_syst
                               cut_off_bnd=true, clip_negative_pressure=false)
     # Filter out particles without neighbors
     filter_no_neighbors = true
-    v_ode, u_ode = sol.u[end].x
+    # When particles are sorted, copy the integration arrays to system order
+    # (see `particle_sorting.jl`).
+    v_ode, u_ode = sorted_ode_arrays(sol.u[end].x..., semi)
 
     results, _,
     _ = interpolate_plane_2d(min_corner, max_corner, resolution,
@@ -144,7 +146,9 @@ function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_
                                   smoothing_length=initial_smoothing_length(ref_system),
                                   cut_off_bnd=true, include_wall_velocity=false,
                                   output_directory="out", filename="plane")
-    v_ode, u_ode = sol.u[end].x
+    # When particles are sorted, copy the integration arrays to system order
+    # (see `particle_sorting.jl`).
+    v_ode, u_ode = sorted_ode_arrays(sol.u[end].x..., semi)
 
     interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_system,
                              v_ode, u_ode; clip_negative_pressure, include_wall_velocity,
@@ -285,7 +289,9 @@ function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_syst
                               sol::ODESolution; include_wall_velocity=false,
                               smoothing_length=initial_smoothing_length(ref_system),
                               cut_off_bnd=true, clip_negative_pressure=false)
-    v_ode, u_ode = sol.u[end].x
+    # When particles are sorted, copy the integration arrays to system order
+    # (see `particle_sorting.jl`).
+    v_ode, u_ode = sorted_ode_arrays(sol.u[end].x..., semi)
 
     interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system,
                          v_ode, u_ode; smoothing_length, cut_off_bnd, include_wall_velocity,
@@ -382,7 +388,9 @@ function interpolate_line(start, end_, n_points, semi, ref_system, sol::ODESolut
                           endpoint=true, include_wall_velocity=false,
                           smoothing_length=initial_smoothing_length(ref_system),
                           cut_off_bnd=true, clip_negative_pressure=false)
-    v_ode, u_ode = sol.u[end].x
+    # When particles are sorted, copy the integration arrays to system order
+    # (see `particle_sorting.jl`).
+    v_ode, u_ode = sorted_ode_arrays(sol.u[end].x..., semi)
 
     interpolate_line(start, end_, n_points, semi, ref_system, v_ode, u_ode; endpoint,
                      smoothing_length, cut_off_bnd, clip_negative_pressure,
@@ -470,7 +478,9 @@ results = interpolate_points(points, semi, ref_system, sol)
                                     smoothing_length=initial_smoothing_length(ref_system),
                                     cut_off_bnd=true, clip_negative_pressure=false,
                                     include_wall_velocity=false)
-    v_ode, u_ode = sol.u[end].x
+    # When particles are sorted, copy the integration arrays to system order
+    # (see `particle_sorting.jl`).
+    v_ode, u_ode = sorted_ode_arrays(sol.u[end].x..., semi)
 
     interpolate_points(point_coords, semi, ref_system, v_ode, u_ode; include_wall_velocity,
                        smoothing_length, cut_off_bnd, clip_negative_pressure)
@@ -481,7 +491,9 @@ function interpolate_points(point_coords, semi, ref_system, v_ode, u_ode;
                             smoothing_length=initial_smoothing_length(ref_system),
                             cut_off_bnd=true, clip_negative_pressure=false,
                             include_wall_velocity=false)
-    neighborhood_searches = process_neighborhood_searches(semi, u_ode, ref_system,
+    # Note that when particles are sorted, `v_ode` and `u_ode` must be sorted copies of the
+    # integration arrays (see `particle_sorting.jl`).
+    neighborhood_searches = process_neighborhood_searches(semi, v_ode, u_ode, ref_system,
                                                           smoothing_length, point_coords)
 
     return interpolate_points(point_coords, semi, ref_system,
@@ -494,10 +506,27 @@ end
 # be copied, so we use the neighborhood search of the neighbor system as template.
 @inline standalone_template(neighborhood_search) = neighborhood_search
 @inline function standalone_template(neighborhood_search::PointNeighbors.GridNHSPair)
-    return neighborhood_search.neighbor_search
+    return standalone_template(neighborhood_search.neighbor_search)
 end
 
-function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length,
+# A `SortingGridNeighborhoodSearch` requires the points to be reordered by its own cells.
+# The particles are sorted by the cells of the neighborhood search of the
+# semidiscretization, which uses a different search radius than the new neighborhood
+# search. Therefore, we use a regular `GridNeighborhoodSearch` with the same grid.
+function standalone_template(neighborhood_search::SortingGridNeighborhoodSearch)
+    (; cell_list, periodic_box) = neighborhood_search
+    (; min_corner, max_corner) = cell_list
+
+    cell_list_ = FullGridCellList(; min_corner, max_corner,
+                                  backend=CompactVectorOfVectors{Int32})
+
+    NDIMS = ndims(neighborhood_search)
+
+    return GridNeighborhoodSearch{NDIMS}(; periodic_box, cell_list=cell_list_,
+                                         update_strategy=ParallelUpdate())
+end
+
+function process_neighborhood_searches(semi, v_ode, u_ode, ref_system, smoothing_length,
                                        point_coords)
     if isapprox(smoothing_length, initial_smoothing_length(ref_system))
         # Check if the neighborhood searches can be used with different points
@@ -507,7 +536,9 @@ function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length
         if !any(f, semi.systems)
             # We can use the existing neighborhood searches.
             # Update existing NHS with the current coordinates.
-            update_nhs!(semi, u_ode)
+            # When `ParticleSorting` is used, this also sorts the particles
+            # and the sorted copies `v_ode` and `u_ode`.
+            update_nhs!(semi, v_ode, u_ode)
             return map(system -> get_neighborhood_search(ref_system, system, semi),
                        semi.systems)
         end

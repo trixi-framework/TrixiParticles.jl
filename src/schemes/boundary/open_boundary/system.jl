@@ -466,7 +466,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
     update_system_buffer!(fluid_system.buffer)
 
     # Since particles have been transferred, the neighborhood searches must be updated
-    update_nhs!(semi, u_ode)
+    update_nhs!(semi, v_ode, u_ode)
 
     update_boundary_zone_indices!(system, u, boundary_zones, semi)
 

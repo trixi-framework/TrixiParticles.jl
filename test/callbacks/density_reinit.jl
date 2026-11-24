@@ -72,7 +72,7 @@
         semi = (; systems=(system,), neighborhood_search_handler=nothing)
         integrator = MockDensityReinitIntegrator((; semi), vu_ode, 0.0)
 
-        TrixiParticles.update_nhs!(semi, handler::Nothing, u_ode) = semi
+        TrixiParticles.update_nhs!(semi, handler::Nothing, v_ode, u_ode) = semi
         TrixiParticles.derivative_discontinuity!(integrator::MockDensityReinitIntegrator,
                                                  is_modified) = nothing
 
@@ -166,7 +166,7 @@
                                                           semi_runtime.integrate_tlsph)
         vu_ode = deepcopy(ode.u0)
         v_ode, u_ode = vu_ode.x
-        TrixiParticles.update_nhs!(semi_replaced, u_ode)
+        TrixiParticles.update_nhs!(semi_replaced, v_ode, u_ode)
 
         # Use distinct densities to verify that the callback updates only
         # the selected runtime system at the stored index.
