@@ -38,5 +38,6 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl");
               neighborhood_search=GridNeighborhoodSearch{2}(), viscosity_fluid=viscosity,
               smoothing_kernel, smoothing_length, fluid_system,
               boundary_density_calculator=PressureZeroing(), tspan, state_equation=nothing,
+              viscosity_wall=nothing,
               callbacks=CallbackSet(info_callback, saving_callback),
               time_integration_scheme=SymplecticEuler(), dt=time_step)

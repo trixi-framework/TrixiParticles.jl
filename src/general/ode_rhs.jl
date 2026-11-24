@@ -116,10 +116,6 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
 
     predict_boundary_densities!(semi, v_ode, u_ode, t)
 
-    iisph_components = prepare_iisph_pressure_components!(semi.systems,
-                                                          semi.interaction_matrix)
-    seed_iisph_wall_densities!(iisph_components, semi, v_ode, u_ode)
-
     # Correction moments can use densities from every interacting system. Assemble every
     # coefficient before correcting any density so all systems observe the same state.
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
@@ -130,15 +126,19 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
         update_density_correction!(system, v, u, v_ode, u_ode, semi, t)
     end
 
-    update_implicit_sph!(iisph_components, semi, v_ode, u_ode)
-
     # Refresh pressure from corrected fluid density and the current open-boundary state.
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_pressure!(system, v, u, v_ode, u_ode, semi, t)
     end
 
-    # Refresh boundary interpolation, preserving the wall state used in the final IISPH solve.
-    update_rhs_boundary_interpolation!(iisph_components, semi, v_ode, u_ode, t)
+    # The IISPH pressure solve extrapolates the wall pressure in every iteration. Walls can
+    # also extrapolate from other systems, so solve after all other pressures are final.
+    update_implicit_sph!(semi, v_ode, u_ode, t)
+
+    # Extrapolate the final wall pressure and density using the updated fluid quantities.
+    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
+        update_boundary_interpolation!(system, v, u, v_ode, u_ode, semi, t)
+    end
 
     # Boundary interpolation can update boundary density. Assemble all gradient corrections
     # only after every interacting system exposes its final density.
@@ -155,13 +155,6 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
     # Final update step for all remaining systems
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
         update_final!(system, v, u, v_ode, u_ode, semi, t)
-    end
-end
-
-@inline function update_rhs_boundary_interpolation!(iisph_components, semi, v_ode, u_ode, t)
-    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
-        preserve_iisph_wall_state(iisph_components, system, semi) && return
-        update_boundary_interpolation!(system, v, u, v_ode, u_ode, semi, t)
     end
 end
 

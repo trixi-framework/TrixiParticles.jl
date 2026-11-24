@@ -582,16 +582,14 @@ function compute_pressure!(boundary_model,
 end
 
 function predict_pressure_extrapolated_density!(boundary_model, system, v, u, v_ode, u_ode,
-                                                semi; viscosity=nothing)
-    # The Shepard predictor only needs densities. IISPH also needs the ghost velocity
-    # for viscous acceleration in its provisional solve.
+                                                semi)
+    # The provisional pass only supplies volumes for Shepard normalization. Skip the
+    # no-slip velocity interpolation; the final extrapolation computes it once.
     extrapolate_boundary_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi,
-                                   viscosity)
+                                   nothing)
 
     @threaded semi for particle in eachparticle(system)
         predict_adami_density!(boundary_model, particle)
-        update_extrapolated_wall_velocity!(boundary_model.cache, viscosity, system, v,
-                                           particle)
     end
 
     return boundary_model

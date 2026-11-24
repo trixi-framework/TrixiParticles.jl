@@ -305,41 +305,73 @@ p_i^{l+1} = (1 - \omega) p_i^l + \omega \frac{1}{a_{ii}} &\left( \rho_0 - \rho_i
 ### [Pressure Extrapolation](@id iisph_pressure_extrapolation)
 The density calculators [`AdamiPressureExtrapolation`](@ref) and [`BernoulliPressureExtrapolation`](@ref)
 can also be used with IISPH. Neither method adds a wall pressure unknown to the PPE.
-With an equation of state, the [wall predictor](@ref boundary_models) extrapolates
-wall pressure from a provisional solve and uses the equation of state to obtain wall
-density. The provisional PPE omits the wall-pressure force. If the extrapolated pressure
-does not have a positive, finite inverse, the provisional solve continues up to
-`max_iterations` and reports an error if the pressure remains outside the EOS domain.
-An admissible wall pressure and density are held fixed during the final solve and force
-evaluation.
-
-In the final prediction, the known pressure acceleration from those walls is
+Instead, the wall pressure is a function of the fluid pressure,
 ```math
-\bm{a}_i^{\mathrm{wall}} = -\sum_b m_b \frac{p_b}{\rho_b^2} \nabla W_{ib}.
+p_b = \sum_f E_{bf} p_f + e_b,
 ```
-The solver adds ``\Delta t\,\bm{a}_i^{\mathrm{wall}}`` to each fluid's predicted
-velocity before assembling the density prediction. This puts the known wall force
-on the PPE right-hand side, including in rows for neighboring fluid particles and
-for [`PressureBoundaries`](@ref). The PPE matrix does not change. The final fluid
-pressures do not feed back into the frozen wall values within the same evaluation.
+where ``E_{bf}`` are the normalized kernel weights of the [extrapolation](@ref boundary_models)
+and ``e_b`` collects the hydrostatic and dynamic terms and the pressure offset.
+For an incompressible fluid, this extrapolation is a boundary condition for the pressure.
+Since the fluid density does not change, the wall density does not change either.
+Walls that exert forces on an IISPH system must therefore not have a state equation,
+and their density is their initial density.
 
-When a pressure component omits the wall EOS, IISPH uses one solve that omits the
-extrapolated wall pressure from the PPE and applies it in the final force. To solve
-for wall pressure as a PPE unknown, use [`PressureBoundaries`](@ref).
+Writing the density change caused by the wall pressure force
+``-\sum_b m_b p_b / \rho_b^2 \nabla W_{ib}`` as ``\bm{M} \bm{p}_b``, the PPE becomes
+```math
+(\bm{A} + \bm{M} \bm{E}) \bm{p} = \bm{\rho}_0 - \bm{\rho}^{\text{adv}} - \bm{M} \bm{e}.
+```
+This system is solved with the relaxed Jacobi scheme by evaluating the extrapolation
+in every iteration. Before computing ``\sum_j d_{ij} p_j^l``, the wall pressure ``p_b^l``
+is extrapolated from the current pressure iterate ``p^l``. The wall particles then enter
+the displacement of each fluid particle like the particles of [`PressureBoundaries`](@ref),
+```math
+\sum_j d_{ij} p_j^l = \sum_f d_{if} p_f^l + \sum_b d_{ib} p_b^l,
+\qquad d_{ib} = -\Delta t^2 \frac{m_b}{\rho_b^2} \nabla W_{ib}.
+```
+This displacement enters the off-diagonal part of the rows of the particle, of its fluid
+neighbors, and of [`PressureBoundaries`](@ref).
+The diagonal elements ``a_{ii}`` are unchanged, so the dependence of ``p_b`` on ``p_i``
+is lagged by one iteration. For one fluid neighbor with ``\rho_i = \rho_b``, the iteration
+contracts with the factor ``|1 - 2\omega|``, which vanishes for the default ``\omega = 0.5``.
 
-The EOS-backed method is a lagged approximation: satisfying the final density
-tolerance does not guarantee an accurate wall pressure or load. For example, with
-one fluid neighbor, zero gravity, and zero pressure offset, self-consistent Adami
-extrapolation would give ``p_b=p_f``. In a one-pair compression test, the lagged wall
-pressure was 1.85 and 1.76 times the self-consistent pressure when halving the timestep
-from 0.005 to 0.0025, although the final linearized density reached the target in both
-cases. Check pressure or load sensitivity independently of density error when those
-quantities are of interest. The reproducible column and piston comparison in
-`validation/general/iisph_wall_pressure.jl` reports both, together with iteration counts
-and RHS timings. For example, at particle spacing 0.04 and time 0.02, halving the
-timestep from 0.001 to 0.0005 changed the column's bottom load from about 2208 to 1671
-per unit depth (equilibrium target: 1568), and the piston load from about 400,000 to
-103,000 per unit depth. These are short transients, not equilibrium or convergence tests.
+After the solve, the regular boundary update extrapolates the solved fluid pressure
+for the force calculation, so the forces use the wall pressure of the solved PPE.
+For example, with one fluid neighbor, zero gravity, and zero pressure offset,
+the wall pressure equals the fluid pressure. The viscous force of the walls is part of
+the prediction ``\rho^{\text{adv}}``. It uses the no-slip velocity of the walls, which
+is computed from the current fluid velocity before the prediction.
+A wall can also extrapolate the pressure of other fluid systems. Therefore, the solve runs
+after the density corrections and pressure updates of all other systems.
+
+With these walls, the solve differs from the standard IISPH solve in two ways:
+- It starts from zero pressure instead of half the previous pressure, so that the solution
+  does not depend on the previous RHS evaluation. In a resting water column with
+  20 particles across and the default tolerance, the fluid came to rest within 5 seconds
+  when starting from zero pressure, but not when starting from half the previous pressure.
+- The termination criterion uses the average absolute residual, to which particles with
+  zero pressure only contribute when they are overdense. Positive and negative errors do
+  not cancel, so `max_error` approximately bounds the average density error of the actual
+  RHS. The bound is not strict, since the residual is evaluated for the pressure before
+  the last update of the iteration.
+
+Both require more iterations than the standard solve.
+To solve for the wall pressure as a PPE unknown, use [`PressureBoundaries`](@ref).
+
+Without a free surface, the pressure level of the fluid is only fixed by the density
+error, as these walls act like Neumann conditions on the pressure. A wall that compresses
+a completely filled, closed domain therefore leads to a nearly singular pressure equation,
+and the solver can reach `max_iterations` before the density tolerance.
+
+The script `validation/general/iisph_wall_pressure.jl` checks this coupling.
+With one fluid neighbor, the wall pressure equals the analytic solution of the pair.
+In the first time steps of a water column, it reports the density error of the actual RHS,
+the deviation of the wall pressure from the extrapolation of the solved fluid pressure,
+iteration counts, and RHS timings. It also integrates a resting water column and a water
+column in a tank that accelerates upward with ``g/2`` until the fluid rests relative to
+the tank. At particle spacings 0.04 and 0.02, the time-averaged pressure of the first
+wall layer deviates by at most 3.1 % from the hydrostatic value, and the load on the
+bottom by at most 1.3 % from the weight of the fluid in the accelerated frame.
 
 ### Pressure Boundaries
 The [`PressureBoundaries`](@ref) density calculator was introduced by

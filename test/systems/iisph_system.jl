@@ -103,6 +103,17 @@
                                                                                    max_error=0.0,
                                                                                    time_step=0.001)
 
+            # The relaxed Jacobi scheme can diverge for omega >= 1
+            error_str8 = "`omega` must be a number between 0 and 1 (exclusive), since the relaxed Jacobi scheme can diverge for `omega >= 1`"
+            for invalid_omega in (0.0, 1.0, 1.5)
+                @test_throws ArgumentError(error_str8) ImplicitIncompressibleSPHSystem(initial_condition;
+                                                                                       smoothing_kernel,
+                                                                                       smoothing_length,
+                                                                                       reference_density,
+                                                                                       omega=invalid_omega,
+                                                                                       time_step=0.001)
+            end
+
             # min_iterations must be strictly positive
             error_str5 = "`min_iterations` must be a positive number"
             @test_throws ArgumentError(error_str5) ImplicitIncompressibleSPHSystem(initial_condition;
@@ -296,7 +307,7 @@
         @test v0 == velocity
     end
 
-    @testset "Extrapolated wall density is independent of RHS history" begin
+    @testset "Wall pressure solve is independent of RHS history" begin
         kernel = SchoenbergCubicSplineKernel{2}()
         h = 1.0
         dt = 1e-3
@@ -306,11 +317,11 @@
         weights = [TrixiParticles.kernel(kernel, abs(a - b), h) for a in x, b in x]
         masses = rho / (weights[1, 1] + 2weights[1, 2] + 3weights[1, 3]) .* [1, 2, 3]
 
-        function make_wall(i, calculator; state_equation=nothing, wall_viscosity=nothing)
+        function make_wall(i, calculator; wall_viscosity=nothing)
             ic = InitialCondition(; coordinates=reshape([x[i], 0.0], 2, 1), density=rho,
                                   mass=masses[i], particle_spacing=h)
             model = BoundaryModelDummyParticles(ic.density, ic.mass, calculator, kernel, h;
-                                                viscosity=wall_viscosity, state_equation)
+                                                viscosity=wall_viscosity)
             motion = PrescribedMotion((coords, t) -> coords + SVector(0.0, t), t -> true)
             return WallBoundarySystem(ic, model; prescribed_motion=motion)
         end
@@ -327,8 +338,7 @@
                                                     smoothing_length=h,
                                                     reference_density=rho,
                                                     time_step=dt, viscosity)
-            eos = StateEquationCole(sound_speed=5.0, reference_density=rho, exponent=1)
-            wall = make_wall(2, calculator; state_equation=eos, wall_viscosity=viscosity)
+            wall = make_wall(2, calculator; wall_viscosity=viscosity)
             other_wall = make_wall(3, PressureZeroing())
             systems = wall_first ? (wall, other_wall, fluid) : (fluid, wall, other_wall)
             semi = Semidiscretization(systems...; parallelization_backend=SerialBackend())
@@ -341,20 +351,30 @@
                 TrixiParticles.kick!(dv, v, u, ode.p, 0.0)
                 return (; fluid_pressure=fluid.pressure[1], wall_pressure=model.pressure[1],
                         wall_density=model.cache.density[1],
-                        predicted_y=fluid.advection_velocity[2, 1],
                         dv=copy(TrixiParticles.wrap_v(dv, fluid, ode.p.semi)))
             end
 
+            # The wall samples only the fluid particle. The normal component of the
+            # relative velocity between wall and fluid is -0.005.
+            dynamic_pressure = calculator isa BernoulliPressureExtrapolation ?
+                               rho * 0.005^2 / 2 : 0.0
+
             baseline = wall_rhs()
             @test baseline.wall_pressure > calculator.pressure_offset
-            @test baseline.wall_density > rho
-            @test eos(baseline.wall_density) ≈ baseline.wall_pressure
+            # The wall pressure is extrapolated from the solved fluid pressure
+            @test baseline.wall_pressure ≈
+                  baseline.fluid_pressure + calculator.pressure_offset + dynamic_pressure
+            # Without a state equation, the wall density is constant
+            @test baseline.wall_density == rho
+            # Viscous force of the wall moving in y-direction with the no-slip velocity
+            # 2 * (0, 1) - (0.005, 0)
             @test baseline.dv[2, 1] > 0
-            @test baseline.predicted_y ≈ dt * baseline.dv[2, 1]
+            @test model.cache.wall_velocity[:, 1] ≈ [-0.005, 2.0]
             @test wall_rhs() == baseline
 
+            # Neither the pressures nor the no-slip velocity of the previous evaluation
+            # affect the result
             fluid.pressure[1] = 1234.0
-            model.cache.density[1] = 2rho
             model.pressure[1] = -1234.0
             fill!(model.cache.wall_velocity, 1234.0)
             @test wall_rhs() == baseline
@@ -376,29 +396,23 @@
                  TrixiParticles.kernel(kernel, h, h)
 
         function evaluate_pair(calculator; dt=0.005, rho=rho0, wall_speed=0.0,
-                               gravity=0.0, eos=nothing, reverse_order=false,
-                               min_iterations=2, max_iterations=100, max_error=1e-9,
-                               omega=0.4)
+                               gravity=0.0, reverse_order=false, min_iterations=2,
+                               max_iterations=100, max_error=1e-9, omega=0.4,
+                               fluid_viscosity=nothing, wall_viscosity=nothing)
             # Equal masses give both particles the specified kernel-summation density.
             mass = rho / weight
             fluid_ic = InitialCondition(; coordinates=zeros(2, 1), density=rho0, mass,
                                         particle_spacing=h)
             wall_ic = InitialCondition(; coordinates=reshape([h, 0.0], 2, 1),
                                        density=rho0, mass, particle_spacing=h)
-            # Configure a distinct ghost velocity without adding a viscous force: zero
-            # wall viscosity makes the harmonic viscosity of the wall pair zero.
-            fluid_viscosity = eos === nothing ? nothing : ViscosityAdami(nu=0.1)
-            wall_viscosity = eos === nothing ? nothing : ViscosityAdami(nu=0.0)
             fluid = ImplicitIncompressibleSPHSystem(fluid_ic; smoothing_kernel=kernel,
                                                     smoothing_length=h, time_step=dt,
                                                     reference_density=rho0, omega,
                                                     min_iterations, max_iterations,
-                                                    max_error,
-                                                    viscosity=fluid_viscosity,
+                                                    max_error, viscosity=fluid_viscosity,
                                                     acceleration=(gravity, 0.0))
             model = BoundaryModelDummyParticles(wall_ic.density, wall_ic.mass, calculator,
-                                                kernel, h; state_equation=eos,
-                                                viscosity=wall_viscosity)
+                                                kernel, h; viscosity=wall_viscosity)
             motion = PrescribedMotion((coords, t) -> coords + SVector(wall_speed * t, 0.0),
                                       t -> true)
             wall = WallBoundarySystem(wall_ic, model; prescribed_motion=motion)
@@ -421,77 +435,80 @@
                                 model.cache.wall_velocity[1, 1])
         end
 
-        @testset "Provisional density tolerance does not bypass the EOS domain" begin
-            # With the default tolerance, the first two Jacobi iterations give wall
-            # pressure -4050, below the Cole lower limit of about -3571. The third
-            # iteration moves back into the domain without a history-based warm start.
+        @testset "Hydrostatic wall pressure" begin
+            # Gravity along the pair, away from and towards the wall at distance `h`.
+            # The compressed fluid has a positive pressure in both cases.
             rho = 1005.0
-            gravity = -10.0
-            mass_gradient = rho * (-TrixiParticles.kernel_deriv(kernel, h, h)) / weight
-            dt = sqrt((rho - rho0) / (8000 * (mass_gradient / rho)^2 -
-                       gravity * mass_gradient))
-            eos = StateEquationCole(; sound_speed=5.0, reference_density=rho0, exponent=7)
-            options = (; dt, rho, gravity, eos, omega=0.5, max_error=0.1)
             for calculator in
-                (AdamiPressureExtrapolation(), BernoulliPressureExtrapolation())
-                result = evaluate_pair(calculator; options...)
-                @test -rho0 * 5.0^2 / 7 < result.wall_pressure < 0.0
-                @test eos(result.wall_density) ≈ result.wall_pressure
-                @test_throws "did not find an admissible wall pressure after 2 iterations" evaluate_pair(calculator;
-                                                                                                         options...,
-                                                                                                         max_iterations=2)
-            end
-        end
+                (AdamiPressureExtrapolation(), BernoulliPressureExtrapolation()),
+                gravity in (-10.0, 10.0)
 
-        @testset "Invalid seed, admissible solved pressure" begin
-            # With zero fluid pressure, the hydrostatic term alone is below the Cole
-            # inverse's lower limit. The provisional fluid pressure makes it admissible.
-            rho = 1005.0
-            gravity = -10.0
-            c = 5.0
-            exponent = 7
-            eos = StateEquationCole(; sound_speed=c, reference_density=rho0, exponent)
-            @test gravity * rho * h < -rho0 * c^2 / exponent
-            for calculator in
-                (AdamiPressureExtrapolation(), BernoulliPressureExtrapolation())
-                result = evaluate_pair(calculator; dt=0.023, rho, gravity, eos)
-                @test -rho0 * c^2 / exponent < result.wall_pressure < 0.0
-                @test eos(result.wall_density) ≈ result.wall_pressure
+                result = evaluate_pair(calculator; rho, gravity)
+                @test result.fluid_pressure > 0
+                # Hydrostatic extrapolation from the only fluid neighbor at distance `h`
+                @test result.wall_pressure ≈ result.fluid_pressure + rho * gravity * h
+                @test result.wall_density == rho0
                 @test result.updated_density≈rho0 atol=2e-8 rtol=0
             end
         end
 
-        @testset "Normal wall motion and frozen pressure" begin
+        @testset "Normal wall motion and self-consistent wall pressure" begin
             wall_speed = -1.0
             dt = 0.005
-            eos = StateEquationCole(; sound_speed=40.0, reference_density=rho0, exponent=7)
+            # Configure a no-slip velocity without a viscous force: zero wall viscosity
+            # makes the harmonic viscosity of the wall pair zero.
+            options = (; dt, wall_speed, fluid_viscosity=ViscosityAdami(nu=0.1),
+                       wall_viscosity=ViscosityAdami(nu=0.0))
             for calculator in
                 (AdamiPressureExtrapolation(), BernoulliPressureExtrapolation())
-                result = evaluate_pair(calculator; dt, eos, wall_speed)
-                reversed = evaluate_pair(calculator; dt, eos, wall_speed,
-                                         reverse_order=true)
+                result = evaluate_pair(calculator; options...)
+                reversed = evaluate_pair(calculator; options..., reverse_order=true)
                 @test all(isapprox.(values(result), values(reversed)))
                 @test result.wall_pressure > 0
                 @test result.fluid_pressure > 0
                 @test result.ghost_speed ≈ 2wall_speed
-                # The default wall interpolation supplies pressure but not a movable
-                # pressure DOF. Its frozen acceleration is known during the final solve.
-                wall_velocity_increment = -dt * result.density_weight *
-                                          result.wall_pressure / result.wall_density^2
-                predicted_density = rho0 +
-                                    dt * result.density_weight *
-                                    (wall_velocity_increment - wall_speed)
-                @test result.predicted_density≈predicted_density atol=1e-10 rtol=0
+                # The wall pressure is part of the pressure solve, so the prediction
+                # only contains the wall motion.
+                @test result.predicted_density ≈
+                      rho0 - dt * result.density_weight * wall_speed
+                # With one fluid neighbor, no gravity and no offset, the extrapolated
+                # wall pressure equals the solved fluid pressure (plus the dynamic
+                # pressure of the normal wall motion with Bernoulli).
+                dynamic_pressure = calculator isa BernoulliPressureExtrapolation ?
+                                   rho0 * wall_speed^2 / 2 : 0.0
+                @test result.wall_pressure ≈ result.fluid_pressure + dynamic_pressure
+                @test result.wall_density == rho0
+                # With equal densities, the density balance determines the pressure sum
+                @test result.fluid_pressure + result.wall_pressure ≈
+                      -wall_speed * rho0^2 / (dt * result.density_weight)
                 @test result.updated_density≈rho0 atol=2e-8 rtol=0
             end
+        end
+
+        @testset "Viscous wall force in the density balance" begin
+            # The no-slip velocity -2 has a component along the pair, so the viscous
+            # force of the wall enters the density balance.
+            wall_speed = -1.0
+            dt = 0.005
+            calculator = AdamiPressureExtrapolation()
+            inviscid = evaluate_pair(calculator; dt, wall_speed)
+            options = (; dt, wall_speed, fluid_viscosity=ViscosityAdami(nu=10.0),
+                       wall_viscosity=ViscosityAdami(nu=10.0))
+            viscous = evaluate_pair(calculator; options...)
+            reversed = evaluate_pair(calculator; options..., reverse_order=true)
+            @test all(isapprox.(values(viscous), values(reversed)))
+            # The pressure compensates the viscous force
+            @test !isapprox(viscous.fluid_pressure, inviscid.fluid_pressure, rtol=0.05)
+            @test viscous.wall_pressure ≈ viscous.fluid_pressure
+            @test viscous.updated_density≈rho0 atol=2e-8 rtol=0
         end
 
         @testset "Active PressureBoundaries in both system orders" begin
             wall_speed = -1.0
             dt = 0.005
             calculator = PressureBoundaries(; time_step=dt)
-            # Force enough iterations to test the ordering independently of the legacy
-            # stopping criterion used when there are no staged extrapolating walls.
+            # Force enough iterations to test the ordering independently of the standard
+            # stopping criterion used without pressure-extrapolating walls.
             result = evaluate_pair(calculator; dt, wall_speed, min_iterations=60)
             reversed = evaluate_pair(calculator; dt, wall_speed, min_iterations=60,
                                      reverse_order=true)
@@ -502,16 +519,15 @@
             @test result.updated_density≈rho0 atol=2e-8 rtol=0
         end
 
-        @testset "Frozen extrapolating force in a PressureBoundaries row" begin
+        @testset "Extrapolated wall force in a PressureBoundaries row" begin
             tp = TrixiParticles
             dt = 0.005
-            eos = StateEquationCole(; sound_speed=40.0, reference_density=rho0, exponent=7)
             w0 = tp.kernel(kernel, 0.0, h)
             w1 = tp.kernel(kernel, h, h)
-            eos_mass = 1200.0
+            extrapolated_mass = 1200.0
             # Set the raw summation densities to rho0 + 9 in the fluid row and
             # rho0 + 5 in the solved wall row, with noncollinear wall forces.
-            fluid_mass = (rho0 + 9 - eos_mass * w1 - (rho0 + 5) * w1 / w0) /
+            fluid_mass = (rho0 + 9 - extrapolated_mass * w1 - (rho0 + 5) * w1 / w0) /
                          (w0 - w1^2 / w0)
             solved_wall_mass = (rho0 + 5 - fluid_mass * w1) / w0
             wall_position = SVector(0.6, 0.8)
@@ -526,18 +542,18 @@
                                                     smoothing_length=h, time_step=dt,
                                                     reference_density=rho0, omega=0.4,
                                                     max_iterations=1500, max_error=1e-9)
-            function make_wall(coords, wall_mass, calculator; state_equation=nothing)
+            function make_wall(coords, wall_mass, calculator)
                 ic = point(coords, wall_mass)
                 model = BoundaryModelDummyParticles(ic.density, ic.mass, calculator,
-                                                    kernel, h; state_equation)
+                                                    kernel, h)
                 return WallBoundarySystem(ic, model)
             end
             solved_wall = make_wall(solved_wall_position, solved_wall_mass,
                                     PressureBoundaries(; time_step=dt))
-            eos_wall = make_wall(wall_position, eos_mass, AdamiPressureExtrapolation();
-                                 state_equation=eos)
+            extrapolated_wall = make_wall(wall_position, extrapolated_mass,
+                                          AdamiPressureExtrapolation())
             interactions = Bool[1 1 1; 1 1 0; 1 0 1]
-            semi = Semidiscretization(fluid, solved_wall, eos_wall;
+            semi = Semidiscretization(fluid, solved_wall, extrapolated_wall;
                                       parallelization_backend=SerialBackend(),
                                       interaction_matrix=interactions)
             ode = semidiscretize(semi, (0.0, dt))
@@ -545,149 +561,263 @@
             dv = zero(v)
             tp.kick!(dv, v, u, ode.p, 0.0)
 
-            model = eos_wall.boundary_model
-            grad_eos = tp.smoothing_kernel_grad(fluid, -wall_position, h, 1)
-            grad_solved = tp.smoothing_kernel_grad(solved_wall, solved_wall_position, h, 1)
-            eos_force = -eos_mass * only(model.pressure) / only(model.cache.density)^2 .*
-                        grad_eos
+            model = extrapolated_wall.boundary_model
+            grad_extrapolated = tp.smoothing_kernel_grad(fluid, -wall_position, h, 1)
+            grad_solved = tp.smoothing_kernel_grad(fluid, -solved_wall_position, h, 1)
             cache = solved_wall.boundary_model.cache
             @test only(model.pressure) > 0
             @test only(solved_wall.boundary_model.pressure) > 0
-            @test only(cache.predicted_density) ≈
-                  only(cache.density) - dt^2 * fluid_mass * dot(eos_force, grad_solved)
-            # Measure the constraint using the actual fluid force, not the PPE sums.
+            # The extrapolated wall samples only the fluid particle at distance `h`.
+            @test only(model.pressure) ≈ only(fluid.pressure)
+            @test only(model.cache.density) == rho0
+            # At rest, the prediction does not change the density of the solved wall row.
+            # The force of the extrapolated wall enters through the fluid displacement.
+            @test only(cache.predicted_density) ≈ only(cache.density)
+            # Measure both constraints using the actual fluid force, not the PPE sums.
             fluid_acceleration = SVector{2}(tp.wrap_v(dv, fluid, ode.p.semi))
-            density = only(cache.density) -
-                      dt^2 * fluid_mass * dot(fluid_acceleration, grad_solved)
-            @test density≈rho0 atol=2e-8 rtol=0
+            wall_row_density = only(cache.density) +
+                               dt^2 * fluid_mass * dot(fluid_acceleration, grad_solved)
+            @test wall_row_density≈rho0 atol=2e-8 rtol=0
+            fluid_row_density = only(fluid.density) +
+                                dt^2 * dot(fluid_acceleration,
+                                    solved_wall_mass * grad_solved +
+                                    extrapolated_mass * grad_extrapolated)
+            @test fluid_row_density≈rho0 atol=2e-8 rtol=0
         end
     end
 
-    @testset "EOS compatibility and pressure-component isolation" begin
+    @testset "Wall state equations and custom interactions are rejected" begin
         tp = TrixiParticles
+        kernel = SchoenbergCubicSplineKernel{2}()
         rho = 1000.0
         h = 1.0
-        dt = 0.005
-        kernel = SchoenbergCubicSplineKernel{2}()
-        weight = tp.kernel(kernel, 0.0, h) + tp.kernel(kernel, h, h)
-        mass = (rho + 10) / weight
-        eos = StateEquationCole(; sound_speed=40.0, reference_density=rho, exponent=7)
-        other_eos = StateEquationCole(; sound_speed=41.0, reference_density=rho, exponent=7)
         function point(x)
             return InitialCondition(; coordinates=reshape([x, 0.0], 2, 1), density=rho,
-                                    mass, particle_spacing=h)
+                                    mass=rho, particle_spacing=h)
         end
-        function make_fluid(x)
-            return ImplicitIncompressibleSPHSystem(point(x); smoothing_kernel=kernel,
-                                                   smoothing_length=h, time_step=dt,
-                                                   reference_density=rho,
-                                                   min_iterations=1, max_iterations=1)
-        end
-        function make_wall(x, calculator; state_equation=nothing, prescribed_motion=nothing)
-            ic = point(x)
+        fluid = ImplicitIncompressibleSPHSystem(point(0.0); smoothing_kernel=kernel,
+                                                smoothing_length=h, time_step=0.001,
+                                                reference_density=rho)
+        eos = StateEquationCole(; sound_speed=40.0, reference_density=rho, exponent=7)
+        function make_wall(calculator; state_equation=nothing)
+            ic = point(1.0)
             model = BoundaryModelDummyParticles(ic.density, ic.mass, calculator, kernel, h;
                                                 state_equation)
-            return WallBoundarySystem(ic, model; prescribed_motion)
+            return WallBoundarySystem(ic, model)
         end
-        fluid = make_fluid(0.0)
-        separated = make_fluid(20.0)
-        motion = PrescribedMotion((coords, t) -> coords + SVector(t, 0.0), t -> true)
-        staged = make_wall(1.99, AdamiPressureExtrapolation(); state_equation=eos,
-                           prescribed_motion=motion)
-        no_eos = make_wall(21.0, BernoulliPressureExtrapolation())
-        different_eos = make_wall(21.0, BernoulliPressureExtrapolation();
-                                  state_equation=other_eos)
-        same_eos = make_wall(21.0, BernoulliPressureExtrapolation(); state_equation=eos)
-        invalid_eos = make_wall(1.0, AdamiPressureExtrapolation();
-                                state_equation=StateEquationCole(; sound_speed=0.0,
-                                                                 reference_density=rho,
-                                                                 exponent=7))
+        custom_interaction(args...; kwargs...) = nothing
+        fluid_ignores_wall = Bool[1 0; 1 1]
 
-        @test_throws "must use the same EOS and parameters" Semidiscretization(fluid,
-                                                                               staged,
-                                                                               no_eos)
-        @test_throws "must use the same EOS and parameters" Semidiscretization(fluid,
-                                                                               staged,
-                                                                               different_eos)
-        @test_throws "needs a valid StateEquationCole or StateEquationIdealGas" Semidiscretization(fluid,
-                                                                                                   invalid_eos)
-        @test Semidiscretization(fluid, staged, same_eos) isa Semidiscretization
+        @testset "$(nameof(typeof(calculator)))" for calculator in
+                                                     (AdamiPressureExtrapolation(),
+                                                      BernoulliPressureExtrapolation())
+            eos_wall = make_wall(calculator; state_equation=eos)
+            @test_throws "must not have a state equation" Semidiscretization(fluid,
+                                                                             eos_wall)
+            # Without forces on the fluid, the wall does not enter the pressure solve
+            semi = Semidiscretization(fluid, eos_wall;
+                                      interaction_matrix=fluid_ignores_wall)
+            @test !tp.has_iisph_wall_extrapolation(semi)
 
-        # The two pressure blocks do not interact in either direction. A no-EOS wall
-        # in the second block is valid, and its solver cannot be reset by the first.
-        interactions = Bool[1 1 0 0; 1 1 0 0; 0 0 1 1; 0 0 1 1]
-        @test Semidiscretization(fluid, staged, separated, different_eos;
-                                 interaction_matrix=interactions) isa Semidiscretization
-        semi = Semidiscretization(fluid, staged, separated, no_eos;
-                                  interaction_matrix=interactions,
-                                  parallelization_backend=SerialBackend())
-        ode = semidiscretize(semi, (0.0, 1.0))
-        v, u = ode.u0.x
-        dv = zero(v)
-        function evaluate_separated(t)
-            separated.pressure[1] = 20_000.0
-            tp.kick!(dv, v, u, ode.p, t)
-            return (; pressure=only(separated.pressure),
-                    acceleration=copy(tp.wrap_v(dv, separated, ode.p.semi)),
-                    contact=tp.has_iisph_wall_contact(fluid))
+            wall = make_wall(calculator)
+            @test_throws "must use the default interaction" Semidiscretization(fluid, wall;
+                                                                               interaction_matrix=[true custom_interaction
+                                                                                                   true true])
+            @test tp.has_iisph_wall_extrapolation(Semidiscretization(fluid, wall))
         end
-        touching = evaluate_separated(0.0099)
-        detached = evaluate_separated(0.0101)
-        @test touching.contact && !detached.contact
-        @test touching.pressure == detached.pressure
-        @test touching.acceleration == detached.acceleration
+
+        semi = Semidiscretization(fluid, make_wall(PressureZeroing()))
+        @test !tp.has_iisph_wall_extrapolation(semi)
     end
 
-    @testset "EOS wall contact uses the fluid kernel and the current positions" begin
+    @testset "Zero start with pressure-extrapolating walls" begin
         kernel = SchoenbergCubicSplineKernel{2}()
         rho = 1000.0
         mass = (rho + 1) / (TrixiParticles.kernel(kernel, 0.0, 1.0) +
                 TrixiParticles.kernel(kernel, 1.0, 1.0))
-        fluid_ic = InitialCondition(; coordinates=zeros(2, 1), particle_spacing=1.0,
-                                    density=rho, mass)
-        wall_ic = InitialCondition(; coordinates=reshape([1.5, 0.0], 2, 1),
-                                   particle_spacing=1.0, density=rho)
-        fluid = ImplicitIncompressibleSPHSystem(fluid_ic; smoothing_kernel=kernel,
+        function point(x)
+            return InitialCondition(; coordinates=reshape([x, 0.0], 2, 1),
+                                    particle_spacing=1.0, density=rho, mass)
+        end
+        fluid = ImplicitIncompressibleSPHSystem(point(0.0); smoothing_kernel=kernel,
                                                 smoothing_length=1.0, reference_density=rho,
                                                 time_step=0.001, min_iterations=1,
                                                 max_iterations=1)
-        eos = StateEquationCole(; sound_speed=5.0, reference_density=rho, exponent=7)
-        model = BoundaryModelDummyParticles(wall_ic.density, wall_ic.mass,
-                                            AdamiPressureExtrapolation(), kernel, 0.5;
-                                            state_equation=eos)
-        motion = PrescribedMotion((coords, t) -> coords + SVector(t, 0.0), t -> true)
-        wall = WallBoundarySystem(wall_ic, model; prescribed_motion=motion)
-        # Keep the pressure diagonal nonzero even when the moving wall is out of range.
-        fixed_ic = InitialCondition(; coordinates=reshape([-1.0, 0.0], 2, 1),
-                                    particle_spacing=1.0, density=rho, mass)
-        fixed_model = BoundaryModelDummyParticles(fixed_ic.density, fixed_ic.mass,
-                                                  PressureZeroing(), kernel, 1.0)
-        fixed_wall = WallBoundarySystem(fixed_ic, fixed_model)
-        semi = Semidiscretization(fluid, wall, fixed_wall;
+        function make_wall(x, calculator)
+            ic = point(x)
+            model = BoundaryModelDummyParticles(ic.density, ic.mass, calculator, kernel,
+                                                1.0)
+            return WallBoundarySystem(ic, model)
+        end
+        # Asymmetric wall positions, so that the kernel gradients do not cancel in a_ii
+        semi = Semidiscretization(fluid, make_wall(1.5, AdamiPressureExtrapolation()),
+                                  make_wall(-1.0, PressureZeroing());
                                   parallelization_backend=SerialBackend())
         ode = semidiscretize(semi, (0.0, 1.0))
         v, u = ode.u0.x
         dv = zero(v)
 
-        TrixiParticles.kick!(dv, v, u, ode.p, 0.0)
-        @test TrixiParticles.has_iisph_wall_contact(fluid)
-        @test iszero(only(model.cache.volume)) # The wall kernel cannot see the fluid.
+        function single_iteration(initial_pressure)
+            fluid.pressure .= initial_pressure
+            TrixiParticles.kick!(dv, v, u, ode.p, 0.0)
+            return only(fluid.pressure)
+        end
 
-        fluid.pressure .= 0.0
-        TrixiParticles.kick!(dv, v, u, ode.p, 1.0)
-        cold_pressure = only(fluid.pressure)
-        @test !TrixiParticles.has_iisph_wall_contact(fluid)
-        # A single warm-started iteration retains this fraction of the old pressure.
-        # Running a provisional solve would reset it and discard this increment.
-        fluid.pressure .= 40.0
-        TrixiParticles.kick!(dv, v, u, ode.p, 1.0)
-        @test only(fluid.pressure) - cold_pressure ≈ (1 - fluid.omega) * 20.0
+        # The previous pressure does not affect the solve with an extrapolating wall
+        @test single_iteration(0.0) > 0
+        @test single_iteration(40.0) == single_iteration(0.0)
 
-        TrixiParticles.kick!(dv, v, u, ode.p, 0.0)
-        @test TrixiParticles.has_iisph_wall_contact(fluid)
+        # Without the interaction with the extrapolating wall, a single iteration
+        # retains this fraction of the warm start with half the previous pressure.
         ode.p.semi.interaction_matrix[1, 2] = false
-        TrixiParticles.kick!(dv, v, u, ode.p, 0.0)
-        @test !TrixiParticles.has_iisph_wall_contact(fluid)
+        cold_pressure = single_iteration(0.0)
+        @test cold_pressure > 0
+        @test single_iteration(40.0) - cold_pressure ≈ (1 - fluid.omega) * 20.0
+    end
+
+    @testset "Wall shared with a Shepard-corrected EDAC system" begin
+        # The wall extrapolates the hydrostatic pressure with the EDAC density, which is
+        # only final after the density correction. The pressure solve must use this density.
+        tp = TrixiParticles
+        kernel = SchoenbergCubicSplineKernel{2}()
+        h = 1.0
+        rho = 1000.0
+        dt = 0.005
+        gravity = (-9.81, 0.0)
+        wall_coords = [0.0 0.0 0.0
+                       -1.0 0.0 1.0]
+        edac_coords = [1.0 1.0 1.0 2.0 2.0 2.0
+                       -1.0 0.0 1.0 -1.0 0.0 1.0]
+        iisph_position = SVector(-1.0, 0.0)
+        wall_weights = [tp.kernel(kernel, norm(iisph_position - wall_coords[:, b]), h)
+                        for b in axes(wall_coords, 2)]
+        # Compress the IISPH particle, so that it has a positive pressure
+        iisph_mass = (rho + 5 - rho * sum(wall_weights)) / tp.kernel(kernel, 0.0, h)
+        iisph_ic = InitialCondition(; coordinates=reshape(collect(iisph_position), 2, 1),
+                                    density=rho, mass=iisph_mass, particle_spacing=h)
+        fluid = ImplicitIncompressibleSPHSystem(iisph_ic; smoothing_kernel=kernel,
+                                                smoothing_length=h, reference_density=rho,
+                                                time_step=dt, acceleration=gravity,
+                                                max_error=1e-10, max_iterations=1000)
+        edac_ic = InitialCondition(; coordinates=edac_coords, density=rho, mass=rho,
+                                   particle_spacing=h, pressure=100.0)
+        edac = EntropicallyDampedSPHSystem(edac_ic; smoothing_kernel=kernel,
+                                           smoothing_length=h, sound_speed=10.0,
+                                           density_calculator=SummationDensity(),
+                                           density_correction=ShepardKernelCorrection(),
+                                           acceleration=gravity)
+        wall_ic = InitialCondition(; coordinates=wall_coords, density=rho, mass=rho,
+                                   particle_spacing=h)
+        model = BoundaryModelDummyParticles(wall_ic.density, wall_ic.mass,
+                                            AdamiPressureExtrapolation(), kernel, h)
+        wall = WallBoundarySystem(wall_ic, model)
+        # The two fluids only interact through the wall
+        interactions = Bool[1 0 1; 0 1 1; 1 1 1]
+        semi = Semidiscretization(fluid, edac, wall; interaction_matrix=interactions,
+                                  parallelization_backend=SerialBackend())
+        ode = semidiscretize(semi, (0.0, dt))
+        v, u = ode.u0.x
+        dv = zero(v)
+        tp.kick!(dv, v, u, ode.p, 0.0)
+
+        @test only(fluid.pressure) > 0
+        # Apply the continuity linearization to the actual fluid RHS
+        acceleration = SVector{2}(tp.wrap_v(dv, fluid, ode.p.semi))
+        updated_density = only(fluid.density)
+        for b in axes(wall_coords, 2)
+            pos_diff = iisph_position - wall_coords[:, b]
+            grad = tp.kernel_grad(kernel, pos_diff, norm(pos_diff), h)
+            updated_density += dt^2 * rho * dot(acceleration, grad)
+        end
+        @test updated_density≈rho atol=1e-8 rtol=0
+    end
+
+    @testset "Wall pressure is the extrapolation of the solved fluid pressure" begin
+        tp = TrixiParticles
+        rho = 1000.0
+        g = 9.81
+        dt = 1e-3
+        h = 0.1
+        kernel = SchoenbergCubicSplineKernel{2}()
+        tank = RectangularTank(h, (0.5, 0.5), (0.5, 0.8), rho; n_layers=2,
+                               acceleration=(0.0, -g), coordinates_eltype=Float64)
+        # Compress the fluid slightly to get pressure in the bulk as well
+        tank.fluid.coordinates .*= 0.995
+        @testset "$(nameof(typeof(calculator)))" for calculator in
+                                                     (AdamiPressureExtrapolation(pressure_offset=10.0),
+                                                      BernoulliPressureExtrapolation(pressure_offset=10.0))
+            fluid = ImplicitIncompressibleSPHSystem(tank.fluid; smoothing_kernel=kernel,
+                                                    smoothing_length=h, time_step=dt,
+                                                    reference_density=rho,
+                                                    acceleration=(0.0, -g),
+                                                    max_error=1e-8, max_iterations=5000,
+                                                    viscosity=ViscosityAdami(nu=1e-2))
+            model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+                                                calculator, kernel, h;
+                                                viscosity=ViscosityAdami(nu=1e-2))
+            # A resting wall flagged as moving activates the Bernoulli dynamic pressure
+            motion = PrescribedMotion((coords, t) -> coords, t -> true)
+            wall = WallBoundarySystem(tank.boundary, model; prescribed_motion=motion)
+            semi = Semidiscretization(fluid, wall; parallelization_backend=SerialBackend())
+            ode = semidiscretize(semi, (0.0, dt))
+            v, u = ode.u0.x
+            # Nonzero velocities activate the viscous and the Bernoulli wall terms
+            v_fluid = tp.wrap_v(v, fluid, ode.p.semi)
+            v_fluid[1, :] .= 0.1 .* sin.(1:size(v_fluid, 2))
+            dv = zero(v)
+            tp.kick!(dv, v, u, ode.p, 0.0)
+            @test tp.has_iisph_wall_extrapolation(ode.p.semi)
+
+            coords = tp.wrap_u(u, fluid, ode.p.semi)
+            wall_coords = wall.coordinates
+            # Extrapolate the solved fluid pressure to every wall particle
+            for b in axes(wall_coords, 2)
+                numerator = 0.0
+                volume = 0.0
+                for f in axes(coords, 2)
+                    pos_diff = wall_coords[:, b] - coords[:, f]
+                    weight = tp.kernel(kernel, norm(pos_diff), h)
+                    weight > 0 || continue
+                    normal_velocity = dot(-v_fluid[:, f], pos_diff) / norm(pos_diff)
+                    dynamic = calculator isa BernoulliPressureExtrapolation ?
+                              fluid.density[f] * normal_velocity^2 / 2 : 0.0
+                    extrapolated = calculator.pressure_offset + fluid.pressure[f] +
+                                   dynamic +
+                                   fluid.density[f] * dot(SVector(0.0, -g), pos_diff)
+                    numerator += extrapolated * weight
+                    volume += weight
+                end
+                expected = volume > eps() ? numerator / volume : 0.0
+                @test model.pressure[b]≈expected rtol=1e-12 atol=1e-9
+            end
+            # The wall density is constant
+            @test model.cache.density == tank.boundary.density
+
+            # The actual RHS satisfies the linearized density balance
+            velocity = v_fluid .+ dt .* tp.wrap_v(dv, fluid, ode.p.semi)
+            for i in axes(coords, 2)
+                density = fluid.density[i]
+                for j in axes(coords, 2)
+                    pos_diff = coords[:, i] - coords[:, j]
+                    distance = norm(pos_diff)
+                    grad = tp.smoothing_kernel_grad(fluid, pos_diff, distance, i)
+                    density += dt * fluid.mass[j] *
+                               dot(velocity[:, i] - velocity[:, j], grad)
+                end
+                for b in axes(wall_coords, 2)
+                    pos_diff = coords[:, i] - wall_coords[:, b]
+                    distance = norm(pos_diff)
+                    grad = tp.smoothing_kernel_grad(fluid, pos_diff, distance, i)
+                    density += dt * model.hydrodynamic_mass[b] * dot(velocity[:, i], grad)
+                end
+                residual = density - rho
+                if fluid.pressure[i] > 0
+                    @test abs(residual) < 1e-6
+                else
+                    @test residual < 1e-6
+                end
+            end
+        end
     end
 
     # Validate helper routines that build the IISPH linear system and update pressures
@@ -842,7 +972,7 @@
             # density_error = 997-1000 = -3 (signed deviation).
             # For particle 2: the pressure is clamped to zero, so the stale buffer
             # entry 99.0 from the previous iteration is explicitly cleared.
-            mode = TrixiParticles.LegacyIISPHResidual()
+            mode = TrixiParticles.StandardIISPHSolve()
             relative_error = TrixiParticles.pressure_update(mode, system_pressure,
                                                             system_pressure.pressure,
                                                             system_pressure.reference_density,
@@ -855,6 +985,44 @@
             @test isapprox(relative_error, -0.003) # -3 / 1000
             @test isapprox(system_pressure.pressure, [4.0, 0.0])
             @test isapprox(system_pressure.density_error, [-3.0, 0.0])
+        end
+
+        @testset "Density residuals of both solve variants" begin
+            # Particles with positive pressure, and with zero pressure that are
+            # overdense or underdense after the update
+            n_particles = 3
+            ic = InitialCondition(; coordinates=zeros(2, n_particles),
+                                  velocity=zeros(2, n_particles), mass=ones(n_particles),
+                                  density=fill(1000.0, n_particles))
+            system = ImplicitIncompressibleSPHSystem(ic; smoothing_kernel,
+                                                     smoothing_length,
+                                                     reference_density=1000.0,
+                                                     omega=0.4, time_step=0.5)
+            semi = DummySemidiscretization()
+
+            function update(mode)
+                system.pressure .= [2.0, 0.0, 0.0]
+                system.predicted_density .= [990.0, 1010.0, 990.0]
+                system.sum_term .= [5.0, -2.0, -2.0]
+                system.a_ii .= [0.5, -1.0, -1.0]
+                return TrixiParticles.pressure_update(mode, system, system.pressure,
+                                                      system.reference_density,
+                                                      system.a_ii, system.sum_term,
+                                                      system.omega, system.density_error,
+                                                      semi)
+            end
+
+            # Signed density error of Ihmsen et al. (2013) with the updated pressure on
+            # the diagonal, ignoring particles with zero pressure
+            @test update(TrixiParticles.StandardIISPHSolve()) ≈ (-2.4 + 4.8) / 1000
+            @test system.pressure ≈ [5.2, 3.2, 0.0]
+            @test system.density_error ≈ [-2.4, 4.8, 0.0]
+
+            # The projected residual at the old iterate counts the absolute error with
+            # positive pressure, and only overdensity with zero pressure
+            @test update(TrixiParticles.WallExtrapolationIISPHSolve()) ≈ (4 + 8) / 1000
+            @test system.pressure ≈ [5.2, 3.2, 0.0]
+            @test system.density_error ≈ [4.0, 8.0, 0.0]
         end
 
         @testset "Source term and iteration limits" begin

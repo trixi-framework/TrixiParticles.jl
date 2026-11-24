@@ -105,22 +105,11 @@ After Shepard normalization, the boundary pressure and density are recomputed
 from the corrected fluid density for the force calculation. This one-pass predictor
 does not solve for a common boundary density across the two stages.
 
-For IISPH, all interacting Adami and Bernoulli walls in a pressure-coupled component
-must either omit the equation of state or use the same [`StateEquationCole`](@ref) or
-[`StateEquationIdealGas`](@ref) with identical parameters. The EOS reference density
-must match the fluid reference density, and its inverse at zero pressure must give a
-positive, finite density. EOS-backed walls require the default fluid–wall interaction.
-If the EOS clips negative pressures, enable `clip_negative_pressure` on the wall model
-as well. `PressureZeroing`, `PressureMirroring`, and `PressureBoundaries` walls do not
-need to supply the shared EOS.
-
-When the fluid kernel samples an EOS-backed wall, that component uses two pressure
-solves. The seed extrapolates with zero IISPH pressure, retaining hydrostatic terms,
-any Bernoulli term, and the pressure offset. It uses the initial wall density if the
-seed pressure has no positive, finite inverse, and refreshes the no-slip ghost velocity
-when configured. The provisional solve must produce an admissible wall pressure before
-the final solve freezes wall pressure and density. Disconnected components keep their
-own pressure solve. See [IISPH pressure extrapolation](@ref iisph_pressure_extrapolation).
+Adami and Bernoulli walls that exert forces on an [`ImplicitIncompressibleSPHSystem`](@ref)
+must not have a state equation. The fluid is incompressible, so the wall density is the
+initial density. The wall pressure is extrapolated from the fluid pressure in every
+iteration of the IISPH pressure solve, and these walls require the default fluid–wall
+interaction. See [IISPH pressure extrapolation](@ref iisph_pressure_extrapolation).
 
 #### 1. [`AdamiPressureExtrapolation`](@ref)
 
@@ -203,7 +192,8 @@ v_w = 2 v_a - \frac{\sum_b v_b W_{ab}}{\sum_b W_{ab}},
 where the sum is over all fluid particles.
 
 In IISPH the continuity term uses the physical wall velocity at the current evaluation
-time. Only the viscosity term uses the no-slip ghost velocity.
+time. Only the viscosity term uses the no-slip ghost velocity, which is computed from
+the current fluid velocity before the pressure solve.
 
 By choosing the viscosity model [`ViscosityAdami`](@ref) for `viscosity`, a no-slip
 condition is imposed. It is recommended to choose `nu` in the order of either the kinematic
