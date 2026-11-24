@@ -314,8 +314,8 @@
             r"┌ Info: The desired tank length in y-direction .*\n",
             r"└ New tank length in y-direction.*\n"
         ]
-        @test TrixiParticles.get_neighborhood_search(first(semi.systems), semi).cell_list isa
-              FullGridCellList
+        nhs = TrixiParticles.get_neighborhood_search(first(semi.systems), semi)
+        @test nhs_cell_list(nhs) isa FullGridCellList
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol) == 0
     end

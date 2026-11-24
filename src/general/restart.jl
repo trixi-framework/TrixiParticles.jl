@@ -86,6 +86,11 @@ restore_previous_state!(system, restart_file) = system
 
 function initialize_neighborhood_searches!(semi, u0_ode,
                                            restart_with::Tuple{Vararg{String}})
+    initialize_restart_neighborhood_searches!(semi, semi.neighborhood_search_handler,
+                                              u0_ode)
+end
+
+function initialize_restart_neighborhood_searches!(semi, handler, u0_ode)
     foreach_system(semi) do system
         foreach_system(semi) do neighbor
             initialize_neighborhood_search!(semi, system, neighbor, u0_ode)
@@ -93,6 +98,13 @@ function initialize_neighborhood_searches!(semi, u0_ode,
     end
 
     return semi
+end
+
+function initialize_restart_neighborhood_searches!(semi, handler::CombinedNHSHandler,
+                                                   u0_ode)
+    coordinates(system) = initial_restart_coordinates(system, u0_ode, semi)
+
+    return initialize_combined_neighborhood_search!(coordinates, semi, handler)
 end
 
 function initialize_neighborhood_search!(semi, system, neighbor, u0_ode)

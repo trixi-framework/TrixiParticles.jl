@@ -489,6 +489,14 @@ function interpolate_points(point_coords, semi, ref_system, v_ode, u_ode;
                               smoothing_length, cut_off_bnd, clip_negative_pressure)
 end
 
+# Template to create a standalone neighborhood search with `copy_neighborhood_search`.
+# A `GridNHSPair` (see `CombinedNHSHandler`) is only a view of two cell lists and cannot
+# be copied, so we use the neighborhood search of the neighbor system as template.
+@inline standalone_template(neighborhood_search) = neighborhood_search
+@inline function standalone_template(neighborhood_search::PointNeighbors.GridNHSPair)
+    return neighborhood_search.neighbor_search
+end
+
 function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length,
                                        point_coords)
     if isapprox(smoothing_length, initial_smoothing_length(ref_system))
@@ -522,7 +530,8 @@ function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length
             old_nhs_cpu = old_nhs
         end
 
-        nhs_cpu = PointNeighbors.copy_neighborhood_search(old_nhs_cpu, search_radius,
+        nhs_cpu = PointNeighbors.copy_neighborhood_search(standalone_template(old_nhs_cpu),
+                                                          search_radius,
                                                           nparticles(system))
 
         PointNeighbors.initialize!(nhs_cpu, point_coords_cpu, system_coords_cpu;
