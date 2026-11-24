@@ -115,7 +115,7 @@ makedocs(sitename="TrixiParticles.jl",
              "Preprocessing" => [
                  "Sampling of Geometries" => joinpath("preprocessing", "preprocessing.md")
              ],
-             "GPU Support" => "gpu.md",
+             "Performance & GPUs" => "performance_gpus.md",
              "API Reference" => [
                  "Overview" => "overview.md",
                  "General" => [

@@ -104,7 +104,7 @@ function _trixi2vtk(dvdu_ode, vu_ode, semi, t; iter=nothing, overwrite=isnothing
 
     foreach_system(semi) do system
         system_index = system_indices(system, semi)
-        periodic_box = get_neighborhood_search(system, semi).periodic_box
+        periodic_box = extract_periodic_box(get_neighborhood_search(system, semi))
 
         _trixi2vtk(system, dvdu_ode, vu_ode, semi, t, periodic_box;
                    system_name=filenames[system_index], output_directory, iter,

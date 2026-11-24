@@ -166,9 +166,10 @@ function extrapolate_values!(system,
                                                             eltype(system)}))
 
         # TODO: Not public API
+        search_radius = PointNeighbors.search_radius(nhs)
         PointNeighbors.foreach_neighbor(fluid_coords, nhs, particle, ghost_node_position,
-                                        nhs.search_radius) do particle, neighbor, pos_diff,
-                                                              distance
+                                        search_radius) do particle, neighbor, pos_diff,
+                                                          distance
             m_b = hydrodynamic_mass(fluid_system, neighbor)
             rho_b = current_density(v_fluid, fluid_system, neighbor)
             pressure_b = current_pressure(v_fluid, fluid_system, neighbor)
@@ -306,9 +307,10 @@ function extrapolate_values!(system, mirror_method::ZerothOrderMirroring,
         interpolated_velocity = Ref(zero(particle_coords))
 
         # TODO: Not public API
+        search_radius = PointNeighbors.search_radius(nhs)
         PointNeighbors.foreach_neighbor(fluid_coords, nhs, particle, ghost_node_position,
-                                        nhs.search_radius) do particle, neighbor, pos_diff,
-                                                              distance
+                                        search_radius) do particle, neighbor, pos_diff,
+                                                          distance
             m_b = hydrodynamic_mass(fluid_system, neighbor)
             rho_b = current_density(v_fluid, fluid_system, neighbor)
             volume_b = m_b / rho_b

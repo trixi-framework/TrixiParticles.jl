@@ -125,6 +125,13 @@ function sort_particles!(system::RequiresSortingSystem, v, u, nhs, semi)
     throw(ArgumentError("`SortingCallback` can only be used with a `GridNeighborhoodSearch`"))
 end
 
+# The `CombinedNHSHandler` returns a `GridNHSPair`. Sort by the grid of the neighbor search,
+# since each NHS in the `CombinedGridNeighborhoodSearch` uses the same grid.
+function sort_particles!(system::RequiresSortingSystem, v, u,
+                         nhs::PointNeighbors.GridNHSPair, semi)
+    sort_particles!(system, v, u, nhs.neighbor_search, semi)
+end
+
 # TODO: Sort also masses and particle spacings for variable smoothing lengths.
 function sort_particles!(system::RequiresSortingSystem, v, u,
                          nhs::GridNeighborhoodSearch, semi)

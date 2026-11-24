@@ -20,7 +20,7 @@ end
 
 function get_system_plot_data(u_ode, system, semi, particle_spacing)
     u = wrap_u(u_ode, system, semi)
-    periodic_box = get_neighborhood_search(system, semi).periodic_box
+    periodic_box = extract_periodic_box(get_neighborhood_search(system, semi))
     coordinates = PointNeighbors.periodic_coords(active_coordinates(u, system),
                                                  periodic_box)
 
