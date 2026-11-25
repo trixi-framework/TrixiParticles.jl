@@ -4,8 +4,6 @@ abstract type AbstractSmoothingKernel{NDIMS} end
 
 # Threshold below which a `distance` is considered zero, where `h` is the length scale
 # of the coordinates (e.g., the smoothing length or the compact support).
-# For `distance == 0`, the analytical kernel gradient is zero, but the code divides by zero.
-# To account for rounding errors, we check if `distance` is almost zero.
 # Since the coordinates are in the order of `h`, `distance^2` is in the order of `h^2`,
 # so the rounding error of `distance^2` is in the order of `eps(h^2) ≈ eps(typeof(h)) * h^2`.
 # Hence, we consider `distance` almost zero if `distance^2 < eps(typeof(h)) * h^2`,
@@ -15,105 +13,67 @@ abstract type AbstractSmoothingKernel{NDIMS} end
 # and can be used inside hot loops without precomputing the threshold.
 @inline almostzero(h) = sqrt(eps(typeof(h))) * h
 
+# Divisor for terms that are divided by `distance` (or a power of it).
+# Terms of the form `g(distance) * pos_diff` are analytically zero for `distance == 0`
+# (for example, the kernel gradient between a particle and itself).
+# Instead of checking for zero distances and discarding the result, we divide by
+# a distance that is never smaller than `almostzero(h)` (see `almostzero`).
+# Then, `g` is finite and the result is exactly zero, since `pos_diff` is exactly zero.
+# This is a single `max` instead of a comparison and a selection, and it doesn't branch,
+# so it can be used in SIMD-vectorized loops.
+@inline clamp_distance(distance, h) = max(distance, almostzero(h))
+
+# All kernel functions below are safe for all `r >= 0`. They are zero outside of
+# the compact support and don't divide by zero for `r == 0`.
+# For the piecewise polynomial kernels, the compact support is enforced by clamping
+# the base of the outermost power to zero, e.g., `max(1 - q / 2, 0)^4`, which is a single
+# `max` instead of a comparison and a selection.
 @inline function kernel_grad(kernel, pos_diff, distance, h)
-    # For `distance == 0`, the analytical gradient is zero, but the code divides by zero.
-    # See `almostzero` for an explanation of this check.
-    compact_support_ = compact_support(kernel, h)
-    nonzero = distance < compact_support_ && distance >= almostzero(h)
-    nonzero || return zero(pos_diff)
-
-    # Now we can use `kernel_grad_unsafe` without worrying about division by zero
-    return kernel_grad_unsafe(kernel, pos_diff, distance, h)
-end
-
-# Skip the zero distance and compact support checks for maximum performance.
-# Only call this when you are sure that `distance` is not zero and within the compact support.
-@inline function kernel_grad_unsafe(kernel, pos_diff, distance, h)
-    # Call an optimized version of the kernel derivative, skipping redundant checks.
     # Since this is used as `kernel_deriv / distance * pos_diff`, we already divide by `r`
-    # (or rather skip a multiplication by `r`) inside `kernel_deriv_div_r_unsafe`
+    # (or rather skip a multiplication by `r`) inside `kernel_deriv_div_r`
     # to save expensive divisions.
-    return kernel_deriv_div_r_unsafe(kernel, distance, h) * pos_diff
-end
-
-@inline function kernel(kernel, r::Real, h)
-    # Zero out result if outside of compact support
-    compact_support_ = compact_support(kernel, h)
-    return ifelse(r < compact_support_, kernel_unsafe(kernel, r, h), zero(r))
+    return kernel_deriv_div_r(kernel, distance, h) * pos_diff
 end
 
 @inline function kernel_deriv(kernel, r::Real, h)
-    # Zero out result if outside of compact support or if `r` is almost zero
-    # to avoid division by zero in the unsafe version (see `almostzero`).
-    compact_support_ = compact_support(kernel, h)
-    if r < compact_support_ && r >= almostzero(h)
-        # The unsafe version returns the kernel derivative divided by `r`,
-        # so we multiply it by `r` to get the actual derivative.
-        return kernel_deriv_div_r_unsafe(kernel, r, h) * r
-    end
-
-    return zero(r)
+    return kernel_deriv_div_r(kernel, r, h) * r
 end
 
-@inline function skip_zero_distance(correction)
-    return true
-end
-
-@inline function skip_zero_distance(::Union{KernelCorrection,
-                                            MixedKernelGradientCorrection})
-    # For these corrections, the kernel gradient between a particle and itself is not zero
-    return false
-end
-
-# Safe kernel gradient with an explicit kernel and smoothing length `h`.
+# Kernel gradient with an explicit kernel and smoothing length `h`.
 # `system` stores the correction values of `particle` (a system or a boundary model).
 @inline function corrected_kernel_grad(kernel, pos_diff, distance, h, correction,
                                        system, particle)
-    compact_support_ = compact_support(kernel, h)
-
-    # See `almostzero` for an explanation of the zero distance check
-    if distance >= compact_support_ ||
-       (skip_zero_distance(correction) && distance < almostzero(h))
-        return zero(pos_diff)
-    end
-
-    return corrected_kernel_grad_unsafe(kernel, pos_diff, distance, h, correction,
-                                        system, particle)
+    return kernel_grad(kernel, pos_diff, distance, h)
 end
 
-@inline function corrected_kernel_grad_unsafe(kernel, pos_diff, distance, h, correction,
-                                              system, particle)
-    return kernel_grad_unsafe(kernel, pos_diff, distance, h)
-end
-
-@inline function corrected_kernel_grad_unsafe(kernel_, pos_diff, distance, h,
-                                              ::KernelCorrection, system, particle)
+@inline function corrected_kernel_grad(kernel_, pos_diff, distance, h,
+                                       ::KernelCorrection, system, particle)
     return (kernel_grad(kernel_, pos_diff, distance, h) .-
             kernel(kernel_, distance, h) * dw_gamma(system, particle)) /
            kernel_correction_coefficient(system, particle)
 end
 
-@inline function corrected_kernel_grad_unsafe(kernel, pos_diff, distance, h,
-                                              corr::BlendedGradientCorrection, system,
-                                              particle)
+@inline function corrected_kernel_grad(kernel, pos_diff, distance, h,
+                                       corr::BlendedGradientCorrection, system,
+                                       particle)
     (; blending_factor) = corr
 
-    grad = kernel_grad_unsafe(kernel, pos_diff, distance, h)
+    grad = kernel_grad(kernel, pos_diff, distance, h)
     return (1 - blending_factor) * grad +
            blending_factor * correction_matrix(system, particle) * grad
 end
 
-@inline function corrected_kernel_grad_unsafe(kernel, pos_diff, distance, h,
-                                              ::GradientCorrection, system, particle)
-    grad = kernel_grad_unsafe(kernel, pos_diff, distance, h)
+@inline function corrected_kernel_grad(kernel, pos_diff, distance, h,
+                                       ::GradientCorrection, system, particle)
+    grad = kernel_grad(kernel, pos_diff, distance, h)
     return correction_matrix(system, particle) * grad
 end
 
-@inline function corrected_kernel_grad_unsafe(kernel, pos_diff, distance, h,
-                                              ::MixedKernelGradientCorrection, system,
-                                              particle)
-    grad = corrected_kernel_grad_unsafe(kernel, pos_diff, distance, h, KernelCorrection(),
-                                        system, particle)
+@inline function corrected_kernel_grad(kernel, pos_diff, distance, h,
+                                       ::MixedKernelGradientCorrection, system,
+                                       particle)
+    grad = corrected_kernel_grad(kernel, pos_diff, distance, h, KernelCorrection(),
+                                 system, particle)
     return correction_matrix(system, particle) * grad
 end
 
@@ -147,7 +107,7 @@ which is beneficial in regards to stability but makes it less accurate.
 """
 struct GaussianKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
-@inline function kernel_unsafe(kernel::GaussianKernel, r::Real, h)
+@inline function kernel(kernel::GaussianKernel, r::Real, h)
     h_inv = 1 / h
     q = r * h_inv
     q2 = -q^2
@@ -156,10 +116,11 @@ struct GaussianKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
     # due to a bug in Julia 1.12, see https://github.com/JuliaLang/julia/pull/60640.
     exp_q2 = @fastmath exp(q2)
 
-    return normalization_factor(kernel, h_inv) * exp_q2
+    # This kernel is not zero at the end of the compact support, so we need to select zero.
+    return ifelse(q < 3, normalization_factor(kernel, h_inv) * exp_q2, zero(q))
 end
 
-@inline function kernel_deriv_div_r_unsafe(kernel::GaussianKernel, r::Real, h)
+@inline function kernel_deriv_div_r(kernel::GaussianKernel, r::Real, h)
     h_inv = 1 / h
     q = r * h_inv
     q2 = -q^2
@@ -168,7 +129,9 @@ end
     # due to a bug in Julia 1.12, see https://github.com/JuliaLang/julia/pull/60640.
     exp_q2 = @fastmath exp(q2)
 
-    return -2 * normalization_factor(kernel, h_inv) * exp_q2 * h_inv^2
+    # This kernel is not zero at the end of the compact support, so we need to select zero.
+    return ifelse(q < 3, -2 * normalization_factor(kernel, h_inv) * exp_q2 * h_inv^2,
+                  zero(q))
 end
 
 @inline compact_support(::GaussianKernel, h) = 3 * h
@@ -215,26 +178,27 @@ For general information and usage see [Smoothing Kernels](@ref smoothing_kernel)
 """
 struct SchoenbergCubicSplineKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
-@inline function kernel_unsafe(kernel::SchoenbergCubicSplineKernel, r::Real, h)
+@inline function kernel(kernel::SchoenbergCubicSplineKernel, r::Real, h)
     h_inv = 1 / h
     q = r * h_inv
 
-    result = 1 * (2 - q)^3 / 4 - (q < 1) * (1 - q)^3
+    result = 1 * max(2 - q, zero(q))^3 / 4 - (q < 1) * (1 - q)^3
 
     return normalization_factor(kernel, h_inv) * result
 end
 
-@inline function kernel_deriv_div_r_unsafe(kernel::SchoenbergCubicSplineKernel, r::Real, h)
+@inline function kernel_deriv_div_r(kernel::SchoenbergCubicSplineKernel, r::Real, h)
     h_inv = 1 / h
     q = r * h_inv
 
-    result = -3 * (2 - q)^2 / 4 + 3 * (q < 1) * (1 - q)^2
+    result = -3 * max(2 - q, zero(q))^2 / 4 + 3 * (q < 1) * (1 - q)^2
     kernel_deriv = normalization_factor(kernel, h_inv) * result * h_inv
 
     # Since this is one of the most performance critical functions, using fast divisions
     # here gives a significant speedup on GPUs.
     # See the docs page "Development" for more details on `div_fast`.
-    return div_fast(kernel_deriv, r)
+    # See `clamp_distance` for why this is safe for `r == 0`.
+    return div_fast(kernel_deriv, clamp_distance(r, h))
 end
 
 @inline compact_support(::SchoenbergCubicSplineKernel, h) = 2 * h
@@ -294,12 +258,12 @@ struct SchoenbergQuarticSplineKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} en
 # https://github.com/JuliaLang/julia/blob/34934736fa4dcb30697ac1b23d11d5ad394d6a4d/base/intfuncs.jl#L327-L339
 # By using the `@fastpow` macro, we are consciously trading off some precision in the result
 # for enhanced computational speed by using simple multiplications for higher powers.
-@fastpow @inline function kernel_unsafe(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
+@fastpow @inline function kernel(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
     h_inv = 1 / h
     q = r * h_inv
 
     # Note: using `5 // 2` here makes it 8x slower on GPUs for some reason
-    q5_2 = 2.5f0 - q
+    q5_2 = max(2.5f0 - q, zero(q))
     q3_2 = 1.5f0 - q
     q1_2 = 0.5f0 - q
 
@@ -310,13 +274,13 @@ struct SchoenbergQuarticSplineKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} en
     return normalization_factor(kernel, h_inv) * result
 end
 
-@inline function kernel_deriv_div_r_unsafe(kernel::SchoenbergQuarticSplineKernel,
+@inline function kernel_deriv_div_r(kernel::SchoenbergQuarticSplineKernel,
                                            r::Real, h)
     h_inv = 1 / h
     q = r * h_inv
 
     # Note: using `5 // 2` here makes it 8x slower on GPUs for some reason
-    q5_2 = 2.5f0 - q
+    q5_2 = max(2.5f0 - q, zero(q))
     q3_2 = 1.5f0 - q
     q1_2 = 0.5f0 - q
 
@@ -329,7 +293,8 @@ end
     # Since this is one of the most performance critical functions, using fast divisions
     # here gives a significant speedup on GPUs.
     # See the docs page "Development" for more details on `div_fast`.
-    return div_fast(kernel_deriv, r)
+    # See `clamp_distance` for why this is safe for `r == 0`.
+    return div_fast(kernel_deriv, clamp_distance(r, h))
 end
 
 @inline compact_support(::SchoenbergQuarticSplineKernel, h) = oftype(h, 5 / 2) * h
@@ -381,28 +346,30 @@ For general information and usage see [Smoothing Kernels](@ref smoothing_kernel)
 """
 struct SchoenbergQuinticSplineKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
-@fastpow @inline function kernel_unsafe(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
+@fastpow @inline function kernel(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
     h_inv = 1 / h
     q = r * h_inv
 
-    result = (3 - q)^5 - 6 * (q < 2) * (2 - q)^5 + 15 * (q < 1) * (1 - q)^5
+    result = max(3 - q, zero(q))^5 - 6 * (q < 2) * (2 - q)^5 + 15 * (q < 1) * (1 - q)^5
 
     return normalization_factor(kernel, h_inv) * result
 end
 
-@fastpow @inline function kernel_deriv_div_r_unsafe(kernel::SchoenbergQuinticSplineKernel,
+@fastpow @inline function kernel_deriv_div_r(kernel::SchoenbergQuinticSplineKernel,
                                                     r::Real, h)
     h_inv = 1 / h
     q = r * h_inv
 
-    result = -5 * (3 - q)^4 + 30 * (q < 2) * (2 - q)^4 - 75 * (q < 1) * (1 - q)^4
+    result = -5 * max(3 - q, zero(q))^4 + 30 * (q < 2) * (2 - q)^4 -
+             75 * (q < 1) * (1 - q)^4
 
     kernel_deriv = normalization_factor(kernel, h_inv) * result * h_inv
 
     # Since this is one of the most performance critical functions, using fast divisions
     # here gives a significant speedup on GPUs.
     # See the docs page "Development" for more details on `div_fast`.
-    return div_fast(kernel_deriv, r)
+    # See `clamp_distance` for why this is safe for `r == 0`.
+    return div_fast(kernel_deriv, clamp_distance(r, h))
 end
 
 @inline compact_support(::SchoenbergQuinticSplineKernel, h) = 3 * h
@@ -458,18 +425,19 @@ For general information and usage see [Smoothing Kernels](@ref smoothing_kernel)
 """
 struct WendlandC2Kernel{NDIMS} <: AbstractWendlandKernel{NDIMS} end
 
-@fastpow @inline function kernel_unsafe(kernel::WendlandC2Kernel, r::Real, h)
+@fastpow @inline function kernel(kernel::WendlandC2Kernel, r::Real, h)
     h_inv = 1 / h
     q = r * h_inv
 
-    return normalization_factor(kernel, h_inv) * (1 - q / 2)^4 * (2 * q + 1)
+    return normalization_factor(kernel, h_inv) * max(1 - q / 2, zero(q))^4 * (2 * q + 1)
 end
 
-@inline function kernel_deriv_div_r_unsafe(kernel::WendlandC2Kernel, r::Real, h)
+@inline function kernel_deriv_div_r(kernel::WendlandC2Kernel, r::Real, h)
     h_inv = 1 / h
     q = r * h_inv
 
-    return -5 * normalization_factor(kernel, h_inv) * (1 - q / 2)^3 * h_inv^2
+    # This is zero for `q >= 2`.
+    return -5 * normalization_factor(kernel, h_inv) * max(1 - q / 2, zero(q))^3 * h_inv^2
 end
 
 @inline function normalization_factor(::WendlandC2Kernel{2}, h_inv)
@@ -513,20 +481,20 @@ For general information and usage see [Smoothing Kernels](@ref smoothing_kernel)
 """
 struct WendlandC4Kernel{NDIMS} <: AbstractWendlandKernel{NDIMS} end
 
-@fastpow @inline function kernel_unsafe(kernel::WendlandC4Kernel, r::Real, h)
+@fastpow @inline function kernel(kernel::WendlandC4Kernel, r::Real, h)
     h_inv = 1 / h
     q = r * h_inv
 
-    result = (1 - q / 2)^6 * (35 * q^2 / 12 + 3 * q + 1)
+    result = max(1 - q / 2, zero(q))^6 * (35 * q^2 / 12 + 3 * q + 1)
 
     return normalization_factor(kernel, h_inv) * result
 end
 
-@fastpow @inline function kernel_deriv_div_r_unsafe(kernel::WendlandC4Kernel, r::Real, h)
+@fastpow @inline function kernel_deriv_div_r(kernel::WendlandC4Kernel, r::Real, h)
     h_inv = 1 / h
     q = r * h_inv
 
-    result = oftype(r, -7 / 3) * (2 + 5 * q) * (1 - q / 2)^5 * h_inv^2
+    result = oftype(r, -7 / 3) * (2 + 5 * q) * max(1 - q / 2, zero(q))^5 * h_inv^2
 
     return normalization_factor(kernel, h_inv) * result
 end
@@ -572,20 +540,21 @@ For general information and usage see [Smoothing Kernels](@ref smoothing_kernel)
 """
 struct WendlandC6Kernel{NDIMS} <: AbstractWendlandKernel{NDIMS} end
 
-@fastpow @inline function kernel_unsafe(kernel::WendlandC6Kernel, r::Real, h)
+@fastpow @inline function kernel(kernel::WendlandC6Kernel, r::Real, h)
     h_inv = 1 / h
     q = r * h_inv
 
-    result = (1 - q / 2)^8 * (4 * q^3 + 25 * q^2 / 4 + 4 * q + 1)
+    result = max(1 - q / 2, zero(q))^8 * (4 * q^3 + 25 * q^2 / 4 + 4 * q + 1)
 
     return normalization_factor(kernel, h_inv) * result
 end
 
-@fastpow @inline function kernel_deriv_div_r_unsafe(kernel::WendlandC6Kernel, r::Real, h)
+@fastpow @inline function kernel_deriv_div_r(kernel::WendlandC6Kernel, r::Real, h)
     h_inv = 1 / h
     q = r * h_inv
 
-    result = oftype(r, -11 / 4) * (8 * q^2 + 7 * q + 2) * (1 - q / 2)^7 * h_inv^2
+    result = oftype(r, -11 / 4) * (8 * q^2 + 7 * q + 2) * max(1 - q / 2, zero(q))^7 *
+             h_inv^2
 
     return normalization_factor(kernel, h_inv) * result
 end
@@ -635,23 +604,21 @@ For general information and usage see [Smoothing Kernels](@ref smoothing_kernel)
 """
 struct Poly6Kernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
-@inline function kernel_unsafe(kernel::Poly6Kernel, r::Real, h)
+@inline function kernel(kernel::Poly6Kernel, r::Real, h)
     h_inv = 1 / h
     q = r * h_inv
 
-    return normalization_factor(kernel, h_inv) * (1 - q^2)^3
+    return normalization_factor(kernel, h_inv) * max(1 - q^2, zero(q))^3
 end
 
-@inline function kernel_deriv_div_r_unsafe(kernel::Poly6Kernel, r::Real, h)
+@inline function kernel_deriv_div_r(kernel::Poly6Kernel, r::Real, h)
     h_inv = 1 / h
     q = r * h_inv
 
-    kernel_deriv = normalization_factor(kernel, h_inv) * -6 * q * (1 - q^2)^2 * h_inv
-
-    # Since this is one of the most performance critical functions, using fast divisions
-    # here gives a significant speedup on GPUs.
-    # See the docs page "Development" for more details on `div_fast`.
-    return div_fast(kernel_deriv, r)
+    # The kernel derivative is `-6 * q * (1 - q^2)^2 * h_inv` times the normalization
+    # factor `θ`. The returned result is therefore `θ * (-6 * q * (1 - q^2)^2 * h_inv) / r`.
+    # Since `q / r = h_inv`, the division by `r` is only a multiplication by `h_inv`.
+    return normalization_factor(kernel, h_inv) * -6 * max(1 - q^2, zero(q))^2 * h_inv^2
 end
 
 @inline compact_support(::Poly6Kernel, h) = h
@@ -700,23 +667,24 @@ For general information and usage see [Smoothing Kernels](@ref smoothing_kernel)
 """
 struct SpikyKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
-@inline function kernel_unsafe(kernel::SpikyKernel, r::Real, h)
+@inline function kernel(kernel::SpikyKernel, r::Real, h)
     h_inv = 1 / h
     q = r * h_inv
 
-    return normalization_factor(kernel, h_inv) * (1 - q)^3
+    return normalization_factor(kernel, h_inv) * max(1 - q, zero(q))^3
 end
 
-@inline function kernel_deriv_div_r_unsafe(kernel::SpikyKernel, r::Real, h)
+@inline function kernel_deriv_div_r(kernel::SpikyKernel, r::Real, h)
     h_inv = 1 / h
     q = r * h_inv
 
-    kernel_deriv = -3 * normalization_factor(kernel, h_inv) * (1 - q)^2 * h_inv
+    kernel_deriv = -3 * normalization_factor(kernel, h_inv) * max(1 - q, zero(q))^2 * h_inv
 
     # Since this is one of the most performance critical functions, using fast divisions
     # here gives a significant speedup on GPUs.
     # See the docs page "Development" for more details on `div_fast`.
-    return div_fast(kernel_deriv, r)
+    # See `clamp_distance` for why this is safe for `r == 0`.
+    return div_fast(kernel_deriv, clamp_distance(r, h))
 end
 
 @inline compact_support(::SpikyKernel, h) = h
@@ -783,7 +751,7 @@ For general information and usage see [Smoothing Kernels](@ref smoothing_kernel)
 """
 struct LaguerreGaussKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
 
-@fastpow @inline function kernel_unsafe(kernel::LaguerreGaussKernel, r::Real, h)
+@fastpow @inline function kernel(kernel::LaguerreGaussKernel, r::Real, h)
     h_inv = 1 / h
     q = r * h_inv
 
@@ -796,10 +764,11 @@ struct LaguerreGaussKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
     # due to a bug in Julia 1.12, see https://github.com/JuliaLang/julia/pull/60640.
     exp_q2 = @fastmath exp(q2)
 
-    return normalization_factor(kernel, h_inv) * poly * exp_q2
+    # This kernel is not zero at the end of the compact support, so we need to select zero.
+    return ifelse(q < 2, normalization_factor(kernel, h_inv) * poly * exp_q2, zero(q))
 end
 
-@inline function kernel_deriv_div_r_unsafe(kernel::LaguerreGaussKernel, r::Real, h)
+@inline function kernel_deriv_div_r(kernel::LaguerreGaussKernel, r::Real, h)
     h_inv = 1 / h
     q = r * h_inv
 
@@ -812,7 +781,9 @@ end
     # due to a bug in Julia 1.12, see https://github.com/JuliaLang/julia/pull/60640.
     exp_q2 = @fastmath exp(q2)
 
-    return normalization_factor(kernel, h_inv) * poly * exp_q2 * h_inv
+    # This kernel is not zero at the end of the compact support, so we need to select zero.
+    return ifelse(q < 2, normalization_factor(kernel, h_inv) * poly * exp_q2 * h_inv,
+                  zero(q))
 end
 
 @inline compact_support(::LaguerreGaussKernel, h) = 2 * h

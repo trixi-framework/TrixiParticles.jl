@@ -21,8 +21,6 @@ end
     neighborhood_search = get_neighborhood_search(system, semi)
     backend = semi.parallelization_backend
 
-    h = initial_smoothing_length(system)
-
     @threaded semi for particle in eachparticle
         # We are looping over the particles of `system`, so it is guaranteed
         # that `particle` is in bounds of `system`.
@@ -43,18 +41,8 @@ end
                                                                                     neighbor,
                                                                                     initial_pos_diff,
                                                                                     initial_distance
-
-            # Skip neighbors with (almost) the same position because the kernel gradient
-            # is zero, but computing it would divide by zero (see `almostzero`).
-            # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            if skip_zero_distance(system) && initial_distance < almostzero(h)
-                return zero(initial_pos_diff)
-            end
-
-            # Now that we know that `distance` is not zero, we can safely call the unsafe
-            # version of the kernel gradient to avoid redundant zero checks.
-            grad_kernel = smoothing_kernel_grad_unsafe(system, initial_pos_diff,
-                                                       initial_distance, particle)
+            grad_kernel = smoothing_kernel_grad(system, initial_pos_diff,
+                                                initial_distance, particle)
 
             rho_b = @inbounds system.material_density[neighbor]
             m_b = @inbounds system.mass[neighbor]

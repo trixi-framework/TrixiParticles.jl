@@ -136,8 +136,8 @@ end
 # compute the kernel gradient at the boundary particles of a structure, e.g., in the
 # asymmetric pressure acceleration of a fluid with a corrected kernel gradient and in the
 # continuity equation of the boundary particles. Like for a system, `smoothing_kernel_grad`
-# and `smoothing_kernel_grad_unsafe` then use the smoothing kernel, smoothing length and
-# correction of the boundary model together with the correction values below.
+# then uses the smoothing kernel, smoothing length and correction of the boundary model
+# together with the correction values below.
 # A `TotalLagrangianSPHSystem` has its own kernel and correction matrix for solid mechanics.
 @inline system_correction(model::BoundaryModelDummyParticles) = model.correction
 

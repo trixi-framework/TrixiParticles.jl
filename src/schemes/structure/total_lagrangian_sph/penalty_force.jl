@@ -35,9 +35,7 @@ end
     volume_a = div_fast(m_a, rho_a)
     volume_b = div_fast(m_b, rho_b)
 
-    # This function is called after a compact support check, so we can use the unsafe
-    # kernel function, which does not check the distance again.
-    kernel_weight = smoothing_kernel_unsafe(system, initial_distance, particle)
+    kernel_weight = smoothing_kernel(system, initial_distance, particle)
 
     E_a = young_modulus(system, particle)
     E_b = young_modulus(system, neighbor)
@@ -58,8 +56,14 @@ end
     # Since this is one of the most performance critical functions, using fast divisions
     # here gives a significant speedup on GPUs.
     # See the docs page "Development" for more details on `div_fast`.
+    # `clamp_distance` makes this safe for `initial_distance == current_distance == 0`
+    # (the particle itself) and computes a zero result in that case to avoid branching
+    # in the hot loop.
+    h = smoothing_length(system, particle)
+    initial_distance_ = clamp_distance(initial_distance, h)
+    current_distance_ = clamp_distance(current_distance, h)
     dv_particle += div_fast((alpha / 2) * volume_a * volume_b * kernel_weight * delta_sum,
-                            initial_distance^2 * current_distance^2 * m_a) *
+                            initial_distance_^2 * current_distance_^2 * m_a) *
                    current_pos_diff
 
     return dv_particle

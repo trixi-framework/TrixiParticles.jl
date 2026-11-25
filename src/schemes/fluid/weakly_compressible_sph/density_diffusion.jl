@@ -51,7 +51,10 @@ end
     # Since this is one of the most performance critical functions, using fast divisions
     # here gives a significant speedup on GPUs.
     # See the docs page "Development" for more details on `div_fast`.
-    return div_fast(2 * (rho_a - rho_b), distance^2) * pos_diff
+    # `clamp_distance` makes this safe for `distance == 0` and computes a zero result
+    # in that case to avoid branching in the hot loop.
+    distance_ = clamp_distance(distance, smoothing_length(system, particle))
+    return div_fast(2 * (rho_a - rho_b), distance_^2) * pos_diff
 end
 
 @doc raw"""
@@ -84,7 +87,9 @@ end
     # here gives a significant speedup on GPUs.
     # See the docs page "Development" for more details on `div_fast`.
     h = smoothing_length(system, particle) + smoothing_length(system, neighbor)
-    return div_fast((rho_a - rho_b), h * distance) * pos_diff
+    # `clamp_distance` makes this safe for `distance == 0` and computes a zero result
+    # in that case to avoid branching in the hot loop.
+    return div_fast((rho_a - rho_b), h * clamp_distance(distance, h)) * pos_diff
 end
 
 @doc raw"""
@@ -170,7 +175,10 @@ end
     # Since this is one of the most performance critical functions, using fast divisions
     # here gives a significant speedup on GPUs.
     # See the docs page "Development" for more details on `div_fast`.
-    return div_fast(result, distance^2) * pos_diff
+    # `clamp_distance` makes this safe for `distance == 0` and computes a zero result
+    # in that case to avoid branching in the hot loop.
+    distance_ = clamp_distance(distance, smoothing_length(system, particle))
+    return div_fast(result, distance_^2) * pos_diff
 end
 
 function update!(density_diffusion::DensityDiffusionAntuono, v, u, system, semi)
@@ -219,14 +227,6 @@ end
                                                                           OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},
                                                    particle, neighbor, pos_diff,
                                                    distance, m_b, rho_a, rho_b, grad_kernel)
-    # Density diffusion terms are all zero for distance zero (see `almostzero`).
-    # If `skip_zero_distance` is `true`, we can assume that this function isn't called
-    # for distance zero because these neighbors have already been skipped.
-    if !skip_zero_distance(particle_system) &&
-       distance < almostzero(initial_smoothing_length(particle_system))
-        return drho_particle
-    end
-
     # Since this is one of the most performance critical functions, using fast divisions
     # here gives a significant speedup on GPUs.
     # See the docs page "Development" for more details on `div_fast`.

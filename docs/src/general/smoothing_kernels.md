@@ -177,33 +177,9 @@ CairoMakie.save("smoothing_kernels.png", fig)
     0.0
     ```
 
-    In performance-critical code, it is recommended to use the `_unsafe` versions of these
-    functions, which skip the compact support and zero distance checks:
-    ```jldoctest kernels; output = false
-    TrixiParticles.smoothing_kernel_unsafe(system, distance, particle)
-    TrixiParticles.smoothing_kernel_grad_unsafe(system, pos_diff, distance, particle)
-
-    # output
-    2-element SVector{2, Float64} with indices SOneTo(2):
-     -106899.65266169122
-     -106899.65266169122
-    ```
-    These functions are only safe to use if compact support and zero distance have already
-    been checked.
-    The compact support is automatically checked when inside a `foreach_point_neighbor`
-    or `foreach_neighbor` loop.
-    For the zero distance check, use
-    ```jldoctest kernels; output = false, setup = :(almostzero = 1e-12)
-    TrixiParticles.skip_zero_distance(system) && distance < almostzero
-
-    # output
-    false
-    ```
-    where `skip_zero_distance` returns `true` if the kernel gradient is zero at zero
-    distance, which is not the case for some corrected kernels.
-    Here, `almostzero` is a small threshold, which should be chosen as `sqrt(eps(h^2))`,
-    where `h` is the smoothing length, since `distance^2` is in the order of `h^2`.
-    Note that `sqrt(eps(h^2)) != eps(h)`.
+    These functions are safe for all distances, including zero distance and distances
+    outside of the compact support, and they don't branch, so they can be used in
+    performance-critical, SIMD-vectorized neighbor loops.
 
 ```@autodocs
 Modules = [TrixiParticles]

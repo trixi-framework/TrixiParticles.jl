@@ -216,20 +216,14 @@ function compute_correction_values!(system,
                 volume = m_b / rho_b
 
                 # Use uncorrected kernel to compute correction coefficients
-                W = kernel_unsafe(smoothing_kernel, distance, h)
+                W = kernel(smoothing_kernel, distance, h)
 
                 kernel_correction_coefficient[particle] += volume * W
 
-                # Only consider particles with a distance > 0 because the kernel gradient
-                # is zero otherwise, but computing it would divide by zero (see `almostzero`).
-                if distance >= almostzero(h)
-                    # Now that we know that `distance` is not zero, we can safely call the
-                    # unsafe version of the kernel gradient to avoid redundant zero checks.
-                    grad_W = kernel_grad_unsafe(smoothing_kernel, pos_diff, distance, h)
-                    tmp = volume * grad_W
-                    for i in axes(dw_gamma, 1)
-                        dw_gamma[i, particle] += tmp[i]
-                    end
+                grad_W = kernel_grad(smoothing_kernel, pos_diff, distance, h)
+                tmp = volume * grad_W
+                for i in axes(dw_gamma, 1)
+                    dw_gamma[i, particle] += tmp[i]
                 end
             end
         end
