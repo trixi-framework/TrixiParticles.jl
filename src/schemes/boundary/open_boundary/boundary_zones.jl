@@ -54,11 +54,18 @@ There are three ways to specify the actual shape of the boundary zone:
     - `BidirectionalFlow()` (default) for an bidirectional flow boundary
 - `open_boundary_layers`: Number of particle layers in the direction opposite to `face_normal`.
 - `particle_spacing`: The spacing between the particles (see [`InitialCondition`](@ref)).
-- `density`: Scalar particle density used when no `initial_condition` is passed.
-             With `BoundaryModelDynamicalPressureZhang`, this is also used as
-             rest density for new particles when no equation of state is used by the
-             fluid system. For a spatially varying initial density, pass an
-             `initial_condition` with the desired density.
+- `density`: Particle density (see [`InitialCondition`](@ref)) used to initialize
+             the particles when they are sampled from `boundary_face` or from a shape
+             passed as `extrude_geometry`. When `initial_condition` is passed or when
+             `extrude_geometry` is an `InitialCondition`, their densities are used instead.
+             With [`BoundaryModelDynamicalPressureZhang`](@ref) and a fluid system
+             without an equation of state (e.g. [`EntropicallyDampedSPHSystem`](@ref)),
+             a scalar `density` is required. It is then used as rest density
+             of recycled boundary particles. Note that this is an extension of
+             [Zhang et al. (2025)](@cite Zhang2025), where the density of recycled
+             boundary particles is obtained from the boundary pressure by the equation
+             of state. With an equation of state, this `density` is not used for recycled
+             particles.
 - `initial_condition=nothing`: `InitialCondition` for the inflow particles.
                                Particles outside the boundary zone will be removed.
                                Do not use together with `extrude_geometry`.
@@ -197,10 +204,6 @@ function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
         throw(ArgumentError("`open_boundary_layers` must be positive and greater than zero"))
     end
 
-    if !(density isa Real)
-        throw(ArgumentError("`density` must be a scalar"))
-    end
-
     # `face_normal` always points in fluid domain
     face_normal_ = normalize(SVector(face_normal...))
 
@@ -211,6 +214,21 @@ function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
 
     NDIMS = ndims(ic)
     ELTYPE = eltype(ic)
+
+    if density isa Real
+        # Check after conversion to catch values that become zero or infinite in `ELTYPE`.
+        rest_density = convert(ELTYPE, density)
+        if !isfinite(rest_density) || rest_density < eps()
+            throw(ArgumentError("`density` must be finite, positive and larger than `eps()`"))
+        end
+    else
+        # A non-scalar density can only be used to initialize the particles.
+        # `OpenBoundarySystem` checks that it is not needed as rest density.
+        # A rest density of `NaN` indicates that this boundary zone was created
+        # with a non-scalar `density`.
+        rest_density = convert(ELTYPE, NaN)
+    end
+
     if !(reference_velocity isa Function || isnothing(reference_velocity) ||
          (reference_velocity isa AbstractVector && length(reference_velocity) == NDIMS))
         throw(ArgumentError("`reference_velocity` must be either a function mapping " *
@@ -294,8 +312,8 @@ function BoundaryZone(; boundary_face, face_normal, density, particle_spacing,
     is_bidirectional = boundary_type isa BidirectionalFlow
 
     return BoundaryZone(ic, spanning_set_, zone_origin, zone_width,
-                        flow_direction, face_normal_, convert(ELTYPE, density),
-                        rest_pressure, reference_values,
+                        flow_direction, face_normal_, rest_density, rest_pressure,
+                        reference_values,
                         cache, is_bidirectional, average_inflow_velocity,
                         prescribed_density, prescribed_pressure, prescribed_velocity)
 end

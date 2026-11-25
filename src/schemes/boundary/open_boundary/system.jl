@@ -81,6 +81,17 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                                               density_diffusion(fluid_system) : nothing)
     boundary_zones_ = filter(bz -> !isnothing(bz), boundary_zones)
 
+    # Without an equation of state, recycled particles are reset to the rest density.
+    # A rest density of `NaN` marks a boundary zone that was created with a non-scalar
+    # `density`.
+    if boundary_model isa BoundaryModelDynamicalPressureZhang &&
+       isnothing(system_state_equation(fluid_system)) &&
+       any(bz -> isnan(bz.rest_density), boundary_zones_)
+        throw(ArgumentError("all boundary zones must have a scalar `density` when using " *
+                            "`BoundaryModelDynamicalPressureZhang` with a fluid system " *
+                            "without an equation of state"))
+    end
+
     if boundary_model isa BoundaryModelDynamicalPressureZhang &&
        !isnothing(shifting_technique)
         # When dynamical pressure is used with shifting, the shifting is ramped up until

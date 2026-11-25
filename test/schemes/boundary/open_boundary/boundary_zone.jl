@@ -135,16 +135,8 @@
                                                            reference_pressure=0,
                                                            open_boundary_layers=2,
                                                            boundary_type=InFlow())
-
-        error_str = "`density` must be a scalar"
-        @test_throws ArgumentError(error_str) BoundaryZone(; boundary_face,
-                                                           particle_spacing=0.1,
-                                                           face_normal=flow_direction,
-                                                           density=x -> 1000 + x[1],
-                                                           rest_pressure=0.0,
-                                                           open_boundary_layers=2,
-                                                           boundary_type=InFlow())
     end
+
     @testset verbose=true "Initial Condition With Non-Constant Fields" begin
         # The third particle is outside the boundary zone
         coordinates = [-0.05 -0.15 0.5 -0.1
