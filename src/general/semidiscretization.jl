@@ -75,7 +75,7 @@ semi = Semidiscretization(fluid_system, boundary_system;
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct Semidiscretization{BACKEND, S, RU, RV, NSH, IM, UCU, IT}
+struct Semidiscretization{BACKEND, S, RU, RV, NSH, IM, UCU, IT, IPS, IPC}
     systems                     :: S
     ranges_u                    :: RU
     ranges_v                    :: RV
@@ -84,6 +84,8 @@ struct Semidiscretization{BACKEND, S, RU, RV, NSH, IM, UCU, IT}
     parallelization_backend     :: BACKEND
     update_callback_used        :: UCU
     integrate_tlsph             :: IT # `false` if TLSPH integration is decoupled
+    iisph_pressure_state        :: IPS
+    iisph_pressure_cache        :: IPC
 
     # Dispatch at `systems` to distinguish this constructor from the one below when
     # 4 systems are passed.
@@ -92,14 +94,17 @@ struct Semidiscretization{BACKEND, S, RU, RV, NSH, IM, UCU, IT}
                                 neighborhood_search_handler,
                                 interaction_matrix,
                                 parallelization_backend::PointNeighbors.ParallelizationBackend,
-                                update_callback_used, integrate_tlsph)
+                                update_callback_used, integrate_tlsph,
+                                iisph_pressure_state, iisph_pressure_cache)
         new{typeof(parallelization_backend), typeof(systems), typeof(ranges_u),
             typeof(ranges_v), typeof(neighborhood_search_handler),
             typeof(interaction_matrix), typeof(update_callback_used),
-            typeof(integrate_tlsph)}(systems, ranges_u, ranges_v,
-                                     neighborhood_search_handler, interaction_matrix,
-                                     parallelization_backend,
-                                     update_callback_used, integrate_tlsph)
+            typeof(integrate_tlsph), typeof(iisph_pressure_state),
+            typeof(iisph_pressure_cache)}(systems, ranges_u, ranges_v,
+                                          neighborhood_search_handler, interaction_matrix,
+                                          parallelization_backend, update_callback_used,
+                                          integrate_tlsph, iisph_pressure_state,
+                                          iisph_pressure_cache)
     end
 end
 
@@ -150,10 +155,13 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     # with this set to false.
     integrate_tlsph = Ref(true)
 
+    iisph_pressure_state = create_iisph_pressure_state()
+    iisph_pressure_cache = create_iisph_pressure_cache(systems, parallelization_backend)
+
     return Semidiscretization(systems, ranges_u, ranges_v, neighborhood_search_handler,
                               interaction_matrix,
                               parallelization_backend, update_callback_used,
-                              integrate_tlsph)
+                              integrate_tlsph, iisph_pressure_state, iisph_pressure_cache)
 end
 
 function create_interaction_matrix(::Nothing, systems)

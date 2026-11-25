@@ -5,9 +5,12 @@ using OrdinaryDiffEqSymplecticRK
 fluid_particle_spacing = 0.6 / 40
 tspan = (0.0, 5.7 / sqrt(9.81 / 0.6))
 
-# Load setup from dam break example
-trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl");
-              fluid_particle_spacing, tspan, sol=nothing, ode=nothing)
+# Load setup from dam break example.
+# The keyword arguments of `trixi_include` are passed without `;` and explicitly
+# to support `trixi_include_changeprecision`.
+trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
+              fluid_particle_spacing=fluid_particle_spacing, tspan=tspan, sol=nothing,
+              ode=nothing)
 
 # IISPH doesn't require a large compact support like WCSPH and performs worse with a typical
 # smoothing length used for WCSPH.
@@ -34,10 +37,11 @@ fluid_system = ImplicitIncompressibleSPHSystem(tank.fluid; smoothing_kernel,
                                                time_step)
 
 # Run the dam break simulation with these changes
-trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl");
+trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               neighborhood_search=GridNeighborhoodSearch{2}(), viscosity_fluid=viscosity,
-              smoothing_kernel, smoothing_length, fluid_system,
-              boundary_density_calculator=PressureZeroing(), tspan, state_equation=nothing,
-              viscosity_wall=nothing,
+              smoothing_kernel=smoothing_kernel, smoothing_length=smoothing_length,
+              fluid_system=fluid_system, boundary_density_calculator=PressureZeroing(),
+              tspan=tspan, state_equation=nothing, viscosity_wall=nothing,
+              parallelization_backend=PolyesterBackend(),
               callbacks=CallbackSet(info_callback, saving_callback),
               time_integration_scheme=SymplecticEuler(), dt=time_step)
