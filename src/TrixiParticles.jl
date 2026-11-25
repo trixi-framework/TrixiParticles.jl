@@ -62,6 +62,7 @@ include("preprocessing/preprocessing.jl")
 # Note that `semidiscretization.jl` depends on the system types and has to be
 # included separately. The following files in turn depend on the semidiscretization type.
 include("general/semidiscretization.jl")
+include("schemes/fluid/implicit_incompressible_sph/pressure_cache.jl")
 include("general/time_integration.jl")
 include("general/ode_rhs.jl")
 include("general/gpu.jl")
@@ -77,6 +78,7 @@ export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangian
        OpenBoundarySystem,
        ImplicitIncompressibleSPHSystem
 export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
+export iisph_pressure_iteration_stats, reset_iisph_pressure_iteration_stats!
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
        SplitIntegrationCallback, MechanicalWorkCalculator, calculated_mechanical_work,
