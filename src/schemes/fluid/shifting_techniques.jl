@@ -13,6 +13,7 @@ requires_update_callback(::AbstractShiftingTechnique) = false
 
 # This is called from the `UpdateCallback`
 particle_shifting_from_callback!(u_ode, shifting, system, v_ode, semi, integrator) = u_ode
+update_shifting_from_callback!(system, shifting, v_ode, u_ode, semi) = system
 
 create_cache_shifting(initial_condition, ::Nothing) = (;)
 

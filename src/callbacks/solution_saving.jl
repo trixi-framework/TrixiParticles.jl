@@ -161,6 +161,7 @@ function initialize_save_cb!(solution_callback::SolutionSavingCallback, u, t, in
                              save_initial_solution)
     semi = integrator.p.semi
     set_callbacks_used!(semi, integrator)
+    initialize_update_callback_caches!(semi, integrator)
 
     # Reset collection state
     solution_callback.collection_initialized = false

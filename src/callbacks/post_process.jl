@@ -124,6 +124,7 @@ end
 function initialize_postprocess_callback!(cb::PostprocessCallback, u, t, integrator)
     semi = integrator.p.semi
     set_callbacks_used!(semi, integrator)
+    initialize_update_callback_caches!(semi, integrator)
 
     cb.git_hash[] = compute_git_hash()
 

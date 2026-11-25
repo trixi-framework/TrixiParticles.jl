@@ -24,6 +24,8 @@ function update_density_diffusion_from_callback!(system, density_diffusion,
     return system
 end
 
+initialize_density_diffusion_from_callback!(system, density_diffusion, v, u, semi) = system
+
 # Most density diffusion formulations don't need updating
 function update!(density_diffusion, v, u, system, semi)
     return density_diffusion
@@ -122,9 +124,15 @@ where ``d`` is the number of dimensions.
 # Keywords
 - `delta`:                    Density diffusion coefficient.
 - `update_everystage=true`:   Update the renormalized density gradient in every stage.
-                              If `false`, update it between time steps from an
-                              [`UpdateCallback`](@ref), which is then required.
-                              The cadence is controlled by the `UpdateCallback`.
+                              If `false`, the gradient is computed at initialization and
+                              whenever the [`UpdateCallback`](@ref) runs (by default after
+                              every time step), and it is frozen in between.
+                              The `UpdateCallback` is then required.
+                              The diffusion term still uses the current densities and
+                              positions in every stage.
+                              This avoids recomputing the gradient in every stage,
+                              but it reduces the order of the time integration scheme,
+                              so a slightly smaller time step might be necessary.
 
 See [`AbstractDensityDiffusion`](@ref TrixiParticles.AbstractDensityDiffusion)
 for an overview and comparison of implemented density diffusion terms.
@@ -259,6 +267,15 @@ function update_density_diffusion_from_callback!(system,
     derivative_discontinuity!(integrator, true)
 
     return system
+end
+
+# Initialize the callback-updated variant before the first evaluation of the RHS.
+# See `initialize_update_callback_caches!`.
+function initialize_density_diffusion_from_callback!(system,
+                                                     density_diffusion::DensityDiffusionAntuono{<:Any,
+                                                                                                false},
+                                                     v, u, semi)
+    return update_density_diffusion!(density_diffusion, v, u, system, semi)
 end
 
 # With `update_everystage=false`, the normalized density gradient is kept between

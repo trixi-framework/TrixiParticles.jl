@@ -61,70 +61,127 @@
             # 6x6 particles with a non-uniform density and mass.
             # The compressive velocity field makes the density change in every step,
             # and the particles move, so the gradient changes in every step as well.
-            particle_spacing = 0.1
-            center = SVector(0.3, 0.3)
-            coordinates = RectangularShape(particle_spacing, (6, 6), (0.0, 0.0),
-                                           density=1000.0).coordinates
-            velocity = -0.5 * (coordinates .- center)
-            density = 1000 .+ 10 * sin.(5 * coordinates[1, :]) .+
-                      5 * cos.(7 * coordinates[2, :])
-            initial_condition = InitialCondition(; coordinates, velocity, density,
-                                                 particle_spacing)
+            function semidiscretize_patch(; shifting_technique=nothing)
+                particle_spacing = 0.1
+                center = SVector(0.3, 0.3)
+                coordinates = RectangularShape(particle_spacing, (6, 6), (0.0, 0.0),
+                                               density=1000.0).coordinates
+                velocity = -0.5 * (coordinates .- center)
+                density = 1000 .+ 10 * sin.(5 * coordinates[1, :]) .+
+                          5 * cos.(7 * coordinates[2, :])
+                initial_condition = InitialCondition(; coordinates, velocity, density,
+                                                     particle_spacing)
 
-            density_diffusion = DensityDiffusionAntuono(delta=0.1,
-                                                        update_everystage=false)
-            state_equation = StateEquationCole(sound_speed=10.0,
-                                               reference_density=1000.0, exponent=7)
-            system = WeaklyCompressibleSPHSystem(initial_condition;
-                                                 smoothing_kernel=WendlandC2Kernel{2}(),
-                                                 smoothing_length=1.2 * particle_spacing,
-                                                 density_calculator=ContinuityDensity(),
-                                                 state_equation, density_diffusion)
-            semi = Semidiscretization(system)
-            ode = semidiscretize(semi, (0.0, 1.0))
+                density_diffusion = DensityDiffusionAntuono(delta=0.1,
+                                                            update_everystage=false)
+                state_equation = StateEquationCole(sound_speed=10.0,
+                                                   reference_density=1000.0, exponent=7)
+                system = WeaklyCompressibleSPHSystem(initial_condition;
+                                                     smoothing_kernel=WendlandC2Kernel{2}(),
+                                                     smoothing_length=1.2 *
+                                                                      particle_spacing,
+                                                     density_calculator=ContinuityDensity(),
+                                                     state_equation, density_diffusion,
+                                                     shifting_technique)
+                semi = Semidiscretization(system)
 
-            # Refresh the cache at initialization and after every second time step.
+                return semidiscretize(semi, (0.0, 1.0))
+            end
+
             # The time step is well below the CFL limit.
             # Note that a staggered scheme like `SymplecticEuler` cannot be used here,
             # since its initialization modifies `v` after the callbacks are initialized.
-            integrator = init(ode, CarpenterKennedy2N54(williamson_condition=false),
-                              dt=1e-4, adaptive=false,
-                              save_everystep=false,
-                              callback=UpdateCallback(interval=2))
-
-            semi = integrator.p.semi
-            system = semi.systems[1]
-            cached_gradient = system.cache.density_diffusion_normalized_density_gradient
-
-            function current_reference(integrator)
-                v_ode, u_ode = integrator.u.x
-                v = TrixiParticles.wrap_v(v_ode, system, semi)
-                u = TrixiParticles.wrap_u(u_ode, system, semi)
-
-                return reference_density_gradient(system, v, u)
+            function init_integrator(ode, callback)
+                return init(ode, CarpenterKennedy2N54(williamson_condition=false),
+                            dt=1e-4, adaptive=false, save_everystep=false, callback=callback)
             end
 
-            # `initial_update!` computes the gradient from the initial state.
-            # Since the density is non-uniform, a correct gradient is non-zero.
-            @test all(isfinite, cached_gradient)
-            @test !iszero(cached_gradient)
-            @test isapprox(cached_gradient, current_reference(integrator), rtol=1e-12)
-            cached_gradient_initial = copy(cached_gradient)
+            @testset verbose=true "Refresh only when the `UpdateCallback` is triggered" begin
+                # Refresh the cache at initialization and after every second time step.
+                integrator = init_integrator(semidiscretize_patch(),
+                                             UpdateCallback(interval=2))
 
-            # After one step, the `UpdateCallback` is not triggered
-            # (number of accepted steps 1 % 2 != 0), so the cache must not be changed,
-            # although a refresh would now yield a different gradient.
-            step!(integrator)
-            @test integrator.stats.naccept == 1
-            @test cached_gradient == cached_gradient_initial
-            @test !isapprox(cached_gradient, current_reference(integrator), rtol=1e-6)
+                semi = integrator.p.semi
+                system = semi.systems[1]
+                cached_gradient = system.cache.density_diffusion_normalized_density_gradient
 
-            # After the second step, the scheduled refresh must yield the gradient
-            # of the current state.
-            step!(integrator)
-            @test integrator.stats.naccept == 2
-            @test cached_gradient != cached_gradient_initial
-            @test isapprox(cached_gradient, current_reference(integrator), rtol=1e-12)
+                function current_reference(integrator)
+                    v_ode, u_ode = integrator.u.x
+                    v = TrixiParticles.wrap_v(v_ode, system, semi)
+                    u = TrixiParticles.wrap_u(u_ode, system, semi)
+
+                    return reference_density_gradient(system, v, u)
+                end
+
+                # `initial_update!` computes the gradient from the initial state.
+                # Since the density is non-uniform, a correct gradient is non-zero.
+                @test all(isfinite, cached_gradient)
+                @test !iszero(cached_gradient)
+                @test isapprox(cached_gradient, current_reference(integrator),
+                               rtol=1e-12)
+                cached_gradient_initial = copy(cached_gradient)
+
+                # After one step, the `UpdateCallback` is not triggered
+                # (number of accepted steps 1 % 2 != 0), so the cache must not be
+                # changed, although a refresh would now yield a different gradient.
+                step!(integrator)
+                @test integrator.stats.naccept == 1
+                @test cached_gradient == cached_gradient_initial
+                @test !isapprox(cached_gradient, current_reference(integrator),
+                                rtol=1e-6)
+
+                # After the second step, the scheduled refresh must yield the gradient
+                # of the current state.
+                step!(integrator)
+                @test integrator.stats.naccept == 2
+                @test cached_gradient != cached_gradient_initial
+                @test isapprox(cached_gradient, current_reference(integrator),
+                               rtol=1e-12)
+            end
+
+            @testset verbose=true "Callback evaluating the RHS before the `UpdateCallback`" begin
+                # The `PostprocessCallback` evaluates the RHS at initialization.
+                # When it comes before the `UpdateCallback` in the `CallbackSet`,
+                # the `UpdateCallback` has not been initialized yet, but the RHS must
+                # already use the initialized caches.
+                # This also covers the shifting velocity of PST with
+                # `update_everystage=false`, which is used in the RHS when it is
+                # integrated (`integrate_shifting_velocity=true`).
+                shifting_technique = ParticleShiftingTechnique(update_everystage=false)
+                ode = semidiscretize_patch(; shifting_technique)
+
+                # Record the RHS that the `PostprocessCallback` sees.
+                recorded_dv = []
+                function record_dv(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
+                    push!(recorded_dv, copy(TrixiParticles.wrap_v(dv_ode, system, semi)))
+
+                    # Don't store any values in the `PostprocessCallback`.
+                    return nothing
+                end
+                postprocess_callback = PostprocessCallback(; interval=1000,
+                                                           write_csv=false,
+                                                           write_json=false, record_dv)
+
+                integrator = init_integrator(ode,
+                                             CallbackSet(postprocess_callback,
+                                                         UpdateCallback()))
+                semi = integrator.p.semi
+                system = semi.systems[1]
+
+                # Make sure that both caches are non-trivial, so that the test is
+                # meaningful.
+                @test !iszero(system.cache.density_diffusion_normalized_density_gradient)
+                @test !iszero(system.cache.delta_v)
+
+                # The RHS after all callbacks have been initialized.
+                v_ode, u_ode = integrator.u.x
+                dv_ode = similar(v_ode)
+                TrixiParticles.kick!(dv_ode, v_ode, u_ode, integrator.p, integrator.t)
+
+                @test length(recorded_dv) == 1
+                @test isapprox(only(recorded_dv),
+                               TrixiParticles.wrap_v(dv_ode, system, semi), rtol=1e-12)
+            end
         end
     end
 end
