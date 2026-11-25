@@ -86,6 +86,49 @@ struct BoundaryModelDummyParticles{DC, SE, CLIP, ELTYPE <: Real, VECTOR, K, V, C
     end
 end
 
+@doc raw"""
+    BoundaryModelDummyParticles(initial_condition;
+                                fluid_system::AbstractFluidSystem,
+                                initial_density=initial_condition.density,
+                                hydrodynamic_mass=initial_condition.mass,
+                                boundary_density_calculator=AdamiPressureExtrapolation(),
+                                smoothing_kernel=system_smoothing_kernel(fluid_system),
+                                smoothing_length=initial_smoothing_length(fluid_system),
+                                viscosity=nothing,
+                                state_equation=system_state_equation(fluid_system),
+                                density_correction=correction_density(fluid_correction_configuration(fluid_system)),
+                                gradient_correction=system_correction(fluid_system),
+                                force_correction=correction_force(fluid_correction_configuration(fluid_system)),
+                                clip_negative_pressure=false,
+                                reference_particle_spacing=default_reference_particle_spacing(fluid_system))
+
+High-level convenience constructor for dummy-particle wall models that infers the kernel,
+smoothing length, corrections, and equation-of-state-related settings from the adjacent
+`fluid_system`.
+"""
+function BoundaryModelDummyParticles(initial_condition;
+                                     fluid_system::AbstractFluidSystem,
+                                     initial_density=initial_condition.density,
+                                     hydrodynamic_mass=initial_condition.mass,
+                                     boundary_density_calculator=AdamiPressureExtrapolation(),
+                                     smoothing_kernel=system_smoothing_kernel(fluid_system),
+                                     smoothing_length=initial_smoothing_length(fluid_system),
+                                     viscosity=nothing,
+                                     state_equation=system_state_equation(fluid_system),
+                                     density_correction=correction_density(fluid_correction_configuration(fluid_system)),
+                                     gradient_correction=system_correction(fluid_system),
+                                     force_correction=correction_force(fluid_correction_configuration(fluid_system)),
+                                     clip_negative_pressure=false,
+                                     reference_particle_spacing=default_reference_particle_spacing(fluid_system))
+    return BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
+                                       boundary_density_calculator, smoothing_kernel,
+                                       smoothing_length;
+                                       viscosity, state_equation, density_correction,
+                                       gradient_correction, force_correction,
+                                       clip_negative_pressure,
+                                       reference_particle_spacing)
+end
+
 function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                      density_calculator, smoothing_kernel,
                                      smoothing_length; viscosity=nothing,
@@ -124,6 +167,20 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                        density_calculator, smoothing_kernel,
                                        smoothing_length, viscosity, correction, cache,
                                        clip_negative_pressure)
+end
+
+@inline function fluid_correction_configuration(fluid_system)
+    # Fluids without correction support (such as IISPH) have no `correction` field.
+    return hasproperty(fluid_system, :correction) ? fluid_system.correction : nothing
+end
+
+@inline function default_reference_particle_spacing(fluid_system)
+    if hasproperty(fluid_system, :cache) &&
+       hasproperty(fluid_system.cache, :reference_particle_spacing)
+        return fluid_system.cache.reference_particle_spacing
+    end
+
+    return zero(eltype(fluid_system))
 end
 
 @inline function Base.ndims(boundary_model::BoundaryModelDummyParticles)
