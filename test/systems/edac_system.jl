@@ -245,9 +245,6 @@
             TrixiParticles.write_v0!(v0, system)
             v_ode = vec(v0)
 
-            v = TrixiParticles.wrap_v(v_ode, system, semi)
-            u = TrixiParticles.wrap_u(u_ode, system, semi)
-
             for cache_key in (:kernel_correction_coefficient, :dw_gamma,
                               :correction_matrix)
                 hasproperty(system.cache, cache_key) || continue
