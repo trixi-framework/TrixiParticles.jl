@@ -125,7 +125,7 @@ function sort_particles!(system::RequiresSortingSystem, v, u, nhs, semi)
     throw(ArgumentError("`SortingCallback` can only be used with a `GridNeighborhoodSearch`"))
 end
 
-# TODO: Sort also masses and particle spacings for variable smoothing lengths.
+# TODO: Sort also particle spacings for variable smoothing lengths.
 function sort_particles!(system::RequiresSortingSystem, v, u,
                          nhs::GridNeighborhoodSearch, semi)
     cell_coords = allocate(semi.parallelization_backend, SVector{ndims(system), Int},
@@ -153,9 +153,18 @@ function sort_system!(system, v, u, perm, buffer::Nothing)
     system_velocity .= system_velocity[:, perm]
     system_pressure .= system_pressure[perm]
     system_density .= system_density[perm]
+    system.mass .= system.mass[perm]
+
+    # Permute cached per-particle quantities that are only updated in the `UpdateCallback`
+    # and are therefore not recomputed before the next evaluation of the RHS.
+    sort_cache!(system, density_diffusion(system), perm)
+    sort_cache!(system, shifting_technique(system), perm)
 
     return system
 end
+
+# Most cached quantities are recomputed in every stage and don't need to be permuted.
+sort_cache!(system, feature, perm) = system
 
 function initial_sort(::DiscreteCallback{<:Any, <:SortingCallback, typeof(initial_sort!)})
     return true

@@ -13,6 +13,7 @@ requires_update_callback(::AbstractShiftingTechnique) = false
 
 # This is called from the `UpdateCallback`
 particle_shifting_from_callback!(u_ode, shifting, system, v_ode, semi, integrator) = u_ode
+update_shifting_from_callback!(system, shifting, v_ode, u_ode, semi) = system
 
 create_cache_shifting(initial_condition, ::Nothing) = (;)
 
@@ -557,6 +558,16 @@ end
 function apply_particle_shifting!(u_ode, ::ParticleShiftingTechnique{true},
                                   system, semi, dt)
     return u_ode
+end
+
+# `ParticleShiftingTechnique{<:Any, false}` means `update_everystage=false`.
+# The shifting velocity is kept between updates from the `UpdateCallback`,
+# so it has to be permuted when sorting particles.
+function sort_cache!(system, ::ParticleShiftingTechnique{<:Any, false}, perm)
+    (; delta_v) = system.cache
+    delta_v .= delta_v[:, perm]
+
+    return system
 end
 
 """

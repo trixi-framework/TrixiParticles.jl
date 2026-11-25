@@ -59,6 +59,22 @@ function initial_update!(cb::UpdateCallback, vu_ode, t, integrator)
     # Tell the semidiscretization that the `UpdateCallback` is used
     semi.update_callback_used[] = true
 
+    initialize_update_callback_caches!(v_ode, u_ode, semi, t)
+
+    return cb(integrator)
+end
+
+# Initialize the caches that are otherwise only updated by the `UpdateCallback`
+# from the current state without modifying the ODE state.
+# Callbacks like the `SolutionSavingCallback` and `PostprocessCallback` evaluate the RHS
+# at initialization, which requires these caches to be initialized.
+# However, if one of these callbacks appears BEFORE the `UpdateCallback`
+# in the `CallbackSet`, then the `UpdateCallback` has not been initialized yet.
+# Therefore, these callbacks call this function as well.
+function initialize_update_callback_caches!(v_ode, u_ode, semi, t)
+    # Update quantities and neighborhood search for the current state.
+    update_systems_and_nhs(v_ode, u_ode, semi, t)
+
     # If TLSPH is not integrated, the averaged velocity will be initialized in the
     # split integration.
     if semi.integrate_tlsph[]
@@ -67,7 +83,30 @@ function initial_update!(cb::UpdateCallback, vu_ode, t, integrator)
         end
     end
 
-    return cb(integrator)
+    foreach_system(semi) do system
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
+
+        initialize_density_diffusion_from_callback!(system, density_diffusion(system),
+                                                    v, u, semi)
+    end
+
+    # Only update the shifting velocity, but don't apply shifting to the particles.
+    foreach_system(semi) do system
+        update_shifting_from_callback!(system, shifting_technique(system),
+                                       v_ode, u_ode, semi)
+    end
+
+    return semi
+end
+
+# Initialize the caches when another callback evaluates the RHS at initialization.
+# This is a no-op when no `UpdateCallback` is used.
+function initialize_update_callback_caches!(semi, integrator)
+    semi.update_callback_used[] || return semi
+
+    v_ode, u_ode = integrator.u.x
+    return initialize_update_callback_caches!(v_ode, u_ode, semi, integrator.t)
 end
 
 # `condition`
@@ -111,8 +150,8 @@ function (update_callback!::UpdateCallback)(integrator)
         end
 
         foreach_system(semi) do system
-            particle_shifting_from_callback!(u_ode, shifting_technique(system), system,
-                                             v_ode, semi, integrator)
+            update_density_diffusion_from_callback!(system, density_diffusion(system),
+                                                    v_ode, u_ode, semi, integrator)
         end
 
         # If TLSPH is not integrated, the averaged velocity will be updated in the
@@ -121,6 +160,13 @@ function (update_callback!::UpdateCallback)(integrator)
             foreach_system(semi) do system
                 compute_averaged_velocity!(system, v_ode, semi, t)
             end
+        end
+
+        # Shifting must be the last step because it potentially updates the particle
+        # positions without updating the neighborhood search accordingly.
+        foreach_system(semi) do system
+            particle_shifting_from_callback!(u_ode, shifting_technique(system), system,
+                                             v_ode, semi, integrator)
         end
     end
 

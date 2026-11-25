@@ -34,6 +34,12 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Added a tutorial on visualizing particle data and fields interpolated with
   `interpolate_plane_2d` using Plots.jl (#1298).
 
+### Features
+
+- Added `update_everystage=false` to `DensityDiffusionAntuono`, which freezes the
+  renormalized density gradient between refreshes by the `UpdateCallback` instead of
+  recomputing it in every stage of the time integration scheme (#1301).
+
 ### Important Bugfixes
 
 - Fixed pressure mirroring for TLSPH and rigid-body neighbors and for EDAC momentum,

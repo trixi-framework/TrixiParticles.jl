@@ -33,6 +33,7 @@
         end
 
         TrixiParticles.set_callbacks_used!(semi::Nothing, integrator) = nothing
+        TrixiParticles.initialize_update_callback_caches!(semi::Nothing, integrator) = nothing
 
         TrixiParticles.initialize_postprocess_callback!(postprocess_callback, nothing,
                                                         0.0, integrator)
