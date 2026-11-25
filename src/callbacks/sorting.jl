@@ -125,7 +125,7 @@ function sort_particles!(system::RequiresSortingSystem, v, u, nhs, semi)
     throw(ArgumentError("`SortingCallback` can only be used with a `GridNeighborhoodSearch`"))
 end
 
-# TODO: Sort also masses and particle spacings for variable smoothing lengths.
+# TODO: Sort also particle spacings for variable smoothing lengths.
 function sort_particles!(system::RequiresSortingSystem, v, u,
                          nhs::GridNeighborhoodSearch, semi)
     cell_coords = allocate(semi.parallelization_backend, SVector{ndims(system), Int},
@@ -153,6 +153,7 @@ function sort_system!(system, v, u, perm, buffer::Nothing)
     system_velocity .= system_velocity[:, perm]
     system_pressure .= system_pressure[perm]
     system_density .= system_density[perm]
+    system.mass .= system.mass[perm]
 
     return system
 end

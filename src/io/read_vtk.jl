@@ -6,6 +6,8 @@ Read a VTK file and return a `NamedTuple` with keys
 `:coordinates`, `:velocity`, `:density`, `:pressure`, `:particle_spacing`, `:time`, `:initial_condition`,
 plus any custom quantities.
 Missing fields are zero-filled; `:particle_spacing` is scalar if constant, otherwise per-particle.
+If the file contains a `mass` field, it is used for the masses of the `InitialCondition`.
+Otherwise, the masses are computed from the density and the particle spacing.
 
 # Arguments
 - `file`: Name of the VTK file to be loaded.
@@ -120,10 +122,13 @@ function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing,
     results = NamedTuple(results)
 
     if create_initial_condition
+        # Use the masses from the file if available, since they might not be constant.
+        # Otherwise, the masses are computed from the density and the particle spacing.
+        mass = haskey(results, :mass) ? results.mass : nothing
         ic = InitialCondition(; coordinates=results.coordinates,
                               particle_spacing=results.particle_spacing,
                               velocity=results.velocity, density=results.density,
-                              pressure=results.pressure)
+                              pressure=results.pressure, mass)
 
         return (; results..., initial_condition=ic)
     else
