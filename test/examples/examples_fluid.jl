@@ -556,20 +556,60 @@
     @trixi_testset "fluid/vortex_street_2d.jl with callback-updated density diffusion" begin
         density_diffusion = DensityDiffusionAntuono(; delta=0.1,
                                                     update_everystage=false)
+
+        # Record which fluid particles are active right before the `UpdateCallback`,
+        # which activates particles in the open boundary before updating the DD.
+        # The fluid system is the first system in the semidiscretization.
+        active_before_update = Bool[]
+        function record_active_particles!(integrator)
+            fluid_system_ = integrator.p.semi.systems[1]
+            copy!(active_before_update, fluid_system_.buffer.active_particle)
+
+            # This callback doesn't modify the ODE state.
+            TrixiParticles.derivative_discontinuity!(integrator, false)
+
+            return integrator
+        end
+        record_callback = TrixiParticles.DiscreteCallback((u, t, integrator) -> true,
+                                                          record_active_particles!,
+                                                          save_positions=(false, false))
+
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
                                                   "vortex_street_2d.jl");
                                          tspan=(0.0, 0.015), density_diffusion,
-                                         saving_callback=nothing)
+                                         callbacks=CallbackSet(record_callback,
+                                                               UpdateCallback()))
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol) == 0
 
-        # The final time t = 0.015 is right after activating inactive particles.
-        # The following test fails if the DD is not updated AFTER the open boundaries.
-        normalized_density_gradient = fluid_system.cache.density_diffusion_normalized_density_gradient
-        @test all(TrixiParticles.each_integrated_particle(fluid_system)) do particle
-            !iszero(sum(abs, @view(normalized_density_gradient[:, particle])))
-        end
+        # Particles that were activated in the last `UpdateCallback`.
+        # This must not be empty, or the following test is meaningless.
+        active_particle = fluid_system.buffer.active_particle
+        newly_activated = findall(active_particle .& .!active_before_update)
+        @test !isempty(newly_activated)
+
+        # The DD must have been updated after activating these particles, so the cache
+        # must match a recomputation from the final state.
+        # Note that `update_density_diffusion!` itself is tested in the unit tests.
+        cached_gradient = copy(fluid_system.cache.density_diffusion_normalized_density_gradient)
+
+        v_ode, u_ode = copy.(sol.u[end].x)
+        v = TrixiParticles.wrap_v(v_ode, fluid_system, semi)
+        u = TrixiParticles.wrap_u(u_ode, fluid_system, semi)
+        TrixiParticles.update_systems_and_nhs(v_ode, u_ode, semi, sol.t[end])
+        TrixiParticles.update_density_diffusion!(density_diffusion, v, u, fluid_system,
+                                                 semi)
+        recomputed_gradient = fluid_system.cache.density_diffusion_normalized_density_gradient
+
+        @test all(isfinite, cached_gradient[:, newly_activated])
+        @test isapprox(cached_gradient[:, newly_activated],
+                       recomputed_gradient[:, newly_activated], rtol=1e-12)
+
+        # The same must hold for all other active particles.
+        active = collect(TrixiParticles.each_integrated_particle(fluid_system))
+        @test isapprox(cached_gradient[:, active], recomputed_gradient[:, active],
+                       rtol=1e-12)
     end
 
     @trixi_testset "fluid/lid_driven_cavity_2d.jl (EDAC)" begin
