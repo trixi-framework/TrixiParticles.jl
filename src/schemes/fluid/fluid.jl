@@ -20,6 +20,14 @@ end
     return v
 end
 
+# This function is intended to be used internally to set the mass
+# of particles that are transferred between systems in a callback.
+@inline function set_particle_mass!(system::AbstractFluidSystem, particle, mass)
+    system.mass[particle] = mass
+
+    return system
+end
+
 function create_cache_density(initial_condition, ::SummationDensity)
     density = similar(initial_condition.density)
 

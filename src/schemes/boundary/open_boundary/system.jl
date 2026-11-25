@@ -290,6 +290,12 @@ end
     return v
 end
 
+@inline function set_particle_mass!(system::OpenBoundarySystem, particle, mass)
+    system.mass[particle] = mass
+
+    return system
+end
+
 function calculate_dt(v_ode, u_ode, cfl_number, system::OpenBoundarySystem, semi)
     # Open boundaries don't affect the timestep calculation
     return Inf
@@ -546,6 +552,10 @@ end
     # Transfer pressure
     pressure = current_pressure(v_old, system_old, particle_old)
     set_particle_pressure!(v_new, system_new, particle_new, pressure)
+
+    # Transfer mass, which is not constant when the density is not constant.
+    mass = hydrodynamic_mass(system_old, particle_old)
+    set_particle_mass!(system_new, particle_new, mass)
 
     nonperiodic_coords = current_coords(u_old, system_old, particle_old)
     particle_coords = PointNeighbors.periodic_coords(nonperiodic_coords, periodic_box)

@@ -211,9 +211,18 @@
                             nparticles(fluid_system))
             u[1, particle] = x_new
 
+            # The fluid buffer slot has the mass `1000 * 0.1^2 = 10` of the fluid particles,
+            # while the boundary particle has the mass `rest_density * 0.1^2`.
+            mass = system.mass[particle]
+            @test mass == boundary_zone.rest_density * particle_spacing^2
+            @test fluid_system.mass[particle_new] != mass
+
             TrixiParticles.convert_particle!(system, fluid_system, boundary_zone,
                                              particle, particle_new, v, u, v_fluid,
                                              u_fluid, nothing)
+
+            # The mass is transferred with the particle.
+            @test fluid_system.mass[particle_new] == mass
 
             # The particle has been transferred to the fluid and recycled in its zone.
             @test fluid_system.buffer.active_particle[particle_new]
@@ -223,6 +232,35 @@
                                                                                    particle))
             @test TrixiParticles.current_density(v, system, particle) ==
                   boundary_zone.rest_density
+        end
+
+        @testset "Fluid Particle Entering Boundary Zone" begin
+            # Fluid particles have the mass `1000 * 0.1^2 = 10`, while the boundary buffer slot
+            # has the mass `1.0 * 0.1^2 = 0.01` of the first boundary zone.
+            particle = 1
+            particle_new = nparticles(system)
+            @test system.mass[particle_new] != fluid_system.mass[particle]
+
+            u = copy(system.initial_condition.coordinates)
+            v = zeros(TrixiParticles.v_nvariables(system), nparticles(system))
+            u_fluid = copy(fluid_system.initial_condition.coordinates)
+            v_fluid = zeros(TrixiParticles.v_nvariables(fluid_system),
+                            nparticles(fluid_system))
+
+            function active_mass()
+                return sum(fluid_system.mass[fluid_system.buffer.active_particle]) +
+                       sum(system.mass[system.buffer.active_particle])
+            end
+            mass_before = active_mass()
+
+            TrixiParticles.convert_particle!(fluid_system, system, particle, particle_new,
+                                             v, u, v_fluid, u_fluid, nothing)
+
+            # Relabeling the particle from fluid to boundary conserves the total mass.
+            @test system.buffer.active_particle[particle_new]
+            @test !fluid_system.buffer.active_particle[particle]
+            @test system.mass[particle_new] == fluid_system.mass[particle]
+            @test active_mass() == mass_before
         end
     end
 end
