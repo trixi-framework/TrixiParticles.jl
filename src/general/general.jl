@@ -4,6 +4,8 @@
 include("density_calculators.jl")
 include("corrections.jl")
 include("smoothing_kernels.jl")
+# TODO remove in the next major release.
+include("deprecated.jl")
 include("initial_condition.jl")
 include("buffer.jl")
 include("interpolation.jl")
