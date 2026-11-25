@@ -59,6 +59,63 @@
         @test ode_restart.p.semi.systems[1].mass == [1.0, 2.0]
     end
 
+    @trixi_testset "Non-Constant Particle Masses in Open Boundary" begin
+        particle_spacing = 0.1
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        state_equation = StateEquationCole(sound_speed=10.0, reference_density=1000.0,
+                                           exponent=7)
+
+        # Two fluid particles in front of the boundary face at `x = 0`.
+        fluid_ic = InitialCondition(; coordinates=[0.05 0.05; 0.05 0.15], density=1000.0,
+                                    particle_spacing)
+
+        # One layer of two open boundary particles along the boundary face `[0, 0.2]`.
+        # Their default mass is `1000 * 0.1^2 = 10`.
+        boundary_zone = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 0.2]),
+                                     face_normal=(1.0, 0.0), density=1000.0,
+                                     particle_spacing, open_boundary_layers=1)
+
+        function create_semi(masses)
+            fluid_system = WeaklyCompressibleSPHSystem(fluid_ic; state_equation,
+                                                       smoothing_kernel,
+                                                       smoothing_length=1.2 *
+                                                                        particle_spacing,
+                                                       density_calculator=ContinuityDensity(),
+                                                       buffer_size=1)
+            open_boundary = OpenBoundarySystem(boundary_zone; fluid_system, buffer_size=1,
+                                               boundary_model=BoundaryModelDynamicalPressureZhang())
+
+            # Particles with different masses that entered the open boundary from the fluid.
+            # The third particle is an inactive buffer particle.
+            open_boundary.mass[1:2] .= masses
+
+            # Inactive buffer particles require a neighborhood search that supports them.
+            # The domain encloses all particles with a margin of a few particle spacings.
+            cell_list = FullGridCellList(min_corner=(-0.5, -0.5), max_corner=(0.5, 0.7))
+            nhs = GridNeighborhoodSearch{2}(; cell_list, update_strategy=ParallelUpdate())
+
+            return Semidiscretization(fluid_system, open_boundary,
+                                      neighborhood_search=nhs)
+        end
+
+        semi = create_semi([1.0, 2.0])
+        ode = semidiscretize(semi, (0.0, 1.0))
+
+        # Write the state to VTK files, which are then used as restart files.
+        output_directory = mktempdir()
+        trixi2vtk(ode.u0, semi, 0.0; output_directory, iter=0)
+        restart_files = (joinpath(output_directory, "fluid_1_0.vtu"),
+                         joinpath(output_directory, "open_boundary_1_0.vtu"))
+
+        # Create the same systems again, but with the default masses.
+        semi_restart = create_semi([10.0, 10.0])
+        ode_restart = semidiscretize(semi_restart, (0.0, 1.0); restart_with=restart_files)
+
+        # After the restart, the masses from the restart file must be used
+        # for the two active open boundary particles.
+        @test ode_restart.p.semi.systems[2].mass[1:2] == [1.0, 2.0]
+    end
+
     @trixi_testset "Poiseuille Flow Half-Simulation Restart" begin
         # Run full simulation
         trixi_include(@__MODULE__,

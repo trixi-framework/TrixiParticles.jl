@@ -455,6 +455,8 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySystem)
                        for particle in eachparticle(system)]
     vtk["zone_id"] = [system.boundary_zone_indices[particle]
                       for particle in eachparticle(system)]
+    vtk["mass"] = [hydrodynamic_mass(system, particle)
+                   for particle in eachparticle(system)]
 
     if any(pm -> isa(pm, AbstractPressureModel), system.cache.pressure_reference_values)
         for (i, pressure_model) in enumerate(system.cache.pressure_reference_values)

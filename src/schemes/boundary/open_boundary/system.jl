@@ -784,6 +784,15 @@ function restore_previous_state!(system::OpenBoundarySystem, file)
     values = vtk2trixi(file; create_initial_condition=false)
     system.boundary_zone_indices[each_integrated_particle(system)] .= values.zone_id
 
+    # Restore the per-particle masses, which are not constant when particles with
+    # different masses are transferred between the fluid and the open boundary.
+    # Older restart files don't contain masses, so we keep the initial masses in this case.
+    # TODO: Remove this backwards compatibility check in the future.
+    if haskey(values, :mass)
+        n_active_particles = length(values.mass)
+        system.mass[1:n_active_particles] .= values.mass
+    end
+
     if any(pm -> isa(pm, AbstractPressureModel), system.cache.pressure_reference_values)
         for (i, pressure_model) in enumerate(system.cache.pressure_reference_values)
             if pressure_model isa AbstractPressureModel
