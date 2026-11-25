@@ -38,8 +38,8 @@ concurrency:
 jobs:
   build:
     name: Run Tests (Julia ${{ matrix.version }} - ${{ matrix.os }})
-    # Skip CI for draft PRs.
-    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    # Keep the test matrix running for the combined-fixes draft (#1252).
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft || github.event.pull_request.number == 1252
     runs-on: ${{ matrix.os }}
     strategy:
       # Don't cancel all running jobs when one job fails

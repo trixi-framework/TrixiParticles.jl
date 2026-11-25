@@ -30,8 +30,8 @@ Boundary model for [`WallBoundarySystem`](@ref).
                                 uses a correction with an asymmetric kernel gradient
                                 (see [Corrections](@ref boundary_corrections)).
                                 For a [`TotalLagrangianSPHSystem`](@ref) or a [`RigidBodySystem`](@ref),
-                                it must be `nothing`, since corrections at the boundary particles
-                                of structures are not supported yet.
+                                [`KernelCorrection`](@ref) and [`MixedKernelGradientCorrection`](@ref)
+                                require all fluid systems to use one of these corrections as well.
 - `viscosity`:                  Slip (default) or no-slip condition. See description below for further
                                 information.
 - `clip_negative_pressure=false`: Clip negative boundary pressures to avoid sticking
@@ -87,6 +87,46 @@ struct BoundaryModelDummyParticles{DC, SE, CLIP, ELTYPE <: Real, VECTOR, K, V, C
     end
 end
 
+@doc raw"""
+    BoundaryModelDummyParticles(initial_condition;
+                                fluid_system::AbstractFluidSystem,
+                                initial_density=initial_condition.density,
+                                hydrodynamic_mass=initial_condition.mass,
+                                boundary_density_calculator=AdamiPressureExtrapolation(),
+                                smoothing_kernel=system_smoothing_kernel(fluid_system),
+                                smoothing_length=initial_smoothing_length(fluid_system),
+                                viscosity=nothing,
+                                state_equation=system_state_equation(fluid_system),
+                                correction=system_correction(fluid_system),
+                                clip_negative_pressure=false,
+                                reference_particle_spacing=default_reference_particle_spacing(fluid_system))
+
+High-level convenience constructor for dummy-particle wall models that infers the kernel,
+smoothing length, correction, and equation-of-state-related settings from the adjacent
+`fluid_system`.
+"""
+function BoundaryModelDummyParticles(initial_condition;
+                                     fluid_system::AbstractFluidSystem,
+                                     initial_density=initial_condition.density,
+                                     hydrodynamic_mass=initial_condition.mass,
+                                     boundary_density_calculator=AdamiPressureExtrapolation(),
+                                     smoothing_kernel=system_smoothing_kernel(fluid_system),
+                                     smoothing_length=initial_smoothing_length(fluid_system),
+                                     viscosity=nothing,
+                                     state_equation=system_state_equation(fluid_system),
+                                     correction=system_correction(fluid_system),
+                                     clip_negative_pressure=false,
+                                     reference_particle_spacing=default_reference_particle_spacing(fluid_system))
+    return BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
+                                       boundary_density_calculator, smoothing_kernel,
+                                       smoothing_length;
+                                       viscosity, state_equation, correction,
+                                       clip_negative_pressure,
+                                       reference_particle_spacing)
+end
+
+# The default constructor needs to be accessible for Adapt.jl to work with this struct.
+# See the comments in general/gpu.jl for more details.
 function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                      density_calculator, smoothing_kernel,
                                      smoothing_length; viscosity=nothing,
@@ -108,6 +148,7 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
 
     # The pressure extrapolation already provides the sum of the kernel weights to interpolate
     # the fluid velocity for the no-slip condition. Other density calculators need it as well.
+    # Use floating-point velocity storage even when the initial densities are integers.
     if !isnothing(viscosity) && !haskey(cache, :volume)
         cache = (; cache..., volume=similar(cache.wall_velocity, n_particles))
     end
@@ -126,6 +167,15 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                        density_calculator, smoothing_kernel,
                                        smoothing_length, viscosity, correction, cache,
                                        clip_negative_pressure)
+end
+
+@inline function default_reference_particle_spacing(fluid_system)
+    if hasproperty(fluid_system, :cache) &&
+       hasproperty(fluid_system.cache, :reference_particle_spacing)
+        return fluid_system.cache.reference_particle_spacing
+    end
+
+    return zero(eltype(fluid_system))
 end
 
 @inline function Base.ndims(boundary_model::BoundaryModelDummyParticles)
@@ -487,7 +537,10 @@ function compute_density!(boundary_model, ::SummationDensity, system, v, u, v_od
     (; cache) = boundary_model
     (; density) = cache # Density is in the cache for SummationDensity
 
-    summation_density!(system, semi, u, u_ode, density; particles=eachparticle(system))
+    # Use the kernel and smoothing length of the boundary model. For structures, this also
+    # selects the hydrodynamic neighborhood (see `has_hydrodynamic_neighborhood`).
+    summation_density!(system, semi, u, u_ode, density; particles=eachparticle(system),
+                       kernel_data=boundary_model)
 end
 
 function compute_density!(boundary_model, ::PressureBoundaries, system, v, u, v_ode, u_ode,
@@ -619,22 +672,37 @@ function compute_pressure!(boundary_model,
     return boundary_model
 end
 
-# The wall velocity for `AdamiPressureExtrapolation` and `BernoulliPressureExtrapolation`
-# is computed later in the pressure extrapolation.
 @inline function interpolate_wall_velocity!(boundary_model, system, v, u, v_ode, u_ode,
                                             semi)
     return boundary_model
 end
 
-function interpolate_wall_velocity!(boundary_model::BoundaryModelDummyParticles{PressureMirroring},
+function interpolate_wall_velocity!(boundary_model::BoundaryModelDummyParticles{<:Union{AdamiPressureExtrapolation,
+                                                                                        BernoulliPressureExtrapolation,
+                                                                                        SummationDensity,
+                                                                                        ContinuityDensity,
+                                                                                        PressureMirroring,
+                                                                                        PressureZeroing,
+                                                                                        PressureBoundaries}},
                                     system, v, u, v_ode, u_ode, semi)
     (; cache, viscosity) = boundary_model
 
     # Without a viscosity model, the wall velocity is not used.
     isnothing(viscosity) && return boundary_model
 
+    # Explicit fluids interpolate this velocity together with the extrapolated pressure.
+    # IISPH needs it before prediction, when the pressure cannot yet be extrapolated.
+    if boundary_model.density_calculator isa Union{AdamiPressureExtrapolation,
+             BernoulliPressureExtrapolation} &&
+       !any(neighbor -> neighbor isa ImplicitIncompressibleSPHSystem, semi.systems)
+        return boundary_model
+    end
+
     # For the no-slip condition, interpolate the fluid velocity like the pressure extrapolation
-    # of `AdamiPressureExtrapolation`, but without extrapolating the pressure.
+    # of `AdamiPressureExtrapolation`. Calculators that don't extrapolate the pressure only
+    # interpolate the fluid velocity. With IISPH, the extrapolated pressure of
+    # `AdamiPressureExtrapolation` and `BernoulliPressureExtrapolation` is overwritten
+    # in `compute_pressure!`, since the pressure of the fluid is not available yet.
     # Set `volume` and `wall_velocity` to zero.
     reset_cache!(cache, viscosity)
 
@@ -757,9 +825,16 @@ end
                                 kernel_weight, particle, neighbor)
 end
 
-# With `PressureMirroring`, the fluid pressure is used directly in the pair interaction.
-# Only the fluid velocity is interpolated to the boundary particles for the no-slip condition.
-@propagate_inbounds function boundary_pressure_inner!(boundary_model, ::PressureMirroring,
+# Only `AdamiPressureExtrapolation` and `BernoulliPressureExtrapolation` extrapolate the
+# pressure. With `PressureMirroring`, the fluid pressure is used directly in the pair
+# interaction. For all density calculators, the fluid velocity is interpolated to the
+# boundary particles for the no-slip condition.
+@propagate_inbounds function boundary_pressure_inner!(boundary_model,
+                                                      ::Union{SummationDensity,
+                                                              ContinuityDensity,
+                                                              PressureMirroring,
+                                                              PressureZeroing,
+                                                              PressureBoundaries},
                                                       system,
                                                       neighbor_system::Union{AbstractFluidSystem,
                                                                              OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang}},

@@ -5,6 +5,7 @@
                           smoothing_length=shape.particle_spacing,
                           smoothing_length_interpolation=smoothing_length,
                           is_boundary=false, boundary_compress_factor=1,
+                          boundary_thickness=nothing,
                           neighborhood_search=GridNeighborhoodSearch{ndims(shape)}(),
                           background_pressure, place_on_shell=false, fixed_system=false)
 
@@ -26,10 +27,6 @@ For more information on the methods, see [particle packing](@ref particle_packin
 - `is_boundary`:           When `shape` is inside the geometry that was used to create
                            `signed_distance_field`, set `is_boundary=false`.
                            Otherwise (`shape` is the sampled boundary), set `is_boundary=true`.
-                           The thickness of the boundary is specified by creating
-                           `signed_distance_field` with:
-                              - `use_for_boundary_packing=true`
-                              - `max_signed_distance=boundary_thickness`
                            See [`SignedDistanceField`](@ref).
 - `fixed_system`:          When set to `true`, the system remains static, meaning particles
                            will not move and the `InitialCondition` will stay unchanged.
@@ -54,6 +51,10 @@ For more information on the methods, see [particle packing](@ref particle_packin
                               Compression can be useful for highly convex geometries,
                               where the boundary volume increases significantly while the mass of the boundary particles remains constant.
                               Recommended values are `0.8` or `0.9`.
+- `boundary_thickness`: Thickness of the sampled boundary when `is_boundary=true`.
+                        By default, this is `signed_distance_field.max_signed_distance`.
+                        If [`sample_boundary`](@ref) used a smaller `boundary_thickness`
+                        than the `SignedDistanceField`, pass the same value here.
 """
 struct ParticlePackingSystem{S, F, NDIMS, ELTYPE <: Real, PR, C, AV,
                              IC, M, D, K, N, SD} <: AbstractFluidSystem{NDIMS}
@@ -106,6 +107,7 @@ function ParticlePackingSystem(shape::InitialCondition;
                                smoothing_length=shape.particle_spacing,
                                smoothing_length_interpolation=smoothing_length,
                                is_boundary=false, boundary_compress_factor=1,
+                               boundary_thickness=nothing,
                                neighborhood_search=GridNeighborhoodSearch{ndims(shape)}(),
                                background_pressure, place_on_shell=false,
                                fixed_system=false)
@@ -147,10 +149,30 @@ function ParticlePackingSystem(shape::InitialCondition;
     # Its value is negative if the particle is inside the geometry.
     # Otherwise (if outside), the value is positive.
     if is_boundary
-        offset = place_on_shell ? shape.particle_spacing : shape.particle_spacing / 2
+        if isnothing(signed_distance_field)
+            fixed_system ||
+                throw(ArgumentError("`signed_distance_field` is required when `is_boundary=true`"))
 
-        shift_length = -boundary_compress_factor *
-                       signed_distance_field.max_signed_distance - offset
+            shift_length = zero(ELTYPE)
+        else
+            boundary_thickness_ = isnothing(boundary_thickness) ?
+                                  signed_distance_field.max_signed_distance :
+                                  convert(ELTYPE, boundary_thickness)
+
+            if boundary_thickness_ > signed_distance_field.max_signed_distance
+                throw(ArgumentError("`boundary_thickness` is greater than " *
+                                    "`max_signed_distance` of `SignedDistanceField`."))
+            end
+
+            if boundary_thickness_ < zero(boundary_thickness_)
+                throw(ArgumentError("`boundary_thickness` must be non-negative"))
+            end
+
+            offset = place_on_shell ? shape.particle_spacing : shape.particle_spacing / 2
+
+            shift_length = -boundary_compress_factor *
+                           boundary_thickness_ - offset
+        end
     else
         shift_length = place_on_shell ? zero(ELTYPE) : shape.particle_spacing / 2
     end

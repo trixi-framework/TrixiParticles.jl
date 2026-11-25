@@ -4,6 +4,65 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.5.5
+
+### API Changes
+
+- `load_geometry` now closes 2D `.asc` and `.dxf` curves by default. Use `close_curve=false`
+  for intentional open curves. `ComplexShape`, geometric `intersect` and `setdiff`, and
+  `SignedDistanceField` with `use_for_boundary_packing=true` now require closed
+  geometries (#1187).
+- Boundary models of `TotalLagrangianSPHSystem` and `RigidBodySystem` now support
+  `SummationDensity` and kernel corrections over the current hydrodynamic neighborhood.
+  A boundary model with `KernelCorrection` or `MixedKernelGradientCorrection` requires
+  all fluid systems to use one of these corrections as well (#1351).
+
+### Features
+
+- Added `BoundaryModelDummyParticles(initial_condition; fluid_system, ...)`, which infers
+  kernel, smoothing length, correction, and state equation from the adjacent fluid system.
+  `OpenBoundarySystem` now defaults to `BoundaryModelMirroringTafuni` and infers its
+  buffer size from the fluid system (#1145).
+
+### Important Bugfixes
+
+- Fixed plane interpolation coordinates to match the requested bounds, filtering of
+  tensor-valued interpolation results, and wall-velocity interpolation with
+  `cut_off_bnd=false` (#1183).
+- Fixed stale connectivity, normals, and bounding boxes after geometry face deletion.
+  The new `delete_faces(geometry, indices)` function returns a geometry with the selected
+  faces removed and derived data rebuilt (#1190).
+- Fixed zero vertex normals in triangle meshes being normalized to `NaN` for degenerate
+  or duplicated faces (#1191).
+- Fixed `RectangularTank` to trim overlapping fluid regions to the tank dimensions,
+  handle empty fluid regions, and validate sizes, boundary layers, and spacing ratio (#1198).
+- Fixed `sample_boundary` to respect `boundary_thickness` and the offset implied by
+  `place_on_shell`. Added a matching `boundary_thickness` keyword to `ParticlePackingSystem`
+  so boundary packing uses the sampled thickness (#1199).
+- Fixed validation of `SphereShape` cutout bounds and `extrude_geometry` direction
+  dimensionality, zero directions, and non-positive extrusion layer counts (#1200).
+- Fixed 3D `BoundaryZone` validation to reject collinear or non-orthogonal face edges
+  and inconsistent face normals before sampling particles (#1202).
+- Fixed surface-tension configuration checks across fluid systems and corrected the
+  Morris surface tension curvature when more than one fluid system uses a surface
+  normal method (#1214).
+- Fixed configuration validation to reject mixing `ImplicitIncompressibleSPHSystem`
+  with `EntropicallyDampedSPHSystem` (#1217).
+- Fixed EDAC kernel and gradient correction cache updates and applied Shepard density
+  correction when using `SummationDensity` (#1218).
+- Fixed double-counted Monaghan–Kajtar repulsion in the TVF momentum and
+  background-pressure shifting operators (#1344).
+- Shared the physical fluid-pair momentum operator with structure reactions so
+  transport-only terms do not contribute to structural loads (#1345).
+- Fixed correction-cache updates after open-boundary interpolation and particle transfers
+  so callback-based particle shifting uses current density and gradients (#1353).
+- Fixed the no-slip wall velocity for `SummationDensity`, `ContinuityDensity`,
+  `PressureZeroing`, and `PressureBoundaries`. With IISPH, Adami and Bernoulli
+  extrapolation now provide the wall velocity before advection prediction (#1361).
+- Fixed corrected WCSPH pressure forces at Adami/Bernoulli dummy boundaries to use the
+  fluid-side gradient, removing spurious constant-pressure forces while retaining
+  the exact opposite structural reaction (#1369).
+
 ## Version 0.5.4
 
 ### API Changes
