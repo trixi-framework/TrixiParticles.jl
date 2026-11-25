@@ -72,7 +72,7 @@ struct Polygon{NDIMS, ELTYPE}
             push!(edge_normals, edge_normal)
         end
 
-        if length(edge_vertices) < 3
+        if length(edge_vertices) < 3 && isapprox(first(vertices), last(vertices))
             throw(ArgumentError("polygon requires at least three non-degenerate edges"))
         end
 
@@ -157,6 +157,15 @@ function rebuild_polygon_from_edges(edge_vertices, edge_normals)
         end
 
         return (id1, id2)
+    end
+
+    # Preserve the repeated closing vertex used by the polygon constructor, but only
+    # when the retained edges still form a continuous closed traversal.
+    if all(i -> isapprox(edge_vertices[i][2],
+                         edge_vertices[mod1(i + 1, length(edge_vertices))][1]),
+           eachindex(edge_vertices))
+        push!(vertices, first(vertices))
+        edge_vertices_ids[end] = (edge_vertices_ids[end][1], length(vertices))
     end
 
     min_corner = SVector([minimum(v[i] for v in vertices) for i in 1:NDIMS]...)

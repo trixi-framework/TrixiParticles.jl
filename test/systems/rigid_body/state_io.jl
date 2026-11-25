@@ -158,6 +158,9 @@ end
 
     @test_throws ArgumentError Semidiscretization(fluid_system, rigid_system)
 
+    contact_only_wall = WallBoundarySystem(rigid_ic, nothing)
+    @test_throws ArgumentError Semidiscretization(fluid_system, contact_only_wall)
+
     rigid_boundary_model = BoundaryModelDummyParticles(density, mass,
                                                        SummationDensity(),
                                                        smoothing_kernel,

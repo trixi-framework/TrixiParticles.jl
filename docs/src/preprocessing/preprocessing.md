@@ -318,8 +318,11 @@ Pages = [joinpath("preprocessing", "geometries", "triangle_mesh.jl")]
 ```
 
 ```@docs
-TrixiParticles.is_closed_geometry
 delete_faces
+```
+
+```@docs
+TrixiParticles.is_closed_geometry
 ```
 
 

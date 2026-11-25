@@ -190,8 +190,8 @@ end
 
     @test mixed_boundary_rhs_is_valid(backend)
 
-    # Exercise the corrected fluid-structure reaction path on the selected backend.
-    function corrected_structure_rhs_is_valid(kind, structure_kind, backend)
+    # Exercise the corrected fluid-TLSPH reaction path on the selected backend.
+    function corrected_structure_rhs_is_valid(kind, backend)
         spacing = 0.1f0
         density = 1000.0f0
         kernel = WendlandC6Kernel{2}()
@@ -200,6 +200,7 @@ end
                                            reference_density=density, exponent=1)
         fluid_initial = RectangularShape(spacing, (4, 3), (0.0f0, 0.0f0);
                                          density, coordinates_eltype=Float32)
+        fluid_initial.pressure .= range(1.0f0, 2.0f0; length=length(fluid_initial.pressure))
         fluid = if kind == :wcsph
             WeaklyCompressibleSPHSystem(fluid_initial; smoothing_kernel=kernel,
                                         smoothing_length,
@@ -225,13 +226,9 @@ end
                                                      smoothing_length;
                                                      state_equation,
                                                      gradient_correction=GradientCorrection())
-        structure = if structure_kind == :rigid
-            RigidBodySystem(structure_initial; boundary_model, particle_spacing=spacing)
-        else
-            TotalLagrangianSPHSystem(structure_initial; smoothing_kernel=kernel,
-                                     smoothing_length, young_modulus=0.0f0,
-                                     poisson_ratio=0.0f0, boundary_model)
-        end
+        structure = TotalLagrangianSPHSystem(structure_initial; smoothing_kernel=kernel,
+                                             smoothing_length, young_modulus=0.0f0,
+                                             poisson_ratio=0.0f0, boundary_model)
 
         semi = Semidiscretization(fluid, structure; neighborhood_search=nothing,
                                   parallelization_backend=backend)
@@ -246,23 +243,20 @@ end
                      if system isa TrixiParticles.AbstractFluidSystem)
         structure = only(system
                          for system in ode.p.semi.systems
-                         if system isa Union{RigidBodySystem, TotalLagrangianSPHSystem})
+                         if system isa TotalLagrangianSPHSystem)
         dv_fluid = Array(TrixiParticles.wrap_v(dv_ode, fluid, ode.p.semi))
         fluid_force = vec(sum(Array(fluid.mass)' .* view(dv_fluid, 1:2, :); dims=2))
-        structure_force = if structure isa RigidBodySystem
-            vec(sum(Array(structure.force_per_particle); dims=2))
-        else
-            dv_structure = Array(TrixiParticles.wrap_v(dv_ode, structure, ode.p.semi))
-            vec(sum(Array(structure.mass)' .* view(dv_structure, 1:2, :); dims=2))
-        end
+        dv_structure = Array(TrixiParticles.wrap_v(dv_ode, structure, ode.p.semi))
+        structure_force = vec(sum(Array(structure.mass)' .* view(dv_structure, 1:2, :);
+                                  dims=2))
         force_scale = norm(fluid_force) + norm(structure_force)
 
         return all(isfinite, Array(dv_ode)) && force_scale > eps(Float32) &&
                norm(fluid_force + structure_force) / force_scale < 2e-4
     end
 
-    for kind in (:wcsph, :edac), structure_kind in (:rigid, :tlsph)
-        @test corrected_structure_rhs_is_valid(kind, structure_kind, backend)
+    for kind in (:wcsph, :edac)
+        @test corrected_structure_rhs_is_valid(kind, backend)
     end
 
     spacing = 0.1f0
@@ -401,8 +395,11 @@ end
     # operator. This checks density and pressure values, not only finiteness.
     v[end, :] .= 1000.0f0
     TrixiParticles.reinit_density!(system, v, u, v_ode, u_ode, ode.p.semi)
-    @test Array(v[end, :])≈fill(1000.0f0, size(v, 2)) rtol=2e-5 atol=2e-5
-    @test maximum(abs, Array(system.pressure)) < 1.0f-2
+    density_atol = 8eps(1000.0f0)
+    @test Array(v[end, :])≈fill(1000.0f0, size(v, 2)) rtol=0 atol=density_atol
+    # The linear state equation amplifies Float32 density roundoff by the sound speed squared.
+    pressure_atol = state_equation(1000.0f0 + density_atol)
+    @test maximum(abs, Array(system.pressure)) <= pressure_atol
 end
 
 @testset verbose=true "Examples $TRIXIPARTICLES_TEST_" begin
@@ -475,6 +472,50 @@ end
                                                                           "dam_break_2d_gpu.jl"),
                                                                  tspan=(0.0f0, 0.1f0),
                                                                  parallelization_backend=Main.parallelization_backend)
+            end
+        end
+
+        @trixi_testset "fluid/dam_break_2d_iisph.jl Float32 + Float64 coordinates" begin
+            if Main.supports_double_precision
+                # Load the tank of the dam break to define the cell list
+                trixi_include_changeprecision(Float32, @__MODULE__,
+                                              joinpath(examples_dir(), "fluid",
+                                                       "dam_break_2d.jl");
+                                              sol=nothing, ode=nothing)
+                tank_ = @invokelatest (@__MODULE__).tank
+                min_corner = minimum(tank_.boundary.coordinates, dims=2)
+                max_corner = maximum(tank_.boundary.coordinates, dims=2)
+                cell_list = FullGridCellList(; min_corner, max_corner)
+
+                # Without and with the wall pressure in the pressure solve
+                for boundary_density_calculator in
+                    (PressureZeroing(), AdamiPressureExtrapolation())
+                    @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                                     joinpath(examples_dir(),
+                                                                              "fluid",
+                                                                              "dam_break_2d_iisph.jl"),
+                                                                     tspan=(0.0f0, 0.1f0),
+                                                                     neighborhood_search=GridNeighborhoodSearch{2}(;
+                                                                                                                   cell_list),
+                                                                     parallelization_backend=Main.parallelization_backend,
+                                                                     boundary_density_calculator=boundary_density_calculator) [
+                        r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
+                        r"┌ Info: The desired tank length in y-direction .*\n",
+                        r"└ New tank length in y-direction.*\n"
+                    ]
+                    # See the comment in the first test about `@invokelatest`
+                    sol_ = @invokelatest (@__MODULE__).sol
+                    @test sol_.retcode == (@invokelatest (@__MODULE__).ReturnCode).Success
+                    v_ode, u_ode = sol_.u[end].x
+                    backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
+                    @test backend == Main.parallelization_backend
+                    @test eltype(v_ode) == Float32
+                    @test eltype(u_ode) == Float64
+                    fluid = first(sol_.prob.p.semi.systems)
+                    @test eltype(fluid) == Float32
+                    @test maximum(Array(fluid.pressure)) > 0
+                    @test all(isfinite, Array(u_ode))
+                end
             end
         end
 
@@ -948,6 +989,42 @@ end
             # Check that the postprocess callback was called and computed values
             @test !isempty(pp.affect!.func)
             @test !isempty(pp.affect!.times)
+        end
+    end
+
+    @testset verbose=true "Preprocessing" begin
+        @trixi_testset "preprocessing/packing_2d.jl" begin
+            particle_spacing = 0.1f0
+            boundary_thickness = 5 * particle_spacing
+            filename = "circle"
+            file = pkgdir(TrixiParticles, "examples", "preprocessing", "data",
+                          filename * ".asc")
+            geometry = load_geometry(file)
+
+            # Neighborhood search with `FullGridCellList` for GPU compatibility
+            search_radius = 2 * boundary_thickness
+            min_corner = Float32.(geometry.min_corner .- search_radius)
+            max_corner = Float32.(geometry.max_corner .+ search_radius)
+            cell_list = FullGridCellList(; min_corner, max_corner)
+            neighborhood_search = GridNeighborhoodSearch{2}(; cell_list)
+
+            @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                             joinpath(examples_dir(),
+                                                                      "preprocessing",
+                                                                      "packing_2d.jl");
+                                                             neighborhood_search,
+                                                             parallelization_backend=Main.parallelization_backend,
+                                                             tspan=(0.0f0, 0.1f0)) [
+                r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n"
+            ]
+            @test sol.retcode == ReturnCode.Success
+            v_ode, u_ode = sol.u[end].x
+            backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
+            @test backend == Main.parallelization_backend
+            @test eltype(v_ode) == Float32
+            @test eltype(u_ode) == Float32
+            @test packed_ic.coordinates isa Matrix{Float32}
+            @test packed_boundary_ic.coordinates isa Matrix{Float32}
         end
     end
 

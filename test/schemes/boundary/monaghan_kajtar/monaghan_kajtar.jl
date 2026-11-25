@@ -72,6 +72,18 @@
         # The middle column of fluid particles should experience weaker accelerations
         @test isapprox(dv[1, [2, 5, 8]], [-26.052449, -95.162888, -26.052449])
 
+        regularized_model = BoundaryModelMonaghanKajtar(K, spacing_ratio, 2particle_spacing,
+                                                        boundary.mass;
+                                                        minimum_distance_ratio=0.02)
+        regularized_wall = WallBoundarySystem(boundary, regularized_model)
+        dv_regularized = zero(dv)
+        TrixiParticles.interact!(dv_regularized, v, u, v_neighbor, u_neighbor, fluid_system,
+                                 regularized_wall, semi)
+        # The corners only interact within the regularized distance; the middle
+        # particle also has neighbors outside it.
+        @test dv_regularized[1, [3, 9]] ≈ dv[1, [3, 9]] ./ 2
+        @test dv[1, 6] < dv_regularized[1, 6] < 0
+
         structure_model = BoundaryModelMonaghanKajtar(K, 1.0, particle_spacing,
                                                       fluid.mass)
         structure_system = TotalLagrangianSPHSystem(fluid; smoothing_kernel,
@@ -83,29 +95,5 @@
                                           parallelization_backend=SerialBackend())
         ode = semidiscretize(semi_coupled, (0.0, 0.1))
         @test_nowarn TrixiParticles.update_nhs!(semi_coupled, ode.u0.x[2])
-
-        function structure_marker(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
-            system isa TotalLagrangianSPHSystem || return nothing
-            coordinates = TrixiParticles.initial_coordinates(system)
-            return fill(Int32(7), size(coordinates, 2))
-        end
-
-        mktempdir() do output_directory
-            @test_nowarn trixi2vtk(ode.u0, semi_coupled, 0.0; output_directory,
-                                   structure_marker)
-            data = vtk2trixi(joinpath(output_directory, "structure_1_current.vtu"))
-            @test data.structure_marker == fill(Int32(7),
-                       TrixiParticles.nparticles(structure_system))
-
-            boundary_data = vtk2trixi(joinpath(output_directory,
-                                               "boundary_1_current.vtu");
-                                      create_initial_condition=false)
-            @test size(boundary_data.coordinates, 2) ==
-                  TrixiParticles.nparticles(boundary_system)
-            @test TrixiParticles.time_span((0.0, 0.1),
-                                           (joinpath(output_directory,
-                                                     "boundary_1_current.vtu"),)) ==
-                  (0.0, 0.1)
-        end
     end
 end

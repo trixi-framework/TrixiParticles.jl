@@ -80,7 +80,8 @@ Positive friction coefficients require positive tangential stiffness or damping.
 - `tangential_damping`: Damping coefficient in the tangential relative-velocity direction.
 - `contact_distance`: Maximum particle separation at which contact is active.
 - `stick_velocity_tolerance`: Velocity scale used to regularize kinetic friction near zero
-  slip speed. Set it to zero to disable regularization.
+  slip speed and below which a sliding contact can stick again. Set it to zero to disable
+  regularization.
 - `penetration_slop`: Penetration ignored before the contact law is applied.
 
 If `contact_distance == 0`, the particle spacing of the `RigidBodySystem` will be used

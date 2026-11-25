@@ -12,7 +12,7 @@
     smoothing_kernel = SchoenbergCubicSplineKernel{2}()
     smoothing_length = 0.12
     boundary_model = BoundaryModelDummyParticles(material_densities, mass,
-                                                 SummationDensity(),
+                                                 PressureZeroing(),
                                                  smoothing_kernel,
                                                  smoothing_length)
 

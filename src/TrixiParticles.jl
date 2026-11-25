@@ -16,12 +16,12 @@ using ForwardDiff: ForwardDiff
 using GPUArraysCore: AbstractGPUArray
 using JSON: JSON
 using KernelAbstractions: KernelAbstractions, @kernel, @index
-using LinearAlgebra: norm, normalize, cross, dot, I, tr, inv, pinv, det
+using LinearAlgebra: norm, normalize, cross, dot, I, tr, inv, pinv, det, cond
 using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
 using ReadVTK: ReadVTK
 using RecipesBase: RecipesBase, @series
-using Random: MersenneTwister
+using Random: Random
 using SciMLBase: SciMLBase, CallbackSet, DiscreteCallback, DynamicalODEProblem,
                  derivative_discontinuity!, get_tmp_cache, set_proposed_dt!,
                  ODESolution, ODEProblem, terminate!, add_tstop!
@@ -51,19 +51,21 @@ include("general/abstract_system.jl")
 include("general/general.jl")
 include("setups/setups.jl")
 include("schemes/schemes.jl")
-# `mechanical_work_calculator.jl` requires `TotalLagrangianSPHSystem` to be defined.
-include("general/mechanical_work_calculator.jl")
+# The custom quantities require the system types to be defined.
+include("custom_quantities/custom_quantities.jl")
 # `neighborhood_search.jl` requires the system types to be defined
 include("general/neighborhood_search.jl")
 # `callbacks.jl` requires the system types to be defined
 include("callbacks/callbacks.jl")
-
-# Note that `semidiscretization.jl` and `time_integration.jl` depend on the system types
-# and has to be included separately. `gpu.jl` in turn depends on the semidiscretization type.
-include("general/semidiscretization.jl")
-include("general/time_integration.jl")
-include("general/gpu.jl")
 include("preprocessing/preprocessing.jl")
+
+# Note that `semidiscretization.jl` depends on the system types and has to be
+# included separately. The following files in turn depend on the semidiscretization type.
+include("general/semidiscretization.jl")
+include("schemes/fluid/implicit_incompressible_sph/pressure_cache.jl")
+include("general/time_integration.jl")
+include("general/ode_rhs.jl")
+include("general/gpu.jl")
 include("io/io.jl")
 include("general/restart.jl")
 include("visualization/recipes_plots.jl")
@@ -77,10 +79,11 @@ export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangian
        OpenBoundarySystem,
        ImplicitIncompressibleSPHSystem
 export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
+export iisph_pressure_iteration_stats, reset_iisph_pressure_iteration_stats!
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
        SplitIntegrationCallback, MechanicalWorkCalculator, calculated_mechanical_work,
-       SortingCallback
+       ThrustCalculator, calculated_thrust, StructureMotionCalculator, SortingCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami, ParticleShiftingTechnique,
        ParticleShiftingTechniqueSun2017, ConsistentShiftingSun2019,

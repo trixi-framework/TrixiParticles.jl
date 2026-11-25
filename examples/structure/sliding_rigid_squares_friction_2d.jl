@@ -57,9 +57,7 @@ floor = RectangularTank(wall_particle_spacing, (0.0, 0.0),
                         min_coordinates=(-1.5, 0.0),
                         faces=(false, false, true, false))
 
-boundary_model = BoundaryModelMonaghanKajtar(10.0, 1.0, wall_particle_spacing,
-                                             floor.boundary.mass)
-boundary_system = WallBoundarySystem(floor.boundary, boundary_model)
+boundary_system = WallBoundarySystem(floor.boundary, nothing)
 
 # ==========================================================================================
 # ==== Rigid Structures

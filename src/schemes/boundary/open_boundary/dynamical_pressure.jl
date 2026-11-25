@@ -124,11 +124,15 @@ end
     end
 end
 
-function update_boundary_model!(system, boundary_model::BoundaryModelDynamicalPressureZhang,
+# Dummy-particle boundaries can read this pressure during extrapolation.
+function update_pressure!(system::OpenBoundarySystem{<:BoundaryModelDynamicalPressureZhang},
+                          v, u, v_ode, u_ode, semi, t)
+    return compute_pressure!(system, system.fluid_system, v, semi)
+end
+
+function update_boundary_model!(system, ::BoundaryModelDynamicalPressureZhang,
                                 v, u, v_ode, u_ode, semi, t)
     (; pressure_boundary) = system.cache
-
-    compute_pressure!(system, system.fluid_system, v, semi)
 
     @threaded semi for particle in each_integrated_particle(system)
         boundary_zone = current_boundary_zone(system, particle)

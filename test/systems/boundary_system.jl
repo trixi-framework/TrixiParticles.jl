@@ -65,12 +65,11 @@
         @test system.boundary_model.smoothing_length == smoothing_length
         @test system.boundary_model.viscosity == viscosity
         @test system.boundary_model.state_equation == state_equation
-        @test system.boundary_model.correction isa CorrectionConfiguration
-        @test TrixiParticles.correction_density(system.boundary_model.correction) ===
-              nothing
-        @test TrixiParticles.correction_gradient(system.boundary_model.correction) isa
-              KernelCorrection
-        @test TrixiParticles.correction_force(system.boundary_model.correction) === nothing
+        correction = system.boundary_model.correction
+        @test correction isa CorrectionConfiguration
+        @test TrixiParticles.correction_density(correction) === nothing
+        @test TrixiParticles.correction_gradient(correction) isa KernelCorrection
+        @test TrixiParticles.correction_force(correction) === nothing
         @test system.boundary_model.cache.reference_particle_spacing == 0.1
         @test system.adhesion_coefficient == 0.3
         @test system.cache.color == 2
@@ -82,10 +81,10 @@
         edac_boundary_model = BoundaryModelDummyParticles(boundary_ic;
                                                           fluid_system=edac_system)
         @test edac_boundary_model.state_equation === nothing
-        @test TrixiParticles.correction_density(edac_boundary_model.correction) isa
-              ShepardKernelCorrection
-        @test TrixiParticles.correction_gradient(edac_boundary_model.correction) === nothing
-        @test TrixiParticles.correction_force(edac_boundary_model.correction) isa
+        edac_correction = edac_boundary_model.correction
+        @test TrixiParticles.correction_density(edac_correction) isa ShepardKernelCorrection
+        @test TrixiParticles.correction_gradient(edac_correction) === nothing
+        @test TrixiParticles.correction_force(edac_correction) isa
               AkinciFreeSurfaceCorrection
     end
 

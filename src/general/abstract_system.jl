@@ -52,6 +52,9 @@ end
 
 initialize!(system, semi) = system
 
+requires_density_boundary_prediction(system) = false
+has_pressure_extrapolated_density(system) = false
+
 # This should not be dispatched by system type. We always expect the first index of `A`
 # to enumerate spatial dimensions.
 @propagate_inbounds function extract_svector(A, system, i...)
@@ -144,19 +147,17 @@ end
                                        hydrodynamic_correction(neighbor_system))
 end
 
+# Whether `system` can skip neighbors of `neighbor_system` at the same position.
+# By default, this only depends on the kernel gradient of `system`.
+# This can be dispatched if the kernel gradient of `neighbor_system` is also evaluated.
+@inline skip_zero_distance(system, neighbor_system) = skip_zero_distance(system)
+
 # Robust/safe version of the function below. In performance-critical code, manually check
 # the kernel support, call `skip_zero_distance` and then `smoothing_kernel_grad_unsafe`.
 @inline function smoothing_kernel_grad(system, pos_diff, distance, particle)
-    h = smoothing_length(system, particle)
-    compact_support_ = compact_support(system_smoothing_kernel(system), h)
-
-    # Note that `sqrt(eps(h^2)) != eps(h)`
-    if distance >= compact_support_ ||
-       (skip_zero_distance(system) && distance^2 < eps(h^2))
-        return zero(pos_diff)
-    end
-
-    return smoothing_kernel_grad_unsafe(system, pos_diff, distance, particle)
+    return corrected_kernel_grad(system_smoothing_kernel(system), pos_diff, distance,
+                                 smoothing_length(system, particle),
+                                 system_correction(system), system, particle)
 end
 
 # Skip the zero distance and compact support checks for maximum performance.
@@ -174,18 +175,7 @@ end
 @inline hydrodynamic_smoothing_kernel(system) = system_smoothing_kernel(system)
 
 @inline function hydrodynamic_smoothing_kernel_grad(system, pos_diff, distance, particle)
-    h = hydrodynamic_smoothing_length(system, particle)
-    correction = hydrodynamic_correction(system)
-    smoothing_kernel = hydrodynamic_smoothing_kernel(system)
-    compact_support_ = compact_support(smoothing_kernel, h)
-
-    if distance >= compact_support_ ||
-       (skip_zero_distance(correction) && distance^2 < eps(h^2))
-        return zero(pos_diff)
-    end
-
-    return corrected_kernel_grad_unsafe(smoothing_kernel, pos_diff, distance, h,
-                                        correction, system, particle)
+    return smoothing_kernel_grad(system, pos_diff, distance, particle)
 end
 
 # System updates do nothing by default, but can be dispatched if needed
@@ -241,7 +231,6 @@ end
 
 @inline system_smoothing_kernel(system) = system.smoothing_kernel
 @inline system_correction(system) = nothing
-@inline system_correction_configuration(system) = nothing
 
 # Boundary model of systems that interact with fluids via dummy particles
 # (`WallBoundarySystem`, `TotalLagrangianSPHSystem`, `RigidBodySystem`), `nothing` otherwise

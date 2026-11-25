@@ -227,13 +227,10 @@
 
     # Check direct and full-RHS wall contact, including contact support wider than the
     # boundary model's hydrodynamic support.
-    kick_boundary_model = BoundaryModelDummyParticles(boundary_density, boundary_mass,
-                                                      SummationDensity(),
-                                                      smoothing_kernel,
-                                                      smoothing_length)
+    # The full-RHS path also supports a wall without a hydrodynamic boundary model.
     kick_rigid_system = RigidBodySystem(rigid_ic; acceleration=(0.0, 0.0),
                                         contact_model)
-    kick_boundary_system = WallBoundarySystem(boundary_ic, kick_boundary_model)
+    kick_boundary_system = WallBoundarySystem(boundary_ic, nothing)
     kick_semi = Semidiscretization(kick_rigid_system, kick_boundary_system)
     kick_ode = semidiscretize(kick_semi, (0.0, 0.01))
     kick_v_ode, kick_u_ode = kick_ode.u0.x

@@ -71,6 +71,7 @@
         end
 
         @testset "Errors" begin
+            # Acceleration must have one component per spatial dimension.
             @test_throws ArgumentError RectangularShape(0.1, (2, 2), (0.0, 0.0),
                                                         density=1000.0,
                                                         acceleration=(0.0, -9.81, 0.0))
@@ -161,6 +162,15 @@
             @test shape.pressure ≈ [251.775, 254.275, 151.125, 152.625, 50.375,
                 50.875]
             @test shape.mass ≈ particle_spacing^2 * shape.density
+
+            shape_positive = RectangularShape(particle_spacing, (2, 3), (0.0, 0.0),
+                                              density=density_function,
+                                              acceleration=(0.0, 1.0), loop_order=:x_first)
+            @test shape_positive.density ≈ [1005.5, 1006.5, 1007.5, 1015.5, 1016.5,
+                1017.5]
+            @test shape_positive.pressure ≈ [50.275, 150.825, 251.475, 50.775,
+                152.325, 253.975]
+            @test shape_positive.mass ≈ particle_spacing^2 * shape_positive.density
         end
 
         @testset "Zero Acceleration" begin
@@ -169,6 +179,11 @@
 
             @test shape.pressure == zeros(10)
             @test shape.density == 1000 * ones(10)
+
+            shape_function = RectangularShape(particle_spacing, (2, 5), (0.0, 0.0),
+                                              density=coords -> 1000.0 + coords[1],
+                                              acceleration=(0.0, 0.0))
+            @test shape_function.pressure == zeros(10)
         end
     end
 

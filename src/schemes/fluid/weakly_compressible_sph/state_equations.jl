@@ -129,13 +129,19 @@ function (state_equation::Union{StateEquationCole, StateEquationAdaptiveCole})(d
 end
 
 function inverse_state_equation(state_equation::Union{StateEquationCole,
-                                                      StateEquationAdaptiveCole}, pressure)
+                                                      StateEquationAdaptiveCole}, pressure;
+                                fallback=nothing)
     (; exponent, reference_density, background_pressure) = state_equation
 
     B = reference_density * sound_speed(state_equation)^2 / exponent
     tmp = (pressure - background_pressure) / B + 1
 
-    return reference_density * tmp^(1 / exponent)
+    if fallback !== nothing && !(isfinite(tmp) && tmp > 0)
+        return fallback
+    end
+
+    density = reference_density * tmp^(1 / exponent)
+    return density_or_fallback(density, fallback)
 end
 
 @doc raw"""
@@ -180,12 +186,32 @@ function (state_equation::StateEquationIdealGas)(density)
     return pressure
 end
 
-function inverse_state_equation(state_equation::StateEquationIdealGas, pressure)
+function inverse_state_equation(state_equation::StateEquationIdealGas, pressure;
+                                fallback=nothing)
     (; reference_density, gamma, background_pressure) = state_equation
     density = (pressure - background_pressure) * gamma / sound_speed(state_equation)^2 +
               reference_density
 
-    return density
+    return density_or_fallback(density, fallback)
+end
+
+@inline density_or_fallback(density, ::Nothing) = density
+
+@inline function density_or_fallback(density, fallback)
+    density = convert(typeof(fallback), density)
+    return isfinite(density) && density > 0 ? density : fallback
+end
+
+# A custom equation of state may have an unknown inverse domain. Use the fixed fallback
+# for provisional volumes; the final boundary update still calls its usual inverse.
+@inline predict_density_from_pressure(state_equation, pressure, fallback) = fallback
+
+@inline function predict_density_from_pressure(state_equation::Union{StateEquationCole,
+                                                                     StateEquationAdaptiveCole,
+                                                                     StateEquationIdealGas},
+                                               pressure, fallback)
+    isfinite(pressure) || return fallback
+    return inverse_state_equation(state_equation, pressure; fallback)
 end
 
 @inline function sound_speed(state_equation)

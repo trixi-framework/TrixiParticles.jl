@@ -269,6 +269,21 @@
         @test count_rhs_allocations(sol) == 0
     end
 
+    @trixi_testset "fluid/dam_break_2d_iisph.jl with AdamiPressureExtrapolation and no-slip walls" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "dam_break_2d_iisph.jl"),
+                                         tspan=(0.0, 0.1),
+                                         boundary_density_calculator=AdamiPressureExtrapolation(),
+                                         viscosity_wall=ViscosityAdami(nu=1e-4)) [
+            r"┌ Info: The desired tank length in y-direction .*\n",
+            r"└ New tank length in y-direction.*\n"
+        ]
+        @test sol.retcode == ReturnCode.Success
+        @test TrixiParticles.has_iisph_wall_extrapolation(sol.prob.p.semi)
+        @test count_rhs_allocations(sol) <= (VERSION < v"1.11" ? 32 : 0)
+    end
+
     @trixi_testset "fluid/dam_break_2d_iisph.jl with PressureBoundaries" begin
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
@@ -465,6 +480,16 @@
         @trixi_test_nowarn trixi_include(@__MODULE__, tspan=(0, 0.1),
                                          joinpath(examples_dir(), "fluid",
                                                   "pipe_flow_3d.jl"))
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol) == 0
+    end
+
+    @trixi_testset "fluid/poiseuille_carreau_2d.jl" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "poiseuille_carreau_2d.jl"),
+                                         ny=8, tspan=(0.0, 0.001), power_law_index=0.5,
+                                         output_directory=mktempdir())
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol) == 0
     end
@@ -673,6 +698,10 @@
     include("dam_break_2d_corrections.jl")
 
     @testset "`SymplecticPositionVerlet`" begin
+        symplectic_rk_extension = Base.get_extension(TrixiParticles,
+                                                     :TrixiParticlesOrdinaryDiffEqSymplecticRKExt)
+        @test !symplectic_rk_extension.OrdinaryDiffEqCore.isfsal(SymplecticPositionVerlet())
+
         @testset "2D unstable" begin
             @trixi_test_nowarn trixi_include(@__MODULE__,
                                              joinpath(examples_dir(), "fluid",

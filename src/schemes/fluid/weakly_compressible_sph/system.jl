@@ -259,10 +259,6 @@ function system_correction(system::WeaklyCompressibleSPHSystem)
     correction_gradient(system.correction)
 end
 
-@inline function system_correction_configuration(system::WeaklyCompressibleSPHSystem)
-    return system.correction
-end
-
 @propagate_inbounds function current_velocity(v, system::WeaklyCompressibleSPHSystem)
     return current_velocity(v, system.density_calculator, system)
 end
@@ -416,13 +412,13 @@ function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
                                                          MixedKernelGradientCorrection},
                                              system::WeaklyCompressibleSPHSystem, u,
                                              v_ode, u_ode, semi)
-    (; cache, smoothing_kernel) = system
+    (; cache) = system
     (; correction_matrix) = cache
 
     system_coords = current_coordinates(u, system)
 
     compute_gradient_correction_matrix!(correction_matrix, system, system_coords,
-                                        v_ode, u_ode, semi, corr, smoothing_kernel)
+                                        v_ode, u_ode, semi, corr)
 end
 
 function reinit_density!(vu_ode, semi)
@@ -518,7 +514,7 @@ function apply_reinit_density!(system::WeaklyCompressibleSPHSystem, ::Continuity
 
     # Compute density with `SummationDensity` and store the result in `v`,
     # overwriting the previous integrated density.
-    summation_density!(system, semi, u, u_ode, v[end, :])
+    summation_density!(system, semi, u, u_ode, current_density(v, system))
 
     @threaded semi for particle in eachparticle(system)
         v[end, particle] /= coefficient[particle]
