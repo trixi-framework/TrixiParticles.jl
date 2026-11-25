@@ -169,6 +169,7 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
         # Particle is outside of the influence of fluid particles.
         # `volume` is in the order of 1 / h^d, so volume * h^d is in the order of 1.
         if volume[particle] * smoothing_length^ndims(system) < eps(eltype(smoothing_length))
+            zone_id = system.boundary_zone_indices[particle]
 
             # Using the average of the values at the previous time step for particles which
             # are outside of the influence of fluid particles.
@@ -178,6 +179,8 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
             counter = 0
 
             for neighbor in each_integrated_particle(system)
+                system.boundary_zone_indices[neighbor] == zone_id || continue
+
                 # Make sure that only neighbors in the influence of
                 # the fluid particles are used.
                 # `volume` is in the order of 1 / h^d, so volume * h^d is in the order of 1.

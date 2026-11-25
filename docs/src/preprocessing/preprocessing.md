@@ -15,8 +15,8 @@ Here, ``\Theta_i`` is the *signed* angle between ``\mathbf{c}_i - \mathbf{p}`` a
 In 3D, we refer to the solid angle of an *oriented* triangle with respect to ``\mathbf{p}``.
 
 We provide the following methods to calculate ``w(\mathbf{p})``:
-- [Hormann et al. (2001)](@cite Hormann2001) evaluate the winding number combined with an even-odd rule, but only for 2D polygons (see [WindingNumberHormann](@ref)).
-- Naive winding: [Jacobson et al. (2013)](@cite Jacobson2013) generalized the winding number so that the algorithm can be applied for both 2D and 3D geometries (see [WindingNumberJacobson](@ref)).
+- [Hormann et al. (2001)](@cite Hormann2001) evaluate the winding number combined with an even-odd rule, but only for 2D polygons (see [`WindingNumberHormann`](@ref)).
+- Naive winding: [Jacobson et al. (2013)](@cite Jacobson2013) generalized the winding number so that the algorithm can be applied for both 2D and 3D geometries (see [`WindingNumberJacobson`](@ref)).
 - Hierarchical winding: [Jacobson et al. (2013)](@cite Jacobson2013) also introduced a fast hierarchical evaluation of the winding number. For further information see the description below.
 
 ## [Hierarchical Winding](@id hierarchical_winding)

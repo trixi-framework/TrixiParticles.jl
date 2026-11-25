@@ -439,12 +439,15 @@
             system_pressure.predicted_density .= [990.0, 1010.0]
             system_pressure.sum_term .= [5.0, -2.0]
             system_pressure.a_ii .= [0.5, 1.0e-10]
-            fill!(system_pressure.density_error, 0.0)
+            system_pressure.density_error .= [0.0, 99.0]
 
             semi = DummySemidiscretization()
             # First particle uses standard Jacobi update; second hits the safeguarded zero-a_ii path.
             # For particle 1: (1-omega)*0 + omega/a_ii * (source - sum_term) with omega=0.4,
-            # source=(1000-990)=10, a_ii=0.5, sum_term=5 gives pressure 4 and density_error -3
+            # source=(1000-990)=10, a_ii=0.5, sum_term=5 gives pressure 4 and
+            # density_error = 997-1000 = -3 (signed deviation).
+            # For particle 2: the pressure is clamped to zero, so the stale buffer
+            # entry 99.0 from the previous iteration is explicitly cleared.
             relative_error = TrixiParticles.pressure_update(system_pressure,
                                                             system_pressure.pressure,
                                                             system_pressure.reference_density,
@@ -454,7 +457,7 @@
                                                             system_pressure.density_error,
                                                             semi)
 
-            @test isapprox(relative_error, -0.003)
+            @test isapprox(relative_error, -0.003) # -3 / 1000
             @test isapprox(system_pressure.pressure, [4.0, 0.0])
             @test isapprox(system_pressure.density_error, [-3.0, 0.0])
         end
