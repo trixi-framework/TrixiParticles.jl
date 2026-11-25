@@ -10,7 +10,11 @@ function create_iisph_pressure_cache(systems, backend)
     ELTYPE = eltype(system)
     NDIMS = ndims(system)
 
-    walls = map(filter(is_iisph_pressure_boundary_system, systems)) do wall_system
+    walls_in_solve = filter(systems) do neighbor
+        return is_iisph_pressure_boundary_system(neighbor) ||
+               neighbor isa IISPHExtrapolatingWall
+    end
+    walls = map(walls_in_solve) do wall_system
         n_wall_particles = nparticles(wall_system)
         return (system=wall_system,
                 fluid_offsets=zeros(Int, n_particles + 1),

@@ -475,6 +475,50 @@ end
             end
         end
 
+        @trixi_testset "fluid/dam_break_2d_iisph.jl Float32 + Float64 coordinates" begin
+            if Main.supports_double_precision
+                # Load the tank of the dam break to define the cell list
+                trixi_include_changeprecision(Float32, @__MODULE__,
+                                              joinpath(examples_dir(), "fluid",
+                                                       "dam_break_2d.jl");
+                                              sol=nothing, ode=nothing)
+                tank_ = @invokelatest (@__MODULE__).tank
+                min_corner = minimum(tank_.boundary.coordinates, dims=2)
+                max_corner = maximum(tank_.boundary.coordinates, dims=2)
+                cell_list = FullGridCellList(; min_corner, max_corner)
+
+                # Without and with the wall pressure in the pressure solve
+                for boundary_density_calculator in
+                    (PressureZeroing(), AdamiPressureExtrapolation())
+                    @trixi_test_nowarn trixi_include_changeprecision(Float32, @__MODULE__,
+                                                                     joinpath(examples_dir(),
+                                                                              "fluid",
+                                                                              "dam_break_2d_iisph.jl"),
+                                                                     tspan=(0.0f0, 0.1f0),
+                                                                     neighborhood_search=GridNeighborhoodSearch{2}(;
+                                                                                                                   cell_list),
+                                                                     parallelization_backend=Main.parallelization_backend,
+                                                                     boundary_density_calculator=boundary_density_calculator) [
+                        r"\[ Info: To move data to the GPU, `semidiscretize` creates a deep copy.*\n",
+                        r"┌ Info: The desired tank length in y-direction .*\n",
+                        r"└ New tank length in y-direction.*\n"
+                    ]
+                    # See the comment in the first test about `@invokelatest`
+                    sol_ = @invokelatest (@__MODULE__).sol
+                    @test sol_.retcode == (@invokelatest (@__MODULE__).ReturnCode).Success
+                    v_ode, u_ode = sol_.u[end].x
+                    backend = TrixiParticles.KernelAbstractions.get_backend(v_ode)
+                    @test backend == Main.parallelization_backend
+                    @test eltype(v_ode) == Float32
+                    @test eltype(u_ode) == Float64
+                    fluid = first(sol_.prob.p.semi.systems)
+                    @test eltype(fluid) == Float32
+                    @test maximum(Array(fluid.pressure)) > 0
+                    @test all(isfinite, Array(u_ode))
+                end
+            end
+        end
+
         @trixi_testset "fluid/dam_break_2d_gpu.jl Float32" begin
             # Import variables into scope
             trixi_include_changeprecision(Float32, @__MODULE__,

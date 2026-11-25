@@ -90,18 +90,22 @@ function calculate_sum_term_values!(system::WallBoundarySystem{<:BoundaryModelDu
     foreach_system(semi) do neighbor_system
         has_system_interaction(system, neighbor_system, semi) || return
 
-        calculate_sum_term!(sum_term, system, neighbor_system, u, u_ode, semi, time_step)
+        # These particles have PPE rows even though their positions are not integrated.
+        calculate_sum_term!(sum_term, system, neighbor_system, u, u_ode, semi, time_step;
+                            points=eachparticle(system))
     end
 end
 
-function pressure_update(system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}},
+function pressure_update(mode,
+                         system::WallBoundarySystem{<:BoundaryModelDummyParticles{<:PressureBoundaries}},
                          semi)
     (; boundary_model) = system
     (; reference_density, a_ii, sum_term, omega, density_error) = boundary_model.cache
     (; pressure) = boundary_model
 
     # Update the pressure values
-    relative_density_error = pressure_update(system, pressure, reference_density, a_ii,
+    relative_density_error = pressure_update(mode, system, pressure, reference_density,
+                                             a_ii,
                                              sum_term, omega, density_error, semi)
 
     return relative_density_error
@@ -112,8 +116,7 @@ end
 end
 
 @propagate_inbounds function predicted_velocity(system::WallBoundarySystem, particle)
-    # The continuity equation uses the physical wall velocity, not the ghost velocity
-    # of the no-slip condition. Prescribed wall velocities are stored in the system cache.
+    # The density prediction uses the physical wall velocity, not the no-slip ghost velocity.
     return current_velocity(nothing, system, particle)
 end
 

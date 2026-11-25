@@ -106,6 +106,12 @@ After Shepard normalization, the boundary pressure and density are recomputed
 from the corrected fluid density for the force calculation. This one-pass predictor
 does not solve for a common boundary density across the two stages.
 
+Adami and Bernoulli walls that exert forces on an [`ImplicitIncompressibleSPHSystem`](@ref)
+must not have a state equation. The fluid is incompressible, so the wall density is the
+initial density. The wall pressure is extrapolated from the fluid pressure in every
+iteration of the IISPH pressure solve, and these walls require the default fluid–wall
+interaction. See [IISPH pressure extrapolation](@ref iisph_pressure_extrapolation).
+
 #### 1. [`AdamiPressureExtrapolation`](@ref)
 
 The pressure of the boundary particles is obtained by extrapolating the pressure of the fluid
@@ -187,6 +193,10 @@ v_w = 2 v_a - \frac{\sum_b v_b W_{ab}}{\sum_b W_{ab}},
 where the sum is over all fluid particles.
 The wall velocity is computed in this way for all density calculators.
 For IISPH, it is available before the advection prediction and pressure solve.
+
+In IISPH the continuity term uses the physical wall velocity at the current evaluation
+time. Only the viscosity term uses the no-slip ghost velocity, which is computed from
+the current fluid velocity before the pressure solve.
 
 By choosing the viscosity model [`ViscosityAdami`](@ref) for `viscosity`, a no-slip
 condition is imposed. It is recommended to choose `nu` in the order of either the kinematic
