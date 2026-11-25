@@ -510,7 +510,7 @@ end
     return reshape(view(array, range), Int.(size))
 end
 
-function check_configuration(systems,
+function check_configuration(systems::Union{Tuple, AbstractVector},
                              nhs::Union{Nothing, AbstractNeighborhoodSearch})
     foreach_system(systems) do system
         check_configuration(system, systems, nhs)
