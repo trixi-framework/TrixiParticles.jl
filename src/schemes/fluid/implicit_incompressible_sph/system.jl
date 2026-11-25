@@ -337,7 +337,7 @@ function build_iisph_wall_pressure_cache!(wall_cache, system, u, u_ode, semi)
                    each_integrated_particle(system) : (1:0)
     wall_points = is_iisph_pressure_boundary_system(wall_system) &&
                   has_system_interaction(wall_system, system, semi) ?
-                  each_integrated_particle(wall_system) : (1:0)
+                  eachparticle(wall_system) : (1:0)
 
     fill!(view(fluid_offsets, 1:(length(fluid_offsets) - 1)), 0)
     fill!(view(wall_offsets, 1:(length(wall_offsets) - 1)), 0)
@@ -550,8 +550,7 @@ end
 
 function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompressibleSPHSystem,
                                                        v, u, v_ode, u_ode, semi)
-    (; advection_velocity) = system
-    time_step = system.time_step
+    (; advection_velocity, time_step) = system
     d_ii_array = system.d_ii
 
     v_particle_system = wrap_v(v_ode, system, semi)
@@ -564,8 +563,9 @@ function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompres
         # Initialize the advection velocity with the current velocity plus the system acceleration
         v_particle = current_velocity(v_particle_system, system, particle)
         for i in 1:ndims(system)
-            advection_velocity[i, particle] = v_particle[i]
-            advection_velocity[i, particle] += time_step * system.acceleration[i]
+            advection_velocity[i,
+                               particle] = v_particle[i] +
+                                           time_step * system.acceleration[i]
         end
     end
 
@@ -587,16 +587,17 @@ function calculate_predicted_velocity_and_d_ii_values!(system::ImplicitIncompres
                                                                            neighbor,
                                                                            pos_diff,
                                                                            distance
+            m_a = @inbounds hydrodynamic_mass(system, particle)
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
 
             rho_a = @inbounds current_density(v_particle_system, system, particle)
+            rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
+
+            v_a = @inbounds current_velocity(v_particle_system, system, particle)
+            v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance, particle)
 
-            m_a = @inbounds hydrodynamic_mass(system, particle)
-            rho_b = @inbounds current_density(v_neighbor_system, neighbor_system, neighbor)
-            v_a = @inbounds current_velocity(v_particle_system, system, particle)
-            v_b = @inbounds current_velocity(v_neighbor_system, neighbor_system, neighbor)
             dv_viscosity_ = @inbounds add_dv_viscosity(zero(pos_diff), system,
                                                        neighbor_system,
                                                        v_particle_system, v_neighbor_system,
@@ -912,7 +913,8 @@ function calculate_iisph_wall_sum_term!(wall_cache, system, semi)
 
     set_zero!(sum_term)
 
-    @threaded semi for particle in each_integrated_particle(wall_system)
+    # Wall particles have PPE rows even though their positions are not integrated.
+    @threaded semi for particle in eachparticle(wall_system)
         sum_term_particle = zero(eltype(system))
         pressure_particle = @inbounds wall_pressure[particle]
 
