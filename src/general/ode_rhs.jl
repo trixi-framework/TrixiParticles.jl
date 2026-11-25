@@ -144,9 +144,6 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
         update_gradient_correction!(system, v, u, v_ode, u_ode, semi, t)
     end
 
-    # IISPH prediction needs all current densities, wall velocities, and gradients.
-    update_inter_system_quantities!(semi, v_ode, u_ode, t)
-
     # Surface quantities can depend on corrected gradients and must be complete for every
     # system before curvature and stress are computed in `update_final!`.
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u

@@ -50,9 +50,11 @@ end
 struct DummySemidiscretization
     parallelization_backend :: Any
     integrate_tlsph         :: Any
+    iisph_pressure_cache    :: Any
 
-    function DummySemidiscretization(; parallelization_backend=SerialBackend())
-        new(parallelization_backend, Ref(true))
+    function DummySemidiscretization(; parallelization_backend=SerialBackend(),
+                                     iisph_pressure_cache=nothing)
+        new(parallelization_backend, Ref(true), iisph_pressure_cache)
     end
 end
 
