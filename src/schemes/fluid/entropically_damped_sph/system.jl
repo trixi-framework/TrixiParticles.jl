@@ -299,9 +299,52 @@ function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
 end
 
 function update_pressure!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t)
+    (; correction, density_calculator) = system
+
+    # These are only computed when using corrections
+    compute_correction_values!(system, correction, u, v_ode, u_ode, semi)
+    compute_gradient_correction_matrix!(correction, system, u, v_ode, u_ode, semi)
+    # `kernel_correct_density!` only performed for `SummationDensity`
+    kernel_correct_density!(system, v, u, v_ode, u_ode, semi, correction,
+                            density_calculator)
+
     compute_surface_normal!(system, system.surface_normal_method, v, u, v_ode, u_ode, semi,
                             t)
     compute_surface_delta_function!(system, system.surface_tension, semi)
+end
+
+function kernel_correct_density!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode,
+                                 semi, correction, density_calculator)
+    return system
+end
+
+function kernel_correct_density!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode,
+                                 semi, corr::ShepardKernelCorrection, ::SummationDensity)
+    system.cache.density ./= system.cache.kernel_correction_coefficient
+end
+
+function compute_gradient_correction_matrix!(correction,
+                                             system::EntropicallyDampedSPHSystem, u,
+                                             v_ode, u_ode, semi)
+    return system
+end
+
+function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
+                                                         BlendedGradientCorrection,
+                                                         MixedKernelGradientCorrection},
+                                             system::EntropicallyDampedSPHSystem, u,
+                                             v_ode, u_ode, semi)
+    (; cache, correction, smoothing_kernel) = system
+    (; correction_matrix) = cache
+
+    system_coords = current_coordinates(u, system)
+
+    compute_gradient_correction_matrix!(correction_matrix, system, system_coords,
+                                        v_ode, u_ode, semi, correction, smoothing_kernel)
+end
+
+@inline function correction_matrix(system::EntropicallyDampedSPHSystem, particle)
+    extract_smatrix(system.cache.correction_matrix, system, particle)
 end
 
 function update_final!(system::EntropicallyDampedSPHSystem, v, u, v_ode, u_ode, semi, t;
