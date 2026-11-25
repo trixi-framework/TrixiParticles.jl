@@ -14,8 +14,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Features
 
-- Added option to update `DensityDiffusionAntuono` between time steps instead of updating
-  in every stage of the time integration scheme (#1301).
+- Added `update_everystage=false` to `DensityDiffusionAntuono`, which freezes the
+  renormalized density gradient between refreshes by the `UpdateCallback` instead of
+  recomputing it in every stage of the time integration scheme (#1301).
 
 ### Important Bugfixes
 
