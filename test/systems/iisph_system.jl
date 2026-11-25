@@ -1213,4 +1213,22 @@
             @test TrixiParticles.maximum_iisph_iterations(system_iters) == 7
         end
     end
+
+    @testset "Single precision" begin
+        # Parameters passed or defaulted as Float64 are converted to the element type
+        ic = InitialCondition(; coordinates=zeros(Float32, 2, 3), density=1000.0f0,
+                              mass=1.0f0, particle_spacing=0.1f0)
+        system = ImplicitIncompressibleSPHSystem(ic;
+                                                 smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+                                                 smoothing_length=0.1f0,
+                                                 reference_density=1000.0f0,
+                                                 time_step=1e-3, acceleration=(0.0, -9.81))
+        @test eltype(system) == Float32
+        @test system.omega isa Float32
+        @test system.max_error isa Float32
+        @test system.time_step isa Float32
+        @test system.time_step == 1.0f-3
+        @test system.artificial_sound_speed isa Float32
+        @test system.acceleration isa SVector{2, Float32}
+    end
 end

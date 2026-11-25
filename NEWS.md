@@ -24,6 +24,10 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   0 and 1 (exclusive), since the relaxed Jacobi scheme can diverge for `omega >= 1`
   (#1394).
 
+### Features
+
+- `ImplicitIncompressibleSPHSystem` supports GPU execution, also in single precision.
+
 ### Important Bugfixes
 
 - Fixed SPH correction updates to apply density corrections before pressure and update
@@ -51,6 +55,8 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
   IISPH prediction independent of the order of systems (#1394).
 - Fixed missing off-diagonal pressure contributions in IISPH `PressureBoundaries` rows
   (#1394).
+- Fixed `ImplicitIncompressibleSPHSystem` in single precision, where parameters with
+  default values were not converted to the element type of the system.
 - Fixed `KernelCorrection` to fall back to uncorrected gradients for invalid normalization
   coefficients and preserve Float32 boundary correction caches (#1291).
 - Fixed gradient correction matrices to use raw kernel gradients, scale-independent

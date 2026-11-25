@@ -100,8 +100,8 @@ function ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
         throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
     end
 
-    # Make acceleration an SVector
-    acceleration_ = SVector(acceleration...)
+    # Make acceleration an SVector of the element type of the system
+    acceleration_ = SVector{length(acceleration), ELTYPE}(acceleration...)
     if length(acceleration_) != NDIMS
         throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
     end
@@ -130,6 +130,13 @@ function ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
         throw(ArgumentError("`time_step` must be a positive number"))
     end
 
+    # Convert the parameters, which might have default values of another type
+    # (for example in single precision simulations)
+    omega_ = convert(ELTYPE, omega)
+    max_error_ = convert(ELTYPE, max_error)
+    time_step_ = convert(ELTYPE, time_step)
+    artificial_sound_speed_ = convert(ELTYPE, artificial_sound_speed)
+
     pressure_acceleration = pressure_acceleration_summation_density
 
     density = copy(initial_condition.density)
@@ -150,11 +157,10 @@ function ImplicitIncompressibleSPHSystem(initial_condition; smoothing_kernel,
                                            reference_density, acceleration_, viscosity,
                                            pressure_acceleration, nothing, surface_tension,
                                            particle_refinement, density, predicted_density,
-                                           advection_velocity, d_ii, a_ii,
-                                           sum_d_ij_pj,
-                                           sum_term, density_error, omega, max_error,
-                                           min_iterations, max_iterations, time_step,
-                                           artificial_sound_speed, cache)
+                                           advection_velocity, d_ii, a_ii, sum_d_ij_pj,
+                                           sum_term, density_error, omega_, max_error_,
+                                           min_iterations, max_iterations, time_step_,
+                                           artificial_sound_speed_, cache)
 end
 
 function write_v0!(v0, system::ImplicitIncompressibleSPHSystem)
