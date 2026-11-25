@@ -3,7 +3,7 @@
 [![Docs-stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://trixi-framework.github.io/TrixiParticles.jl/stable)
 [![Docs-dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://trixi-framework.github.io/TrixiParticles.jl/dev)
 [![Slack](https://img.shields.io/badge/chat-slack-e01e5a)](https://join.slack.com/t/trixi-framework/shared_invite/zt-sgkc6ppw-6OXJqZAD5SPjBYqLd8MU~g)
-[![Youtube](https://img.shields.io/youtube/channel/views/UCpd92vU2HjjTPup-AIN0pkg?style=social)](https://www.youtube.com/@trixi-framework)
+[![Youtube](https://img.shields.io/badge/%40trixi--framework-282828?logo=YouTube&label=YouTube&labelColor=FF0000)](https://www.youtube.com/@trixi-framework)
 [![CI](https://github.com/trixi-framework/TrixiParticles.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/trixi-framework/TrixiParticles.jl/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/github/trixi-framework/TrixiParticles.jl/branch/main/graph/badge.svg?token=RDZXYbij0b)](https://codecov.io/github/trixi-framework/TrixiParticles.jl)
 [![SciML Code Style](https://img.shields.io/static/v1?label=code%20style&message=SciML&color=9558b2&labelColor=389826)](https://github.com/SciML/SciMLStyle)
@@ -38,7 +38,7 @@ It offers intuitive configuration, robust pre- and post-processing, and vendor-a
     </td>
     <td align="center" width="50%">
       <b>JuliaCon 2026</b><br>
-      <a href="https://www.youtube.com/watch?v=_1HKnl1Jngw&t=3607s">
+      <a href="https://www.youtube.com/watch?v=oo75NelKMho">
         <img src="https://github.com/user-attachments/assets/ccf4e567-0adb-490e-9c2c-f36217dd5ca3" style="width: 90%;"/>
       </a>
     </td>
@@ -63,16 +63,12 @@ We provide several example simulation setups in the `examples` folder (which can
 
 <table align="center" border="0">
   <tr>
-  </tr>
-  <tr>
     <td align="center">
       <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/683e9363-5705-49cc-9a5c-3b47d73ea4b8" style="width: 80% !important;"/><br><figcaption>2D Dam Break</figcaption>
     </td>
     <td align="center">
       <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/c10faddf-0400-47c9-b225-f5d286a8ecb8" style="width: 80% !important;"/><br><figcaption>Moving Wall</figcaption>
     </td>
-  </tr>
-  <tr>
   </tr>
   <tr>
     <td align="center">
@@ -191,7 +187,7 @@ and
 
 ## Authors
 Erik Faulhaber (University of Cologne) and Niklas Neher (HLRS) implemented the foundations
-for TrixiParticles.jl and are principal developers along with Sven Berger (hereon).
+for TrixiParticles.jl and are principal developers along with Sven Berger (Hereon).
 The project was started by Michael Schlottke-Lakemper (University of Augsburg)
 and Gregor Gassner (University of Cologne), who provide scientific direction and technical advice.
 The full list of contributors can be found in [AUTHORS.md](AUTHORS.md).

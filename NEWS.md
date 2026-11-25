@@ -11,9 +11,55 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Replaced the experimental `MechanicalWorkCalculatorCallback` with
   `MechanicalWorkCalculator`, which can be passed as a custom quantity to
   `PostprocessCallback` (#1228).
+- The smoothing kernel and smoothing length of a `BoundaryModelDummyParticles` of a
+  `TotalLagrangianSPHSystem` or `RigidBodySystem` must now be the same as those of all
+  fluid systems in the simulation (#1338, #1348).
+- A `BoundaryModelDummyParticles` with `SummationDensity` is no longer accepted for a
+  `TotalLagrangianSPHSystem` or `RigidBodySystem`. The boundary density was never computed
+  for structures, so this combination behaved like `PressureZeroing`, which can be used
+  instead (#1341).
+- The `correction` of a `BoundaryModelDummyParticles` of a `TotalLagrangianSPHSystem` or
+  `RigidBodySystem` must now be `nothing`. Previously, it was ignored or caused an error
+  (#1342).
+
+### Features
+
+- Added the `ThrustCalculator` custom quantity to calculate the hydrodynamic force exerted by
+  interacting fluid systems on a `TotalLagrangianSPHSystem` along a given `direction` (#1229).
+- Added `StructureMotionCalculator`, a custom quantity for the `PostprocessCallback`
+  that reconstructs displacement, deformation gradient and rotation
+  of a `TotalLagrangianSPHSystem` around a point in the initial configuration (#1356).
+- Added `plot(system, sol)` and `plot(system, v_ode, u_ode, semi)` to plot the particles
+  of a single system, which allows coloring by per-particle quantities via `zcolor` (#1298).
+- Added a tutorial on visualizing particle data and fields interpolated with
+  `interpolate_plane_2d` using Plots.jl (#1298).
 
 ### Important Bugfixes
 
+- Fixed pressure mirroring for TLSPH and rigid-body neighbors and for EDAC momentum,
+  pressure diffusion, and average-pressure reduction at walls and structures.
+  With a boundary viscosity, `PressureMirroring` now computes the wall velocity of the
+  no-slip condition, which was zero before (#1341).
+- Fixed the advection prediction of `ImplicitIncompressibleSPHSystem` depending on the
+  order of the systems in the `Semidiscretization`. The densities and predicted velocities
+  of systems that are updated later in the same step were taken from the previous update.
+  This affected `PressureBoundaries` and simulations with multiple IISPH systems (#1341).
+- Fixed the fluid–structure pressure acceleration of fluids with `KernelCorrection`,
+  `GradientCorrection`, `BlendedGradientCorrection` or `MixedKernelGradientCorrection` to use
+  the smoothing kernel and smoothing length of the boundary model at the structure particles
+  instead of those of the `TotalLagrangianSPHSystem`. Also fixed the assembly of the
+  correction matrix, which made `GradientCorrection` have no effect and
+  `BlendedGradientCorrection` depend on the order of the neighbors, so results with these
+  corrections change. `DensityDiffusionAntuono` now always uses the uncorrected kernel
+  gradient (#1342).
+- Fixed structure-fluid reaction forces with asymmetric corrected fluid kernel
+  gradients by evaluating the fluid-first gradient directly. The continuity equation
+  of `RigidBodySystem` boundaries with `ContinuityDensity` now uses the kernel gradient
+  of the boundary model instead of the corrected fluid gradient (#1338).
+- Fixed `RectangularShape` handling of coordinate-dependent density in hydrostatic pressure
+  initialization and prevented coordinate perturbation from changing the global random state (#1196).
+- Fixed asymmetric DEM contact forces near coincidence by using a pair-local
+  radius scale for the near-zero distance cutoff (#1347).
 - Fixed the sign of the quadratic term in `ArtificialViscosityMonaghan` (#1295).
 - Fixed mathematical inconsistencies in the SPH documentation, including incorrect
   formulas, inconsistent force-vs-acceleration notation, and wrong LaTeX text-mode
@@ -24,6 +70,22 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Fixed the custom quantities `kinetic_energy`, `total_mass`, `max_pressure`, `min_pressure`,
   `avg_pressure`, `max_density`, `min_density` and `avg_density` to only take active particles
   into account (#1184).
+- Fixed the IISPH pressure solver to clear stale density error contributions of
+  zero-pressure particles instead of retaining them in the termination condition (#1215).
+- Fixed the viscous force on structures in fluid-structure interaction, which had the wrong
+  sign (#1348).
+- Fixed matrix point inputs, including non-contiguous views, for winding-number algorithms
+  and `SignedDistanceField`. `WindingNumberJacobson()` now defaults to non-hierarchical
+  winding when no geometry is provided (#1188).
+
+### Documentation
+
+- Added a tutorial for setting up 2D simulations from geometry files, including a curved
+  pipe and a coastline dam-break basin (#1094).
+
+### Features
+
+- Added GPU support for particle packing (#1296).
 
 ## Version 0.5.3
 

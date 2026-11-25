@@ -21,14 +21,7 @@ end
     neighborhood_search = get_neighborhood_search(system, semi)
     backend = semi.parallelization_backend
 
-    # For `distance == 0`, the analytical gradient is zero, but the unsafe gradient
-    # and the density diffusion divide by zero.
-    # To account for rounding errors, we check if `distance` is almost zero.
-    # Since the coordinates are in the order of the smoothing length `h`, `distance^2` is in
-    # the order of `h^2`, so we need to check `distance < sqrt(eps(h^2))`.
-    # Note that `sqrt(eps(h^2)) != eps(h)`.
     h = initial_smoothing_length(system)
-    almostzero = sqrt(eps(h^2))
 
     @threaded semi for particle in eachparticle
         # We are looping over the particles of `system`, so it is guaranteed
@@ -51,9 +44,10 @@ end
                                                                                     initial_pos_diff,
                                                                                     initial_distance
 
-            # Skip neighbors with the same position because the kernel gradient is zero.
+            # Skip neighbors with (almost) the same position because the kernel gradient
+            # is zero, but computing it would divide by zero (see `almostzero`).
             # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            if skip_zero_distance(system) && initial_distance < almostzero
+            if skip_zero_distance(system) && initial_distance < almostzero(h)
                 return zero(initial_pos_diff)
             end
 
@@ -99,8 +93,6 @@ end
         for i in 1:ndims(system)
             @inbounds dv[i, particle] += dv_particle_[i]
         end
-
-        # TODO continuity equation for boundary model with `ContinuityDensity`?
     end
 
     return dv
@@ -123,6 +115,5 @@ function interact!(dv, v_particle_system, u_particle_system,
                    particle_system::TotalLagrangianSPHSystem,
                    neighbor_system::Union{WallBoundarySystem, OpenBoundarySystem}, semi;
                    eachparticle=each_integrated_particle(particle_system))
-    # TODO continuity equation?
     return dv
 end
