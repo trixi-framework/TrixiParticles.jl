@@ -164,6 +164,38 @@
         @test boundary_zone.rest_density == 999.0
     end
 
+    @testset verbose=true "Density" begin
+        boundary_face = ([0.0, 0.0], [0.0, 1.0])
+        face_normal = (1.0, 0.0)
+
+        @testset "Non-Scalar Density" begin
+            # A function density is used to initialize the particles.
+            boundary_zone = BoundaryZone(; boundary_face, face_normal,
+                                         density=x -> 1.0 + x[2], particle_spacing=0.1,
+                                         rest_pressure=0.0, open_boundary_layers=2,
+                                         boundary_type=InFlow())
+            (; coordinates, density) = boundary_zone.initial_condition
+
+            @test density == 1.0 .+ coordinates[2, :]
+
+            # Without a scalar density, there is no rest density for recycled particles.
+            @test isnan(boundary_zone.rest_density)
+        end
+
+        # The particles are initialized from this initial condition with a valid density,
+        # so the scalar `density` is only validated as rest density.
+        ic = InitialCondition(; coordinates=[-0.05; 0.5;;], density=2.0,
+                              particle_spacing=0.1)
+        error_str = "`density` must be finite, positive and larger than `eps()`"
+        @testset "Invalid Rest Density $density" for density in (0.0, -1.0, NaN, Inf)
+            @test_throws ArgumentError(error_str) BoundaryZone(; boundary_face,
+                                                               face_normal, density,
+                                                               particle_spacing=0.1,
+                                                               initial_condition=ic,
+                                                               open_boundary_layers=2)
+        end
+    end
+
     @testset verbose=true "Boundary Zone 2D" begin
         particle_spacing = 0.2
         open_boundary_layers = 4

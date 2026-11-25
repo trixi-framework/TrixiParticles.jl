@@ -262,5 +262,59 @@
             @test system.mass[particle_new] == fluid_system.mass[particle]
             @test active_mass() == mass_before
         end
+
+        @testset "Non-Scalar Density Without Equation of State" begin
+            zone = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 1.0]),
+                                face_normal=(1.0, 0.0), open_boundary_layers=2,
+                                density=x -> 1.0 + x[2], rest_pressure=0.0,
+                                particle_spacing)
+
+            error_str = "all boundary zones must have a scalar `density` when using " *
+                        "`BoundaryModelDynamicalPressureZhang` with a fluid system " *
+                        "without an equation of state"
+            @test_throws ArgumentError(error_str) OpenBoundarySystem(zone; fluid_system,
+                                                                     buffer_size=1,
+                                                                     boundary_model=BoundaryModelDynamicalPressureZhang())
+        end
+    end
+
+    @testset verbose=true "Rest Density of Recycled Particles With Equation of State" begin
+        particle_spacing = 0.1
+        fluid_ic = rectangular_patch(particle_spacing, (4, 4), perturbation_factor=0.0,
+                                     offset=(0.5, 0.5))
+
+        # With `exponent=1`, the inverse equation of state is `rho = rho_0 + p / c^2`.
+        state_equation = StateEquationCole(; sound_speed=10.0, reference_density=1.0,
+                                           exponent=1)
+        fluid_system = WeaklyCompressibleSPHSystem(fluid_ic; state_equation,
+                                                   density_calculator=ContinuityDensity(),
+                                                   smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+                                                   smoothing_length=1.2 * particle_spacing,
+                                                   buffer_size=1)
+
+        # The scalar density must not be used for recycled particles with an equation of state.
+        inflow = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 1.0]),
+                              face_normal=(1.0, 0.0), open_boundary_layers=2,
+                              density=9.0, particle_spacing)
+        system = OpenBoundarySystem(inflow; fluid_system, buffer_size=1,
+                                    boundary_model=BoundaryModelDynamicalPressureZhang())
+        system.boundary_zone_indices[1:(end - 1)] .= 1
+        system.cache.pressure_boundary .= 50.0
+
+        particle = 1
+        particle_new = nparticles(fluid_ic) + 1
+        u = copy(system.initial_condition.coordinates)
+        v = fill(5.0, TrixiParticles.v_nvariables(system), nparticles(system))
+        u_fluid = copy(fluid_system.initial_condition.coordinates)
+        v_fluid = zeros(TrixiParticles.v_nvariables(fluid_system), nparticles(fluid_system))
+
+        # The particle has crossed the boundary face into the fluid domain.
+        u[1, particle] = 0.05
+
+        TrixiParticles.convert_particle!(system, fluid_system, inflow, particle,
+                                         particle_new, v, u, v_fluid, u_fluid, nothing)
+
+        # `rho = 1 + 50 / 10^2 = 1.5`.
+        @test isapprox(TrixiParticles.current_density(v, system, particle), 1.5, atol=eps())
     end
 end
