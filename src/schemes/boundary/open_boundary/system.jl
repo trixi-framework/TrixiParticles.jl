@@ -81,6 +81,17 @@ function OpenBoundarySystem(boundary_zones::Union{BoundaryZone, Nothing}...;
                                               density_diffusion(fluid_system) : nothing)
     boundary_zones_ = filter(bz -> !isnothing(bz), boundary_zones)
 
+    # Without an equation of state, recycled particles are reset to the rest density.
+    # A rest density of `NaN` marks a boundary zone that was created with a non-scalar
+    # `density`.
+    if boundary_model isa BoundaryModelDynamicalPressureZhang &&
+       isnothing(system_state_equation(fluid_system)) &&
+       any(bz -> isnan(bz.rest_density), boundary_zones_)
+        throw(ArgumentError("all boundary zones must have a scalar `density` when using " *
+                            "`BoundaryModelDynamicalPressureZhang` with a fluid system " *
+                            "without an equation of state"))
+    end
+
     if boundary_model isa BoundaryModelDynamicalPressureZhang &&
        !isnothing(shifting_technique)
         # When dynamical pressure is used with shifting, the shifting is ramped up until
@@ -185,13 +196,9 @@ function create_cache_open_boundary(boundary_model, fluid_system, initial_condit
         # since it is specified independently from the computed pressure for the momentum equation.
         pressure_boundary = copy(initial_condition.pressure)
 
-        # The first entry of the density vector can be used,
-        # as it was already verified in `allocate_buffer` that the density array is constant.
-        density_rest = first(initial_condition.density)
-
         cache = (; density_diffusion,
                  create_cache_density_diffusion(initial_condition, density_diffusion)...,
-                 pressure_boundary, density_rest, cache...)
+                 pressure_boundary, cache...)
 
         if fluid_system isa EntropicallyDampedSPHSystem
             # Density and pressure is stored in `v`
@@ -292,6 +299,12 @@ end
     current_density(v, system)[particle] = density
 
     return v
+end
+
+@inline function set_particle_mass!(system::OpenBoundarySystem, particle, mass)
+    system.mass[particle] = mass
+
+    return system
 end
 
 function calculate_dt(v_ode, u_ode, cfl_number, system::OpenBoundarySystem, semi)
@@ -550,6 +563,10 @@ end
     # Transfer pressure
     pressure = current_pressure(v_old, system_old, particle_old)
     set_particle_pressure!(v_new, system_new, particle_new, pressure)
+
+    # Transfer mass, which is not constant when the density is not constant.
+    mass = hydrodynamic_mass(system_old, particle_old)
+    set_particle_mass!(system_new, particle_new, mass)
 
     nonperiodic_coords = current_coords(u_old, system_old, particle_old)
     particle_coords = PointNeighbors.periodic_coords(nonperiodic_coords, periodic_box)

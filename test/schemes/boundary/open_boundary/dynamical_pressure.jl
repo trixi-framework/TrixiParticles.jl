@@ -29,7 +29,10 @@
                               boundary_type=OutFlow(), face_normal=[-1.0, 0.0],
                               open_boundary_layers=10, initial_condition=ic,
                               density=1.0, particle_spacing)
-            bz.initial_condition.mass .= ic.mass
+
+            # The boundary pressure term does not conserve momentum, so we set the pressure
+            # of the boundary zone to zero (it is otherwise taken from `ic`).
+            bz.initial_condition.pressure .= 0
 
             system_wcsph = WeaklyCompressibleSPHSystem(ic; smoothing_kernel,
                                                        smoothing_length,
@@ -167,6 +170,152 @@
 
         # Integrated: velocity + pressure + density (`BoundaryModelDynamicalPressureZhang` always uses `ContinuityDensity`)
         @test TrixiParticles.v_nvariables(open_boundary_edac_2) == n_dims + 2
+    end
+
+    @testset verbose=true "Rest Density of Recycled Particles" begin
+        particle_spacing = 0.1
+        fluid_ic = rectangular_patch(particle_spacing, (4, 4), perturbation_factor=0.0,
+                                     offset=(0.5, 0.5))
+
+        # Two boundary zones with different rest densities.
+        inflow = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 1.0]),
+                              face_normal=(1.0, 0.0), open_boundary_layers=2,
+                              density=1.0, particle_spacing)
+        outflow = BoundaryZone(; boundary_face=([1.0, 0.0], [1.0, 1.0]),
+                               face_normal=(-1.0, 0.0), open_boundary_layers=2,
+                               density=2.0, particle_spacing)
+
+        # Without an equation of state, recycled particles get the rest density of the zone.
+        fluid_system = EntropicallyDampedSPHSystem(fluid_ic;
+                                                   smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+                                                   smoothing_length=1.2 * particle_spacing,
+                                                   sound_speed=1.0, buffer_size=2)
+        system = OpenBoundarySystem(inflow, outflow; fluid_system, buffer_size=1,
+                                    boundary_model=BoundaryModelDynamicalPressureZhang())
+
+        n_inflow = nparticles(inflow.initial_condition)
+        system.boundary_zone_indices[1:n_inflow] .= 1
+        system.boundary_zone_indices[(n_inflow + 1):(end - 1)] .= 2
+
+        # The first particle of each zone has crossed the boundary face into the fluid domain.
+        crossed_particles = ((zone_id=1, particle=1, x_new=0.05),
+                             (zone_id=2, particle=n_inflow + 1, x_new=0.95))
+        @testset "Zone $zone_id" for (; zone_id, particle, x_new) in crossed_particles
+            boundary_zone = system.boundary_zones[zone_id]
+            particle_new = nparticles(fluid_ic) + zone_id
+
+            u = copy(system.initial_condition.coordinates)
+            v = fill(5.0, TrixiParticles.v_nvariables(system), nparticles(system))
+            u_fluid = copy(fluid_system.initial_condition.coordinates)
+            v_fluid = zeros(TrixiParticles.v_nvariables(fluid_system),
+                            nparticles(fluid_system))
+            u[1, particle] = x_new
+
+            # The fluid buffer slot has the mass `1000 * 0.1^2 = 10` of the fluid particles,
+            # while the boundary particle has the mass `rest_density * 0.1^2`.
+            mass = system.mass[particle]
+            @test mass == boundary_zone.rest_density * particle_spacing^2
+            @test fluid_system.mass[particle_new] != mass
+
+            TrixiParticles.convert_particle!(system, fluid_system, boundary_zone,
+                                             particle, particle_new, v, u, v_fluid,
+                                             u_fluid, nothing)
+
+            # The mass is transferred with the particle.
+            @test fluid_system.mass[particle_new] == mass
+
+            # The particle has been transferred to the fluid and recycled in its zone.
+            @test fluid_system.buffer.active_particle[particle_new]
+            @test TrixiParticles.is_in_boundary_zone(boundary_zone,
+                                                     TrixiParticles.current_coords(u,
+                                                                                   system,
+                                                                                   particle))
+            @test TrixiParticles.current_density(v, system, particle) ==
+                  boundary_zone.rest_density
+        end
+
+        @testset "Fluid Particle Entering Boundary Zone" begin
+            # Fluid particles have the mass `1000 * 0.1^2 = 10`, while the boundary buffer slot
+            # has the mass `1.0 * 0.1^2 = 0.01` of the first boundary zone.
+            particle = 1
+            particle_new = nparticles(system)
+            @test system.mass[particle_new] != fluid_system.mass[particle]
+
+            u = copy(system.initial_condition.coordinates)
+            v = zeros(TrixiParticles.v_nvariables(system), nparticles(system))
+            u_fluid = copy(fluid_system.initial_condition.coordinates)
+            v_fluid = zeros(TrixiParticles.v_nvariables(fluid_system),
+                            nparticles(fluid_system))
+
+            function active_mass()
+                return sum(fluid_system.mass[fluid_system.buffer.active_particle]) +
+                       sum(system.mass[system.buffer.active_particle])
+            end
+            mass_before = active_mass()
+
+            TrixiParticles.convert_particle!(fluid_system, system, particle, particle_new,
+                                             v, u, v_fluid, u_fluid, nothing)
+
+            # Relabeling the particle from fluid to boundary conserves the total mass.
+            @test system.buffer.active_particle[particle_new]
+            @test !fluid_system.buffer.active_particle[particle]
+            @test system.mass[particle_new] == fluid_system.mass[particle]
+            @test active_mass() == mass_before
+        end
+
+        @testset "Non-Scalar Density Without Equation of State" begin
+            zone = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 1.0]),
+                                face_normal=(1.0, 0.0), open_boundary_layers=2,
+                                density=x -> 1.0 + x[2], rest_pressure=0.0,
+                                particle_spacing)
+
+            error_str = "all boundary zones must have a scalar `density` when using " *
+                        "`BoundaryModelDynamicalPressureZhang` with a fluid system " *
+                        "without an equation of state"
+            @test_throws ArgumentError(error_str) OpenBoundarySystem(zone; fluid_system,
+                                                                     buffer_size=1,
+                                                                     boundary_model=BoundaryModelDynamicalPressureZhang())
+        end
+    end
+
+    @testset verbose=true "Rest Density of Recycled Particles With Equation of State" begin
+        particle_spacing = 0.1
+        fluid_ic = rectangular_patch(particle_spacing, (4, 4), perturbation_factor=0.0,
+                                     offset=(0.5, 0.5))
+
+        # With `exponent=1`, the inverse equation of state is `rho = rho_0 + p / c^2`.
+        state_equation = StateEquationCole(; sound_speed=10.0, reference_density=1.0,
+                                           exponent=1)
+        fluid_system = WeaklyCompressibleSPHSystem(fluid_ic; state_equation,
+                                                   density_calculator=ContinuityDensity(),
+                                                   smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+                                                   smoothing_length=1.2 * particle_spacing,
+                                                   buffer_size=1)
+
+        # The scalar density must not be used for recycled particles with an equation of state.
+        inflow = BoundaryZone(; boundary_face=([0.0, 0.0], [0.0, 1.0]),
+                              face_normal=(1.0, 0.0), open_boundary_layers=2,
+                              density=9.0, particle_spacing)
+        system = OpenBoundarySystem(inflow; fluid_system, buffer_size=1,
+                                    boundary_model=BoundaryModelDynamicalPressureZhang())
+        system.boundary_zone_indices[1:(end - 1)] .= 1
+        system.cache.pressure_boundary .= 50.0
+
+        particle = 1
+        particle_new = nparticles(fluid_ic) + 1
+        u = copy(system.initial_condition.coordinates)
+        v = fill(5.0, TrixiParticles.v_nvariables(system), nparticles(system))
+        u_fluid = copy(fluid_system.initial_condition.coordinates)
+        v_fluid = zeros(TrixiParticles.v_nvariables(fluid_system), nparticles(fluid_system))
+
+        # The particle has crossed the boundary face into the fluid domain.
+        u[1, particle] = 0.05
+
+        TrixiParticles.convert_particle!(system, fluid_system, inflow, particle,
+                                         particle_new, v, u, v_fluid, u_fluid, nothing)
+
+        # `rho = 1 + 50 / 10^2 = 1.5`.
+        @test isapprox(TrixiParticles.current_density(v, system, particle), 1.5, atol=eps())
     end
 
     # The open boundary particles are part of the fluid. Like all fluid particles, they see their
