@@ -73,6 +73,7 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid; smoothing_kernel, smoothi
                                            gradient_correction=nothing,
                                            force_correction=nothing,
                                            surface_tension=nothing,
+                                           surface_normal_method=nothing,
                                            reference_particle_spacing=0)
 
 # ==========================================================================================
@@ -83,14 +84,8 @@ viscosity_wall = nothing
 # viscosity_wall = viscosity_fluid
 
 # Clip negative boundary pressure values to avoid sticking artifacts at the boundary.
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+boundary_model = BoundaryModelDummyParticles(tank.boundary; fluid_system=fluid_system,
                                              boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length;
-                                             state_equation,
-                                             density_correction=nothing,
-                                             gradient_correction=nothing,
-                                             force_correction=nothing,
-                                             reference_particle_spacing=0,
                                              viscosity=viscosity_wall,
                                              clip_negative_pressure=true)
 

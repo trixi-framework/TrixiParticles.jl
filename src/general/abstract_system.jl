@@ -53,6 +53,8 @@ end
 initialize!(system, semi) = system
 
 requires_density_boundary_prediction(system) = false
+has_pressure_extrapolated_density(system) = false
+
 requires_initial_density_reference(system) = false
 density_reference_initialized(system) = true
 initialize_density_reference!(system, u, u_ode, semi) = system
@@ -237,6 +239,10 @@ end
 
 @inline system_smoothing_kernel(system) = system.smoothing_kernel
 @inline system_correction(system) = nothing
+
+# Boundary model of systems that interact with fluids via dummy particles
+# (`WallBoundarySystem`, `TotalLagrangianSPHSystem`, `RigidBodySystem`), `nothing` otherwise
+@inline system_boundary_model(system) = nothing
 
 @inline particle_spacing(system, particle) = system.initial_condition.particle_spacing
 

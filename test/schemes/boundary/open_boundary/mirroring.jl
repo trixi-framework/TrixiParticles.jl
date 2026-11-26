@@ -1,4 +1,5 @@
 @testset verbose=true "Mirroring" begin
+    include("mirroring_corrections.jl")
     validation_dir = pkgdir(TrixiParticles, "test", "schemes", "boundary", "open_boundary",
                             "data")
 
@@ -548,7 +549,7 @@
         initial_condition = rectangular_patch(particle_spacing, ntuple(_ -> 2, n_dims))
 
         boundary_face = n_dims == 2 ? ([0.0, 0.0], [0.0, 1.0]) :
-                        ([0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 1.0, 1.0])
+                        ([0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0])
         face_normal = n_dims == 2 ? [1.0, 0.0] : [1.0, 0.0, 0.0]
         inflow = BoundaryZone(; boundary_face, boundary_type=InFlow(), face_normal,
                               open_boundary_layers=10, density=1.0, particle_spacing)

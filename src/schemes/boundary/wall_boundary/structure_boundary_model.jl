@@ -72,3 +72,8 @@ function update_structure_boundary_density!(boundary_model::BoundaryModelDummyPa
                                             system, v, u, v_ode, u_ode, semi)
     return update_density!(boundary_model, system, v, u, v_ode, u_ode, semi)
 end
+
+@inline function has_pressure_extrapolated_density(system::Union{TotalLagrangianSPHSystem,
+                                                                 RigidBodySystem})
+    return has_pressure_extrapolated_density(system.boundary_model)
+end

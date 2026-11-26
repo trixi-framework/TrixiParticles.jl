@@ -223,6 +223,7 @@ for resolution in resolutions, method in methods, correction in correction_cases
                         structure_density, sound_speed, E, nu, plate_size,
                         initial_fluid_size,
                         validation_version=2,
+                        solver_baseline=HydrostaticCorrectionMethods.SOLVER_BASELINE,
                         hydrostatic_reference="translated free surface; exact Cole hydrostatics for WCSPH",
                         edac_adami_pressure_gradient="fluid-sided",
                         wcsph_extrapolated_pressure_gradient="fluid-sided",

@@ -124,6 +124,10 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
         throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
     end
 
+    # `ContinuityDensity` requires integrating the boundary density of all particles,
+    # including clamped ones. The ODE state only contains `n_integrated_particles`, with
+    # `v_nvariables` variables per particle. Increasing `v_nvariables` therefore does not
+    # provide density unknowns for clamped particles, whose motion must remain prescribed.
     if boundary_model isa BoundaryModelDummyParticles{ContinuityDensity}
         throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
                             "`ContinuityDensity` is not supported for a `TotalLagrangianSPHSystem`"))
@@ -381,6 +385,8 @@ end
                             particle, v_particle)
 end
 
+@inline system_boundary_model(system::TotalLagrangianSPHSystem) = system.boundary_model
+
 # In fluid-structure interaction, use the "hydrodynamic pressure" of the structure particles
 # corresponding to the chosen boundary model.
 @propagate_inbounds function current_pressure(v, system::TotalLagrangianSPHSystem)
@@ -533,7 +539,12 @@ function update_boundary_interpolation!(system::TotalLagrangianSPHSystem, v, u,
                                         v_ode, u_ode, semi, t)
     (; boundary_model) = system
 
-    # Only update boundary model
+    # Only update the boundary model. This cannot be in `update_quantities!`,
+    # which the `SplitIntegrationCallback` also calls
+    # without any fluid systems to interpolate the wall velocity from.
+    @trixi_timeit timer() "interpolate wall velocity" begin
+        interpolate_wall_velocity!(boundary_model, system, v, u, v_ode, u_ode, semi)
+    end
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
 end
 

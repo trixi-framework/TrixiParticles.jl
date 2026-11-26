@@ -9,6 +9,10 @@ Callback to update quantities either at the end of every `interval` time steps o
 in intervals of `dt` in terms of integration time by adding additional `tstops`
 (note that this may change the solution).
 
+Rigid contact with tangential spring history requires exactly one
+`UpdateCallback(interval=1)`. Sparse step intervals and `dt`-based schedules cannot advance
+that path-dependent state correctly and are rejected when such contact is present.
+
 # Keywords
 - `interval=1`: Update quantities at the end of every `interval` time steps.
 - `dt`: Update quantities in regular intervals of `dt` in terms of integration time
@@ -56,6 +60,8 @@ function initial_update!(cb::UpdateCallback, vu_ode, t, integrator)
     v_ode, u_ode = vu_ode.x
     semi = integrator.p.semi
 
+    validate_rigid_contact_update_callbacks!(semi, integrator)
+
     # Tell the semidiscretization that the `UpdateCallback` is used
     semi.update_callback_used[] = true
 
@@ -67,7 +73,7 @@ function initial_update!(cb::UpdateCallback, vu_ode, t, integrator)
         end
     end
 
-    return cb(integrator)
+    return run_update_callback!(cb, integrator; initial=true)
 end
 
 # `condition`
@@ -78,10 +84,19 @@ function (update_callback!::UpdateCallback)(u, t, integrator)
 end
 
 # `affect!`
-function (update_callback!::UpdateCallback)(integrator)
+function (callback::UpdateCallback)(integrator)
+    return run_update_callback!(callback, integrator; initial=false)
+end
+
+function run_update_callback!(callback::UpdateCallback, integrator; initial)
     t = integrator.t
     semi = integrator.p.semi
     v_ode, u_ode = integrator.u.x
+
+    # Contact history is endpoint state, not ODE stage state. Initialization discovers
+    # contacts with zero elapsed time; subsequent calls use the last accepted step length.
+    # In particular, `integrator.dt` can already contain the proposal for the next step.
+    history_dt = initial ? zero(t) : t - integrator.tprev
 
     # An empty update without calling any of the functions below does not modify
     # the results of the right-hand side.
@@ -101,9 +116,22 @@ function (update_callback!::UpdateCallback)(integrator)
             update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t, integrator)
         end
 
+        update_systems_and_nhs(v_ode, u_ode, semi, t, callback)
+
         foreach_system(semi) do system
             update_particle_packing(system, v_ode, u_ode, semi, integrator)
         end
+
+        contact_history_changed = false
+        foreach_system(semi) do system
+            contact_history_changed |= update_rigid_contact_eachstep!(system, v_ode, u_ode,
+                                                                      semi, t, history_dt)
+        end
+
+        # FSAL methods cache the endpoint derivative for reuse as the next first stage.
+        # Tangential-history changes alter contact forces without changing `u`, so that
+        # derivative must be recomputed.
+        contact_history_changed && derivative_discontinuity!(integrator, true)
 
         # This is only used by the particle packing system and should be removed in the future
         foreach_system(semi) do system
@@ -125,6 +153,76 @@ function (update_callback!::UpdateCallback)(integrator)
     end
 
     return integrator
+end
+
+function validate_rigid_contact_update_callbacks!(semi, integrator)
+    hasproperty(semi, :systems) || return semi
+    any(system -> system isa RigidBodySystem &&
+                  requires_update_callback(system, semi), semi.systems) || return semi
+
+    UpdateCB = Union{DiscreteCallback{<:Any, <:UpdateCallback},
+                     DiscreteCallback{<:Any, <:PeriodicCallbackAffect{<:UpdateCallback}}}
+    # SciML wraps step-based and time-periodic callbacks differently. Normalize both forms
+    # here so contact history has one unambiguous owner and one accepted-step schedule.
+    callbacks = filter(cb -> cb isa UpdateCB,
+                       integrator.opts.callback.discrete_callbacks)
+
+    length(callbacks) == 1 ||
+        throw(ArgumentError("rigid contact history requires exactly one `UpdateCallback`"))
+
+    callback = only(callbacks)
+    update_callback = callback.affect! isa UpdateCallback ? callback.affect! :
+                      callback.affect!.affect!
+    valid_schedule = update_callback.interval isa Integer && update_callback.interval == 1
+    valid_schedule ||
+        throw(ArgumentError("rigid contact history requires `UpdateCallback(interval=1)`"))
+
+    if semi.parallelization_backend isa KernelAbstractions.GPU
+        throw(ArgumentError("rigid contact history is not supported on GPU backends"))
+    end
+
+    return semi
+end
+
+# Callback-only preparation after open-boundary updates. The four-argument RHS
+# preparation remains unconditional; this variant dispatches on cache consumers.
+@inline function update_systems_and_nhs(v_ode, u_ode, semi, t, callback::UpdateCallback)
+    return update_systems_and_nhs(v_ode, u_ode, semi, t, callback, semi.systems)
+end
+
+@inline update_systems_and_nhs(v_ode, u_ode, semi, t, ::UpdateCallback, ::Tuple{}) = nothing
+
+# Find the first open boundary through tuple dispatch. Only then search all shifting
+# strategies for a callback cache consumer.
+@inline function update_systems_and_nhs(v_ode, u_ode, semi, t, callback::UpdateCallback,
+                                        systems::Tuple)
+    return update_systems_and_nhs(v_ode, u_ode, semi, t, callback, Base.tail(systems))
+end
+
+@inline function update_systems_and_nhs(v_ode, u_ode, semi, t, ::UpdateCallback,
+                                        systems::Tuple{<:OpenBoundarySystem, Vararg})
+    shifting = map(shifting_technique, semi.systems)
+    return update_systems_and_nhs(v_ode, u_ode, semi, t, shifting)
+end
+
+@inline update_systems_and_nhs(v_ode, u_ode, semi, t, ::Tuple{}) = nothing
+
+@inline function update_systems_and_nhs(v_ode, u_ode, semi, t, shifting::Tuple)
+    return update_systems_and_nhs(v_ode, u_ode, semi, t, first(shifting),
+                                  Base.tail(shifting))
+end
+
+# A strategy without a callback cache consumer skips to the remaining strategies.
+@inline function update_systems_and_nhs(v_ode, u_ode, semi, t, shifting, remaining::Tuple)
+    return update_systems_and_nhs(v_ode, u_ode, semi, t, remaining)
+end
+
+# The second type parameter selects shifting updated from UpdateCallback. Stop
+# after the first consumer: one global staged pass prepares every interacting system.
+function update_systems_and_nhs(v_ode, u_ode, semi, t,
+                                ::ParticleShiftingTechnique{<:Any, false}, remaining::Tuple)
+    @notimeit timer() update_systems_and_nhs(v_ode, u_ode, semi, t)
+    return nothing
 end
 
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:UpdateCallback})

@@ -37,10 +37,10 @@ equation-of-state pressure afterwards; EDAC preserves its independent pressure s
 Current geometry and derived neighbor quantities are refreshed at callback execution,
 including when earlier callbacks have moved particles since the last RHS evaluation.
 
-Pass a `system` together with the [`Semidiscretization`](@ref TrixiParticles.Semidiscretization) that contains it.
-The callback stores the system index and retrieves the corresponding system from the
-integrator semidiscretization at runtime. This remains valid if [`semidiscretize`](@ref)
-replaces systems internally.
+Pass `system` and the [`Semidiscretization`](@ref TrixiParticles.Semidiscretization)
+containing it. The callback stores
+the system index and uses the corresponding system from the integrator semidiscretization
+at runtime, which remains valid if [`semidiscretize`](@ref) replaces systems internally.
 
 # Keywords
 - `interval=0`: Reinitialize the density every `interval` time steps.

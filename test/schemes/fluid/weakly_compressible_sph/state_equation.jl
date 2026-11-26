@@ -139,6 +139,23 @@
             end
         end
     end
+
+    @testset "Admissible provisional density" begin
+        cole = StateEquationCole(; sound_speed=10.0, reference_density=1000.0, exponent=7)
+        adaptive = StateEquationAdaptiveCole(; reference_density=1000.0f0, exponent=7.0f0)
+        gas = StateEquationIdealGas(; sound_speed=10.0, reference_density=1000.0, gamma=1.0)
+        @testset "$(nameof(typeof(equation)))" for equation in (cole, adaptive, gas)
+            fallback = oftype(equation.reference_density, 975.0)
+            predict(pressure) = TrixiParticles.predict_density_from_pressure(equation,
+                                                                             pressure,
+                                                                             fallback)
+            @test predict(equation(1050.0)) ≈ 1050.0
+            @test predict(equation(0.0) - 1) === fallback
+            @test predict(equation(0.0)) === fallback
+            @test predict(NaN) === fallback
+        end
+    end
+
     @testset verbose=true "StateEquationIdealGas" begin
         # This is the classical ideal gas equation giving a linear relationship
         # between density and pressure.

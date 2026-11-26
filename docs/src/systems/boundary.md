@@ -69,6 +69,8 @@ We provide six options to compute the boundary density and pressure, determined 
    penetrations.
 3. With [`SummationDensity`](@ref), the density is calculated by summation over the neighboring particles,
    and the pressure is computed from the density with the state equation.
+   For the boundary models of a [`TotalLagrangianSPHSystem`](@ref) or a
+   [`RigidBodySystem`](@ref), the sum uses the current hydrodynamic neighborhood.
 4. With [`ContinuityDensity`](@ref), the density is integrated from the continuity equation,
    and the pressure is computed from the density with the state equation.
    This option is not supported for a [`TotalLagrangianSPHSystem`](@ref).
@@ -86,11 +88,29 @@ We provide six options to compute the boundary density and pressure, determined 
    momentum equation.
    This option is not recommended due to stability issues. See [`PressureMirroring`](@ref)
    for more details.
+   Pressure mirroring also applies to TLSPH and rigid-body boundary models.
+   In EDAC, the mirrored pressure is used in the momentum equation,
+   the pressure evolution equation, and the average-pressure reduction.
+   Mirroring makes the pressure diffusion contribution from a fluid-boundary pair zero.
 
-Pressure mirroring also applies to TLSPH and rigid-body boundary models. In EDAC,
-the mirrored pressure is used in the momentum equation, the pressure evolution
-equation, and the average-pressure reduction. Mirroring makes the pressure
-diffusion contribution from a fluid-boundary pair zero.
+With WCSPH or EDAC using [`SummationDensity`](@ref) and [`ShepardKernelCorrection`](@ref),
+Adami and Bernoulli boundaries with an equation of state use a provisional density
+to compute the boundary particle volumes in the Shepard normalization. This pass uses
+the uncorrected fluid density and, for EDAC, the pressure from the ODE state. If the predicted
+pressure cannot yield a positive, finite density with a built-in equation of state,
+or if a custom equation of state is used, the provisional volume uses the boundary
+particle's initial hydrodynamic density. Supply positive, finite `initial_density`
+values for pressure extrapolation with an equation of state.
+
+After Shepard normalization, the boundary pressure and density are recomputed
+from the corrected fluid density for the force calculation. This one-pass predictor
+does not solve for a common boundary density across the two stages.
+
+Adami and Bernoulli walls that exert forces on an [`ImplicitIncompressibleSPHSystem`](@ref)
+must not have a state equation. The fluid is incompressible, so the wall density is the
+initial density. The wall pressure is extrapolated from the fluid pressure in every
+iteration of the IISPH pressure solve, and these walls require the default fluid–wall
+interaction. See [IISPH pressure extrapolation](@ref iisph_pressure_extrapolation).
 
 #### 1. [`AdamiPressureExtrapolation`](@ref)
 
@@ -111,11 +131,11 @@ where the sum is over all fluid particles, ``\rho_f`` and ``p_f`` denote the den
 Identical to the pressure ``p_b`` calculated via [`AdamiPressureExtrapolation`](@ref),
 but with an added dynamic pressure term:
 ```math
-p_b = \frac{\sum_f (p_f + p_{f,\text{dyn}} + \rho_f (\bm{g} - \bm{a}_b) \cdot \bm{r}_{bf}) W(\Vert r_{bf} \Vert, h)}{\sum_f W(\Vert r_{bf} \Vert, h)},
+p_b = \frac{\sum_f (p_f + p_{f,\mathrm{dyn}} + \rho_f (\bm{g} - \bm{a}_b) \cdot \bm{r}_{bf}) W(\Vert r_{bf} \Vert, h)}{\sum_f W(\Vert r_{bf} \Vert, h)},
 ```
 with
 ```math
-p_{f,\text{dyn}} = \frac{1}{2} \, \text{factor} \, \rho_f
+p_{f,\mathrm{dyn}} = \frac{1}{2} \, \text{factor} \, \rho_f
 \left(
 \frac{(\bm{v}_b - \bm{v}_f) \cdot \bm{r}_{bf}}{\Vert \bm{r}_{bf} \Vert}
 \right)^2,
@@ -171,6 +191,12 @@ velocity ``v_a`` and the smoothed velocity field
 v_w = 2 v_a - \frac{\sum_b v_b W_{ab}}{\sum_b W_{ab}},
 ```
 where the sum is over all fluid particles.
+The wall velocity is computed in this way for all density calculators.
+For IISPH, it is available before the advection prediction and pressure solve.
+
+In IISPH the continuity term uses the physical wall velocity at the current evaluation
+time. Only the viscosity term uses the no-slip ghost velocity, which is computed from
+the current fluid velocity before the pressure solve.
 
 By choosing the viscosity model [`ViscosityAdami`](@ref) for `viscosity`, a no-slip
 condition is imposed. It is recommended to choose `nu` in the order of either the kinematic
@@ -203,6 +229,12 @@ The latter is computed with the `gradient_correction` of the boundary model. Wit
 the boundary gradient is uncorrected, even when the fluid uses a correction.
 With [`ContinuityDensity`](@ref), the density of the boundary particles also evolves with the
 corrected kernel gradient of the boundary particles.
+
+For WCSPH with [`AdamiPressureExtrapolation`](@ref) or
+[`BernoulliPressureExtrapolation`](@ref), the built-in pressure formulations instead use
+the fluid's corrected gradient for both pressure terms. This preserves equilibrium at
+uniform pressure. The boundary gradient is still used for boundary continuity and the
+transport-velocity operators.
 
 For a [`TotalLagrangianSPHSystem`](@ref) or a [`RigidBodySystem`](@ref), the kernel gradient
 at each boundary particle uses the smoothing kernel, smoothing length and correction of the

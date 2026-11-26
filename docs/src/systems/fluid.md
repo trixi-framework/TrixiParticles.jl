@@ -224,17 +224,18 @@ Since corrected gradients are generally not parallel to the particle separation,
 force is not necessarily central and does not in general preserve angular momentum. The usual
 linear- and angular-momentum guarantee applies to symmetric radial kernel gradients.
 
-When EDAC average-pressure reduction is enabled, two interacting EDAC particles use the
-arithmetic mean of their local pressure offsets. The shared pair offset ensures that both
-directed evaluations use identical reduced pair pressures, which is required for the
-antisymmetric corrected-gradient formulation to preserve linear momentum. Interactions between
-schemes using different pressure formulations do not gain a conservation guarantee from this
-construction.
+EDAC average-pressure reduction uses a shared, spatially constant pressure reference in
+connected fluid systems. This preserves affine pressure gradients and lets reciprocal pairs
+using the same pressure formulation exchange equal and opposite forces.
 
 For fluid-structure interaction, a `TotalLagrangianSPHSystem` keeps its structural smoothing
 kernel independent from the hydrodynamic kernel stored in its boundary model. Hydrodynamic
-correction caches and evaluations of boundary-side gradients use the boundary-model kernel
-and smoothing length.
+correction caches and fluid pressure interactions use the boundary-model kernel and smoothing
+length.
+For fluid-structure interaction with a [`TotalLagrangianSPHSystem`](@ref) or a
+[`RigidBodySystem`](@ref), the structure's [`BoundaryModelDummyParticles`](@ref) can specify
+its own `gradient_correction`. See [Boundary Corrections](@ref boundary_corrections) for
+how the fluid and boundary gradients enter the pressure acceleration.
 
 EDAC's default inter-particle pressure formulation uses a fluid-side closure at
 [`AdamiPressureExtrapolation`](@ref) dummy boundaries. The boundary pressure is reconstructed
@@ -276,7 +277,7 @@ keywords.
 | WCSPH with [`SummationDensity`](@ref) | Density is recomputed algebraically at every RHS evaluation | Shepard can filter density; all gradient corrections are supported |
 | WCSPH with [`ContinuityDensity`](@ref) | Density is an evolved ODE variable | Gradient corrections are supported; Shepard is applied only by [`DensityReinitializationCallback`](@ref) |
 | EDAC with [`SummationDensity`](@ref) | Density is algebraic and pressure is evolved independently | Same one-pass Shepard limitation as WCSPH; all gradient corrections are supported |
-| EDAC with [`ContinuityDensity`](@ref) | Density and pressure are evolved ODE variables | Gradient corrections are supported; continuous Shepard density overwrite is rejected |
+| EDAC with [`ContinuityDensity`](@ref) | Density and pressure are evolved ODE variables | Gradient corrections are supported; Shepard is applied only by [`DensityReinitializationCallback`](@ref) |
 | [`ImplicitIncompressibleSPHSystem`](@ref) | Summation density is coupled to the pressure projection | Corrections are not supported |
 
 IISPH relies on antisymmetric raw kernel gradients throughout its pressure matrix. Supporting an
@@ -395,10 +396,10 @@ support truncation instead lowers density and can create large negative pressure
 Pressure clipping can suppress attraction but does not remove the interior quadrature
 bias or establish hydrostatic accuracy.
 
-For Shepard-filtered WCSPH with EOS-backed pressure-extrapolated boundaries, boundary
-densities are predicted from the current **raw** fluid pressure before normalization.
-The final boundary pass uses the corrected fluid pressure. This staging keeps repeated
-RHS evaluations independent of previous boundary caches; it does not solve the separate
+For Shepard-filtered WCSPH or EDAC with EOS-backed pressure-extrapolated boundaries,
+boundary densities are predicted from the current fluid state before normalization. The
+final boundary pass uses the updated fluid quantities. This staging keeps repeated RHS
+evaluations independent of previous boundary caches; it does not solve the separate
 density-consistent-initialization and free-surface approximation problems.
 
 These are local operator scalings on self-similar regular particle patches with
@@ -522,9 +523,9 @@ Pages = [joinpath("general", "corrections.jl")]
 
 ### Overview of surface normal calculation in SPH
 
-Surface normals are essential for modeling surface tension as they provide the directionality
-of forces acting at the fluid interface. They are calculated based on the particle properties and
-their spatial distribution.
+Surface normals provide the directionality of forces acting at the fluid interface. They are
+used by the full Akinci model and both Morris models, but not by the cohesion-only Akinci model.
+They are calculated based on the particle properties and their spatial distribution.
 
 #### Color field and gradient-based surface normals
 
@@ -598,6 +599,17 @@ In the following table some values are shown for reference. The values marked wi
 | **Water**       | 0.07288  [Lange](@cite Lange2005)               |
 | **Mercury**     | 0.486502 [Lange](@cite Lange2005)               |
 
+### Model configuration
+
+All surface tension coefficients must be finite and non-negative. A zero coefficient disables
+the fluid-fluid surface force. Wall adhesion is controlled independently by the boundary's
+`adhesion_coefficient`.
+
+`CohesionForceAkinci` only evaluates the pairwise cohesion and optional wall-adhesion forces.
+It does not require surface normals or `reference_particle_spacing`. The full
+`SurfaceTensionAkinci` model and both Morris models require a surface-normal method. When one
+of these models is selected without an explicit method, `ColorfieldSurfaceNormal()` is used.
+
 ### [Akinci-based intra-particle force surface tension and wall adhesion model](@id akinci_ipf)
 
 The [Akinci](@cite Akinci2013) model divides surface tension into distinct force components,
@@ -660,6 +672,10 @@ A(r) = \frac{0.007}{h_c^{3.25}}
 0, & \text{otherwise.}
 \end{cases}
 ```
+
+The published adhesion kernel uses a three-dimensional normalization. In two-dimensional
+simulations, `adhesion_coefficient` is therefore an empirical numerical parameter and may need
+to be adjusted when changing the particle spacing or smoothing length.
 
 ---
 

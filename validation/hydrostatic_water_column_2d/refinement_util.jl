@@ -11,6 +11,10 @@ const HCM = HydrostaticCorrectionMethods
 normalize(value) = JSON.parse(JSON.json(value))
 default_density_mode(method) = string(method) == "wcsph" ? "continuity" : "summation"
 base_density_mode(job) = get(job, "density_mode", default_density_mode(job["method"]))
+function compatible_solver_baseline(settings)
+    return get(settings, "solver_baseline", nothing) == HCM.SOLVER_BASELINE
+end
+
 function compatible_density_boundary_policy(settings, job)
     affected = job["method"] == "wcsph" && actual_density_mode(job) == "summation" &&
                HCM.definition(job["correction"]).shepard
@@ -93,6 +97,8 @@ function validate_campaign_settings(directory, job, protocol)
     isfile(joinpath(directory, "diagnostic_variant.json")) &&
         error("diagnostic variations cannot be reused as primary campaign results: $directory")
     settings = JSON.parsefile(joinpath(directory, "parameters.json"))
+    compatible_solver_baseline(settings) ||
+        error("incompatible solver baseline in $directory")
     for key in ("tspan", "sample_dt", "reinitialization_dt", "averaging_interval")
         settings[key] == protocol[key] || error("incompatible $key in $directory")
     end
@@ -169,6 +175,7 @@ function import_failure!(job, protocol, sources)
         file = joinpath(source, "parameters.json")
         isfile(file) || continue
         settings = JSON.parsefile(file)
+        compatible_solver_baseline(settings) || continue
         compatible_density_boundary_policy(settings, job) || continue
         compatible_initialization_policy(settings, job) || continue
         compatible_pressure_boundary_policy(settings, job) || continue
@@ -228,6 +235,7 @@ function import_job!(job, protocol, sources)
         parameter_file = joinpath(source, "parameters.json")
         isfile(parameter_file) || continue
         settings = JSON.parsefile(parameter_file)
+        compatible_solver_baseline(settings) || continue
         compatible_density_boundary_policy(settings, job) || continue
         compatible_initialization_policy(settings, job) || continue
         compatible_pressure_boundary_policy(settings, job) || continue
@@ -535,7 +543,7 @@ function run_refinement(; output_root="out_hydrostatic_refinement",
         end
     end
     protocol = normalize((; tspan, averaging_interval, sample_dt, reinitialization_dt,
-                          check_reverse_order))
+                          check_reverse_order, solver_baseline=HCM.SOLVER_BASELINE))
     signature = source_signature()
     jobs = plan_jobs(output_root; resolutions, methods, density_modes, correction_cases)
     manifest = Dict{String, Any}("protocol" => protocol, "source_signature" => signature,

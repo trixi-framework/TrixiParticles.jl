@@ -389,7 +389,7 @@ function refinement_samples(runs)
     keys = ("tspan", "averaging_interval", "sample_dt", "reinitialization_dt",
             "smoothing_kernel", "smoothing_length_factor", "E", "nu", "sound_speed",
             "plate_size", "initial_fluid_size", "edac_adami_pressure_gradient",
-            "diagnostic_variant")
+            "solver_baseline", "diagnostic_variant")
     for run in runs
         run.reverse_order && continue
         (ismissing(run.spacing) || ismissing(run.deflection_error)) && continue

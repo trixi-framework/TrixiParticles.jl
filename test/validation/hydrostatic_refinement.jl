@@ -61,6 +61,15 @@ end
     @test only(imported["jobs"])["status"] == "reused"
     @test isequal(CSV.read(joinpath(only(imported["campaign_directories"]),
                                     "hydrostatic_corrections.csv"), DataFrame), original)
+    archive = mktempdir()
+    settings = Dict(JSON.parsefile(joinpath(directory, "parameters.json")))
+    @test pop!(settings, "solver_baseline") == result["protocol"]["solver_baseline"]
+    HydrostaticRefinement.write_json(joinpath(archive, "parameters.json"), settings)
+    fresh = HydrostaticRefinement.run_refinement(; options..., output_root=mktempdir(),
+                                                 reuse_directories=(archive,),
+                                                 execute=false)
+    @test only(fresh["jobs"])["status"] == "pending"
+
     variant_file = joinpath(directory, "diagnostic_variant.json")
     HydrostaticRefinement.write_json(variant_file, (; diagnostic=true))
     @test_throws r"diagnostic variations" HydrostaticRefinement.validate_output(directory,

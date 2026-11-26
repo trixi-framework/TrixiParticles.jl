@@ -188,8 +188,9 @@ That earlier 92-outcome campaign is a correction matrix within WCSPH continuity 
 EDAC summation density, with one EDAC continuity control per level. The extended
 `validation_refinement.jl` requests the full WCSPH/EDAC × continuity/summation
 cross-product: 160 forward cases and 16 order repeats at the four levels. Compatible
-completed trajectories and terminal failures are reused. The short, stabilized
-WCSPH-summation study remains a different protocol.
+completed trajectories and terminal failures are reused within the same solver baseline.
+Start with a fresh output directory for the [PR #1293 baseline](STATUS.md). The short,
+stabilized WCSPH-summation study remains a different protocol.
 
 For three or more matched resolutions, G becomes a full-solver plate-refinement plot
 against `Δx`, with method ranges and an optional isolated-plate curve. Inter-level

@@ -1,7 +1,7 @@
 # [GPU Support](@id gpu_support)
 
-Currently, the [`WeaklyCompressibleSPHSystem`](@ref), [`TotalLagrangianSPHSystem`](@ref)
-and [`WallBoundarySystem`](@ref) support GPU execution.
+Currently, the [`WeaklyCompressibleSPHSystem`](@ref), [`ImplicitIncompressibleSPHSystem`](@ref),
+[`TotalLagrangianSPHSystem`](@ref) and [`WallBoundarySystem`](@ref) support GPU execution.
 We have tested GPU support on NVIDIA, AMD, and Apple GPUs.
 Note that most Apple GPUs do not support `Float64`.
 See [below on how to run single precision simulations](@ref single_precision).

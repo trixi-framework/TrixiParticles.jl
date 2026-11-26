@@ -479,6 +479,11 @@ end
                                                                            neighbor,
                                                                            pos_diff,
                                                                            distance
+            # Normalized kernel corrections can have a nonzero local gradient at
+            # zero separation. It is needed by physical consistency operators, but
+            # must not shift a particle against itself (or a coincident neighbor).
+            distance < almostzero(h) && return
+
             m_b = @inbounds hydrodynamic_mass(neighbor_system, neighbor)
             rho_a = @inbounds current_density(v, system, particle)
             rho_b = @inbounds current_density(v_neighbor, neighbor_system, neighbor)

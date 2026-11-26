@@ -1,5 +1,7 @@
 module HydrostaticCorrectionMethods
 
+const SOLVER_BASELINE = "pr1293-470ae40a0"
+
 const MATRIX_CASES = (:none, :kernel, :gradient, :blended, :mixed,
                       :shepard, :shepard_kernel, :shepard_gradient, :shepard_blended,
                       :combined)

@@ -21,12 +21,11 @@ from demonstrating hydrostatic accuracy or full-discretization convergence.
 - Action/reaction, callback state handling, EOS consistency, initial-state response
   to motion, and restart references have focused regression coverage.
 
-The validation branch contains the stack-compatible support changes needed by these
-checks. The boundary-density history fix is isolated in
-[PR #1368](https://github.com/trixi-framework/TrixiParticles.jl/pull/1368); the WCSPH
-reconstructed-boundary pressure-force fix is submitted separately against `main` in
-[PR #1369](https://github.com/trixi-framework/TrixiParticles.jl/pull/1369).
-These fixes do not by themselves establish stability of every correction variant.
+The study is based on [PR #1293](https://github.com/trixi-framework/TrixiParticles.jl/pull/1293)
+at `470ae40a0`. It uses that branch's boundary-density predictor (#1368), WCSPH
+reconstructed-boundary pressure force (#1369), and corrected fluid operators (#1359).
+The numerical outcomes below are from earlier study revisions; the full coupled campaign
+has not been rerun on this base.
 
 ## Current shortcomings
 
@@ -77,7 +76,11 @@ balance do not imply full-solver convergence or a stationary late-time solution.
 
 ## Implementation verification
 
-The cleaned validation checkpoint passes **29,495 unit assertions**, **720 validation
+On the PR #1293 base, **13,512 targeted unit assertions** and **722 validation assertions**
+passed on Julia 1.11.9 with two threads, `-O1`, and bounds checking. These include the
+fluid RHS suite, correction and density-reset checks, and the refinement-resume tests.
+
+The earlier cleaned validation checkpoint passed **29,495 unit assertions**, **720 validation
 assertions** across the seven correction/hydrostatic validation test files, repository
 Aqua checks in their default configuration, and JuliaFormatter 2.1.1 checks for the
 47 changed Julia files. The validation tests include reduced operator, coupled,
@@ -86,9 +89,11 @@ does not replace the long-run numerical outcomes above.
 
 ## Protocol and reference provenance
 
-Current output records the density model, pressure clipping, viscosity, integration
-settings, density-boundary prediction, initialization policy and reconstructed-pressure
-gradient policy. Reuse and inter-level comparisons reject incompatible policies.
+Current output records the solver baseline, density model, pressure clipping, viscosity,
+integration settings, density-boundary prediction, initialization policy and reconstructed-pressure
+gradient policy. Use a fresh output directory for a campaign on PR #1293. Earlier data can
+still be read for reporting but cannot be reused in the current refinement campaign or
+combined with its data to estimate an inter-level rate.
 
 The checked-in `validation_reference_long*` and `validation_reference_summation*`
 files are labelled measurements from earlier protocols. Compatible EDAC and

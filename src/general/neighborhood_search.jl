@@ -158,10 +158,16 @@ end
 
 @inline function compact_support(system::WallBoundarySystem,
                                  model::BoundaryModelDummyParticles,
-                                 neighbor::RigidBodySystem{Nothing})
-    # Contact-only rigid bodies do not participate in wall-side hydrodynamic passes such as
+                                 neighbor::Union{RigidBodySystem{Nothing},
+                                                 WallBoundarySystem{Nothing}})
+    # Contact-only systems do not participate in wall-side hydrodynamic passes such as
     # density summation, pressure extrapolation, or correction assembly. Keep the reverse
-    # wall->rigid search radius at zero so those updates never query rigid hydrodynamic data.
+    # wall->neighbor search radius at zero so those updates never query hydrodynamic data.
+    return zero(eltype(system))
+end
+
+@inline function compact_support(system::WallBoundarySystem, ::Nothing, neighbor)
+    # Contact-only walls do not initiate hydrodynamic interactions or rigid contact.
     return zero(eltype(system))
 end
 
@@ -212,11 +218,22 @@ end
 
 # === Neighborhood search creation ===
 function create_neighborhood_search(neighborhood_search, system, neighbor)
-    # Pair-local lists also need capacity for the query particles.
-    n_points = PointNeighbors.requires_update(neighborhood_search)[1] ?
-               max(nparticles(system), nparticles(neighbor)) : nparticles(neighbor)
-    return copy_neighborhood_search(neighborhood_search, compact_support(system, neighbor),
-                                    n_points)
+    return copy_pair_neighborhood_search(neighborhood_search,
+                                         compact_support(system, neighbor),
+                                         nparticles(system), nparticles(neighbor))
+end
+
+function copy_pair_neighborhood_search(search, search_radius, n_query, n_neighbor)
+    return copy_neighborhood_search(search, search_radius, n_neighbor)
+end
+
+function copy_pair_neighborhood_search(search::PrecomputedNeighborhoodSearch,
+                                       search_radius, n_query, n_neighbor)
+    # Workaround until PointNeighbors.jl #207 is released. The one-count API sizes both
+    # the precomputed lists (query particles) and the internal grid buffers (neighbors).
+    # An internal trivial search must still iterate over only the neighbor indices.
+    return copy_neighborhood_search(search, search_radius, max(n_query, n_neighbor);
+                                    eachpoint=1:n_neighbor)
 end
 
 function create_neighborhood_search(neighborhood_search, system::TotalLagrangianSPHSystem,
@@ -329,9 +346,8 @@ function PairsNHSHandler(neighborhood_search::AbstractNeighborhoodSearch, system
         radius = hydrodynamic_support(system)
         return map(systems) do neighbor
             uses_regular_hydrodynamic_search(neighbor) && return nothing
-            n_points = PointNeighbors.requires_update(neighborhood_search)[1] ?
-                       max(nparticles(system), nparticles(neighbor)) : nparticles(neighbor)
-            return copy_neighborhood_search(neighborhood_search, radius, n_points)
+            return copy_pair_neighborhood_search(neighborhood_search, radius,
+                                                 nparticles(system), nparticles(neighbor))
         end
     end
 
@@ -859,6 +875,14 @@ function update_nhs!(neighborhood_search,
                      neighbor::RigidBodySystem,
                      u_system, u_neighbor, semi)
     # Don't update. This NHS is never used.
+    return neighborhood_search
+end
+
+# Repulsive wall systems do not update TLSPH systems; both only interact with the fluid.
+function update_nhs!(neighborhood_search,
+                     system::WallBoundarySystem{<:BoundaryModelMonaghanKajtar},
+                     neighbor::TotalLagrangianSPHSystem,
+                     u_system, u_neighbor, semi)
     return neighborhood_search
 end
 

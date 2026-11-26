@@ -86,10 +86,9 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid;
 boundary_density_calculator = AdamiPressureExtrapolation()
 
 # Clip negative boundary pressure values to avoid sticking artifacts at the boundary.
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+boundary_model = BoundaryModelDummyParticles(tank.boundary; fluid_system=fluid_system,
                                              boundary_density_calculator,
-                                             fluid_smoothing_kernel, fluid_smoothing_length;
-                                             state_equation, clip_negative_pressure=true)
+                                             clip_negative_pressure=true)
 
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 
@@ -110,13 +109,24 @@ end
 boundary_model_structure_1 = structure_boundary_model(square1)
 boundary_model_structure_2 = structure_boundary_model(square2)
 
-# Use a less dissipative wall contact for the denser square so its rebound is more visible.
+# Use frictional rigid-wall contact so the rotating squares exchange tangential impulses with
+# the tank floor as well as normal contact forces. This requires `UpdateCallback()`.
 contact_model_1 = RigidContactModel(; normal_stiffness=2.0e5,
                                     normal_damping=200.0,
-                                    contact_distance=2.0 * structure_particle_spacing)
+                                    static_friction_coefficient=0.6,
+                                    kinetic_friction_coefficient=0.4,
+                                    tangential_stiffness=1.0e5,
+                                    tangential_damping=180.0,
+                                    contact_distance=2.0 *
+                                                     structure_particle_spacing)
 contact_model_2 = RigidContactModel(; normal_stiffness=2.0e5,
                                     normal_damping=80.0,
-                                    contact_distance=2.0 * structure_particle_spacing)
+                                    static_friction_coefficient=0.5,
+                                    kinetic_friction_coefficient=0.3,
+                                    tangential_stiffness=8.0e4,
+                                    tangential_damping=120.0,
+                                    contact_distance=2.0 *
+                                                     structure_particle_spacing)
 
 structure_system_1 = RigidBodySystem(square1;
                                      boundary_model=boundary_model_structure_1,
@@ -141,7 +151,7 @@ ode = semidiscretize(semi, tspan)
 info_callback = InfoCallback(interval=50)
 saving_callback = SolutionSavingCallback(dt=0.01, output_directory="out", prefix="")
 
-callbacks = CallbackSet(info_callback, saving_callback)
+callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback())
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # To prevent penetration of fluid particles through the rigid bodies or the boundary

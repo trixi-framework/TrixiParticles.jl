@@ -35,11 +35,11 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 - `shifting_technique`:         [Shifting technique](@ref shifting) or [transport velocity
                                 formulation](@ref transport_velocity_formulation) to use
                                 with this system. Default is no shifting.
-- `average_pressure_reduction`: Whether to subtract the average pressure of neighboring particles
-                                 from the local pressure (default: `true` when using shifting, `false` otherwise).
-                                 Interacting EDAC particles use the arithmetic mean of their local
-                                 pressure offsets so both directed pair evaluations use the same
-                                 reduced pressures and preserve linear momentum.
+- `average_pressure_reduction`: Whether to subtract a spatially constant pressure reference
+                                 (default: `true` when using shifting, `false` otherwise).
+                                 The reference is the particle-average pressure of active fluids
+                                 in the connected fluid interaction component. Sharing one reference
+                                 preserves physical pressure gradients and pairwise momentum.
 - `buffer_size`:                Number of buffer particles.
                                 This is needed when simulating with [`OpenBoundarySystem`](@ref).
 - `density_correction`:         Density correction method. Currently supports
@@ -59,9 +59,10 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                                 gravity-like source terms.
 - `surface_tension`:            Surface tension model used for this SPH system. (default: no surface tension)
 - `surface_normal_method`:      The surface normal method to be used for this SPH system.
-                                (default: no surface normal method or `ColorfieldSurfaceNormal()` if a surface_tension model is used)
+                                (default: no surface normal method or `ColorfieldSurfaceNormal()`
+                                if the surface tension model requires normals)
 - `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary,
-                                which currently is only needed when using surface tension.
+                                which is needed when using a surface-normal method.
 - `color_value`:                Integer label used for calculation of surface normals.
                                 Currently this is only used together with [`BoundaryModelDummyParticles`](@ref) and
                                 [`ColorfieldSurfaceNormal`](@ref): fluid-boundary normal evaluation
@@ -134,12 +135,11 @@ function EntropicallyDampedSPHSystem(initial_condition; smoothing_kernel, smooth
         throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
     end
 
-    if surface_tension !== nothing && surface_normal_method === nothing
-        surface_normal_method = ColorfieldSurfaceNormal()
-    end
+    surface_normal_method = default_surface_normal_method(surface_tension,
+                                                          surface_normal_method)
 
     if surface_normal_method !== nothing && reference_particle_spacing < eps()
-        throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using `ColorfieldSurfaceNormal` or a surface tension model"))
+        throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using a surface-normal method"))
     end
 
     if density_correction_ isa ShepardKernelCorrection &&
@@ -199,9 +199,8 @@ create_cache_avg_pressure_reduction(initial_condition, ::Val{false}) = (;)
 
 function create_cache_avg_pressure_reduction(initial_condition, ::Val{true})
     pressure_average = copy(initial_condition.pressure)
-    neighbor_counter = Vector{Int}(undef, nparticles(initial_condition))
 
-    return (; pressure_average, neighbor_counter)
+    return (; pressure_average)
 end
 
 function Base.show(io::IO, system::EntropicallyDampedSPHSystem)
@@ -290,21 +289,15 @@ end
 
 @inline average_pressure(system, ::Val{false}, particle) = zero(eltype(system))
 
-@propagate_inbounds function interaction_pressure_offset(system::EntropicallyDampedSPHSystem,
-                                                         particle)
+@propagate_inbounds function pressure_reference(system::EntropicallyDampedSPHSystem,
+                                                particle)
     return average_pressure(system, particle)
 end
 
-# Both directed evaluations of an EDAC pair must use the same pressure offset to preserve
-# pairwise linear momentum. This also handles pairs where only one system enables reduction.
-@propagate_inbounds function pair_pressure_offset(system::EntropicallyDampedSPHSystem,
-                                                  neighbor_system::EntropicallyDampedSPHSystem,
-                                                  particle, neighbor)
-    pressure_offset_a = average_pressure(system, particle)
-    pressure_offset_b = average_pressure(neighbor_system, neighbor)
-
-    return (pressure_offset_a + pressure_offset_b) / 2
+@inline function pressure_reference_enabled(system::EntropicallyDampedSPHSystem)
+    return pressure_reference_enabled(system.average_pressure_reduction)
 end
+@inline pressure_reference_enabled(::Val{B}) where {B} = B
 
 @inline function current_density(v, system::EntropicallyDampedSPHSystem)
     return current_density(v, system.density_calculator, system)
@@ -419,55 +412,55 @@ function update_average_pressure!(system, ::Val{false}, v_ode, u_ode, semi)
     return system
 end
 
-# This technique by Basa et al. 2017 (10.1002/fld.1927) aims to reduce numerical errors
-# due to large pressures by subtracting the average pressure of neighboring particles.
-# It results in significant improvement for EDAC, especially with TVF,
-# but not for WCSPH, according to Ramachandran & Puri (2019), Section 3.2.
-# See eq. 16 and 17 in Ramachandran & Puri (2019) for an explanation of the technique.
+# A spatially constant reference retains the affine pressure gradient. Independent
+# neighbor-local references either break pair momentum or cancel affine pressure
+# forces when symmetrized. Couple all active fluids in the same interaction component,
+# including transitive and one-way interactions, but exclude independent components.
 function update_average_pressure!(system, ::Val{true}, v_ode, u_ode, semi)
-    (; cache) = system
-    (; pressure_average, neighbor_counter) = cache
-
-    set_zero!(pressure_average)
-    set_zero!(neighbor_counter)
-
-    v = wrap_v(v_ode, system, semi)
-    u = wrap_u(u_ode, system, semi)
-
-    # Use enabled neighbor systems for the average pressure.
-    @trixi_timeit timer() "compute average pressure" begin
-        foreach_system_wrapped(semi, v_ode,
-                               u_ode) do neighbor_system, v_neighbor_system,
-                                         u_neighbor_system
-            if !has_system_interaction(system, neighbor_system, semi)
-                # No interaction between these systems.
-                return
-            end
-
-            system_coords = current_coordinates(u, system)
-            neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-
-            # Loop over all pairs of particles and neighbors within the kernel cutoff.
-            foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                                   semi;
-                                   points=each_integrated_particle(system)) do particle,
-                                                                               neighbor,
-                                                                               pos_diff,
-                                                                               distance
-                p_a = current_pressure(v, system, particle)
-                pressure_average[particle] += neighbor_pressure(v_neighbor_system,
-                                                                neighbor_system, neighbor,
-                                                                p_a)
-                neighbor_counter[particle] += 1
-            end
-        end
-    end
-
-    # We do not need to check for zero division here, as `neighbor_counter = 1`
-    # for zero neighbors. That is, the `particle` itself is also taken into account.
-    pressure_average ./= neighbor_counter
-
+    component = fluid_pressure_component(system, semi)
+    pressure_sum, count = component_pressure_sum(semi.systems, component, v_ode, semi)
+    reference = iszero(count) ? zero(eltype(system)) : pressure_sum / count
+    fill!(system.cache.pressure_average, reference)
     return system
+end
+
+function fluid_pressure_component(system, semi)
+    fluids = map(s -> s isa AbstractFluidSystem, semi.systems)
+    connected = map(s -> s === system, semi.systems)
+    for _ in eachindex(semi.systems)
+        previous = connected
+        connected = ntuple(Val(length(semi.systems))) do i
+            fluids[i] && (previous[i] || any(eachindex(semi.systems)) do j
+                 previous[j] &&
+                 (is_enabled_interaction(semi.interaction_matrix[i, j]) ||
+                  is_enabled_interaction(semi.interaction_matrix[j, i]))
+             end)
+        end
+        connected == previous && break
+    end
+    return connected
+end
+
+@inline function component_pressure_sum(systems::Tuple{}, component, v_ode, semi)
+    return zero(eltype(first(semi.systems))), 0
+end
+
+@inline function component_pressure_sum(systems::Tuple, component, v_ode, semi)
+    system = first(systems)
+    pressure_sum, count = active_pressure_sum(system, first(component), v_ode, semi)
+    rest_sum,
+    rest_count = component_pressure_sum(Base.tail(systems), Base.tail(component),
+                                        v_ode, semi)
+    return pressure_sum + rest_sum, count + rest_count
+end
+
+@inline active_pressure_sum(system, enabled, v_ode, semi) = (zero(eltype(system)), 0)
+
+function active_pressure_sum(system::AbstractFluidSystem, enabled, v_ode, semi)
+    enabled || return zero(eltype(system)), 0
+    v = wrap_v(v_ode, system, semi)
+    pressure = active_values(current_pressure(v, system), system)
+    return sum(pressure), length(pressure)
 end
 
 function write_v0!(v0, system::EntropicallyDampedSPHSystem, ::SummationDensity)

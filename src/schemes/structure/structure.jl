@@ -128,8 +128,8 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
         # corresponding to the rest density of the fluid and not the material density.
         m_a = hydrodynamic_mass(particle_system, particle)
 
-        # In fluid-structure interaction, use the "hydrodynamic pressure" of the structure
-        # particles corresponding to the chosen boundary model.
+        # Use the hydrodynamic pressure of the chosen boundary model. For
+        # `PressureMirroring`, the boundary pressure equals the fluid pressure.
         p_fluid = current_pressure(v_neighbor_system, neighbor_system, neighbor)
         p_boundary = neighbor_pressure(v_particle_system, particle_system, particle,
                                        p_fluid)

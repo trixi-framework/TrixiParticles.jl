@@ -55,13 +55,13 @@ function vtk2trixi(file; element_type=nothing, coordinates_eltype=nothing,
     if !isnothing(element_type)
         ELTYPE = element_type
     else
-        # Try to get element type from pressure or density (whichever exists)
+        # Prefer pressure or material density when available.
         ELTYPE = if "pressure" in keys(point_data)
             eltype(first(ReadVTK.get_data(point_data["pressure"])))
         elseif "material_density" in keys(point_data)
             eltype(first(ReadVTK.get_data(point_data["material_density"])))
         else
-            error("neither 'pressure' nor 'material_density' field found in VTK file")
+            eltype(point_coords)
         end
     end
 
