@@ -27,19 +27,10 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 ### Features
 
 - `ImplicitIncompressibleSPHSystem` supports GPU execution, also in single precision.
-- Added opt-in initial-density reference correction for WCSPH summation density,
-  including Shepard-filtered states and restart persistence. The hydrostatic plate
-  benchmark enables it to preserve the prescribed initial density and EOS pressure.
-- Added manufactured SPH correction consistency and coupled hydrostatic plate validation
-  studies with resumable refinement, evolved-volume audits, and interface-force checks (#1286).
+- Added a periodic manufactured-field study of SPH correction consistency in 1D, 2D and 3D (#1286).
 
 ### Important Bugfixes
 
-- Implemented continuity-density reinitialization for EDAC, including evolved-density
-  particle volumes and simultaneous mixed-scheme updates, while preserving EDAC pressure.
-  Density resets now refresh current geometry and neighbor quantities before computing volumes.
-- Fixed spurious corrected EDAC pressure loads at Adami dummy boundaries by using the
-  fluid-side pressure gradient and retaining the exact opposite fluid-structure reaction.
 - Fixed SPH correction updates to apply density corrections before pressure and update
   boundary, gradient, and surface quantities in consistent phases across fluid and
   structure systems (#1284).

@@ -15,23 +15,10 @@ using JSON
 # ==========================================================================================
 # ==== Options
 use_edac = true  # Use EDAC or WCSPH
-fluid_density_calculator = use_edac ? SummationDensity() : ContinuityDensity()
-fluid_viscosity = nothing
-fluid_pressure_acceleration = use_edac ? TrixiParticles.inter_particle_averaged_pressure :
-                              nothing
-density_correction = use_edac ? ShepardKernelCorrection() : nothing
-fluid_gradient_correction = nothing
-boundary_gradient_correction = nothing
-reverse_system_order = false
-parallelization_backend = PolyesterBackend()
-clip_negative_pressure = false
-initialize_summation_density = true
 
 # ==========================================================================================
 # ==== Experiment Parameters
 # The paper uses 5 to 40 (3 for short runtime in CI)
-# Five layers are still structurally under-resolved; the isolated refinement control
-# in validation/hydrostatic_water_column_2d/validation_structure.jl separates this error.
 n_particles_plate_y = 5
 boundary_layers = 3
 spacing_ratio = 1
@@ -96,7 +83,7 @@ boundary_density_calculator = AdamiPressureExtrapolation()
 # ==== Run Simulations
 state_equation = use_edac ? nothing :
                  StateEquationCole(; sound_speed, reference_density=fluid_density,
-                                   exponent=7, clip_negative_pressure)
+                                   exponent=7, clip_negative_pressure=false)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, (plate_size[1], 3.0),
                        fluid_density; min_coordinates=(0.0, fluid_particle_spacing / 2),
@@ -104,43 +91,23 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, (plate_size[1
                        faces=(true, true, false, false), acceleration=(0.0, -gravity),
                        state_equation)
 
-if initialize_summation_density && !use_edac &&
-   fluid_density_calculator isa SummationDensity
-    if !isdefined(@__MODULE__, :HydrostaticInitialState)
-        include(joinpath(@__DIR__, "util", "hydrostatic_initialization.jl"))
-    end
-    surface_height = maximum(view(tank.fluid.coordinates, 2, :)) +
-                     fluid_particle_spacing / 2
-    HydrostaticInitialState.prepare!(tank.fluid, state_equation; surface_height, gravity)
-end
-
 if use_edac
     fluid_system = EntropicallyDampedSPHSystem(tank.fluid;
                                                smoothing_kernel,
                                                smoothing_length=smoothing_length_fluid,
                                                sound_speed,
-                                               density_calculator=fluid_density_calculator,
-                                               viscosity=fluid_viscosity,
-                                               pressure_acceleration=fluid_pressure_acceleration,
                                                acceleration=(0.0, -gravity),
-                                               density_correction,
-                                               gradient_correction=fluid_gradient_correction,
+                                               density_correction=ShepardKernelCorrection(),
                                                source_terms=SourceTermDamping(;
                                                                               damping_coefficient=0.05))
 else
+    fluid_density_calculator = ContinuityDensity()
     density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
     # density_diffusion = DensityDiffusionAntuono(delta=0.1)
     fluid_system = WeaklyCompressibleSPHSystem(tank.fluid; smoothing_kernel,
                                                smoothing_length=smoothing_length_fluid,
                                                density_calculator=fluid_density_calculator,
-                                               viscosity=fluid_viscosity,
-                                               pressure_acceleration=fluid_pressure_acceleration,
                                                state_equation, density_diffusion,
-                                               initial_density_correction=initialize_summation_density &&
-                                                                          fluid_density_calculator isa
-                                                                          SummationDensity,
-                                               density_correction,
-                                               gradient_correction=fluid_gradient_correction,
                                                acceleration=(0.0, -gravity),
                                                source_terms=SourceTermDamping(;
                                                                               damping_coefficient=0.05))
@@ -148,18 +115,14 @@ end
 
 boundary_model = BoundaryModelDummyParticles(tank.boundary; fluid_system=fluid_system,
                                              boundary_density_calculator,
-                                             state_equation,
-                                             clip_negative_pressure,
-                                             gradient_correction=boundary_gradient_correction)
+                                             state_equation)
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model)
 boundary_model_structure = BoundaryModelDummyParticles(hydrodynamic_densities,
                                                        hydrodynamic_masses,
                                                        boundary_density_calculator,
                                                        smoothing_kernel,
                                                        smoothing_length_fluid;
-                                                       state_equation,
-                                                       clip_negative_pressure,
-                                                       gradient_correction=boundary_gradient_correction)
+                                                       state_equation)
 structure_system = TotalLagrangianSPHSystem(structure_geometry;
                                             smoothing_kernel,
                                             smoothing_length=smoothing_length_structure,
@@ -178,18 +141,9 @@ max_corner = max.(maximum(structure_geometry.coordinates, dims=2),
 cell_list = FullGridCellList(; min_corner, max_corner)
 neighborhood_search = GridNeighborhoodSearch{2}(; update_strategy=ParallelUpdate(),
                                                 cell_list)
-systems = reverse_system_order ? (fluid_system, structure_system, boundary_system) :
-          (structure_system, fluid_system, boundary_system)
-semi = Semidiscretization(systems...; neighborhood_search, parallelization_backend)
+semi = Semidiscretization(structure_system, fluid_system, boundary_system;
+                          neighborhood_search, parallelization_backend=PolyesterBackend())
 ode = semidiscretize(semi, tspan)
-
-summation_initialization = nothing
-if initialize_summation_density && !use_edac &&
-   fluid_density_calculator isa SummationDensity
-    runtime_fluid = only(filter(system -> system isa WeaklyCompressibleSPHSystem,
-                                ode.p.semi.systems))
-    summation_initialization = HydrostaticInitialState.diagnostics(runtime_fluid)
-end
 
 split_integration = SplitIntegrationCallback(CarpenterKennedy2N54(williamson_condition=false),
                                              callback=StepsizeCallback(cfl=1.6),

@@ -402,8 +402,6 @@ function semidiscretize(semi, tspan; reset_threads=true, restart_with=nothing)
 
     # Initialize all particle systems
     initialize!(semi_new, restart_with)
-    time_span_ = time_span(tspan, restart_with)
-    initialize_density_references!(v0_ode, u0_ode, semi_new, first(time_span_))
 
     # Reset callback flag that will be set by the `UpdateCallback`
     semi_new.update_callback_used[] = false
@@ -416,7 +414,7 @@ function semidiscretize(semi, tspan; reset_threads=true, restart_with=nothing)
                                                                           nothing))
 
     return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode,
-                               time_span_, p)
+                               time_span(tspan, restart_with), p)
 end
 
 function set_initial_conditions!(v0_ode, u0_ode, semi, restart_with::Nothing)

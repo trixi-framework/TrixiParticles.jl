@@ -1,11 +1,6 @@
 @testset verbose=true "Validation" begin
     include("corrections.jl")
-    include("hydrostatic_corrections.jl")
-    include("hydrostatic_initialization.jl")
-    include("hydrostatic_structure.jl")
-    include("hydrostatic_matrix.jl")
-    include("hydrostatic_refinement.jl")
-    include("hydrostatic_density_modes.jl")
+    include("tgv_decay.jl")
 
     @trixi_testset "poiseuille_carreau_2d" begin
         @trixi_test_nowarn trixi_include(@__MODULE__,

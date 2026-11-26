@@ -1,118 +1,81 @@
-@trixi_testset "Correction operator scaling" begin
+@trixi_testset "Periodic correction consistency" begin
     using Base64: base64decode
     @trixi_test_nowarn trixi_include(@__MODULE__,
                                      joinpath(validation_dir(), "corrections",
                                               "validation_corrections.jl");
                                      resolutions=(12, 24, 48), output_directory=mktempdir())
-    @test all(result -> isfinite(result.error), results)
 
-    function finest(method, operator, region)
-        return last(filter(result -> result.method == method &&
-                                     result.operator == operator &&
-                                     result.region == region,
-                           results))
+    # From the first particle, see neighbors through every combination of periodic faces.
+    for d in 1:3
+        (; system, semi, u_ode) = CorrectionConvergence.setup_operator(12, nothing, Val(d))
+        GC.@preserve u_ode begin
+            u = TrixiParticles.wrap_u(u_ode, system, semi)
+            coords = TrixiParticles.current_coordinates(u, system)
+            @test size(coords) == (d, 12^d)
+            wrapped = Set{NTuple{d, Bool}}()
+            TrixiParticles.foreach_point_neighbor(system, system, coords, coords, semi;
+                                                  points=1:1) do a, b, pos_diff, distance
+                if distance < 1.8 / 12
+                    push!(wrapped, Tuple(abs.(coords[:, a] - coords[:, b]) .> 0.5))
+                end
+            end
+            @test length(wrapped) == 2^d
+        end
     end
 
-    raw_interpolation_boundary = finest(:none, :interpolation, :boundary)
-    shepard_interpolation_boundary = finest(:shepard, :interpolation, :boundary)
-    raw_difference_boundary = finest(:none, :difference_gradient, :boundary)
-    gradient_difference_boundary = finest(:gradient, :difference_gradient, :boundary)
-    blended_difference_boundary = finest(:blended, :difference_gradient, :boundary)
-    mixed_difference_boundary = finest(:mixed, :difference_gradient, :boundary)
-    raw_direct_boundary = finest(:none, :direct_gradient, :boundary)
-    kernel_direct_boundary = finest(:kernel, :direct_gradient, :boundary)
-    mixed_direct_boundary = finest(:mixed, :direct_gradient, :boundary)
-
-    @test shepard_interpolation_boundary.order > raw_interpolation_boundary.order + 0.9
-    @test gradient_difference_boundary.order > raw_difference_boundary.order + 0.9
-    @test mixed_difference_boundary.order > raw_difference_boundary.order + 0.9
-    @test kernel_direct_boundary.order > raw_direct_boundary.order + 0.9
-    @test mixed_direct_boundary.order > kernel_direct_boundary.order + 0.9
-    @test blended_difference_boundary.error < raw_difference_boundary.error
-
-    shepard_interpolation_interior = finest(:shepard, :interpolation, :interior)
-    gradient_difference_interior = finest(:gradient, :difference_gradient, :interior)
-    mixed_difference_interior = finest(:mixed, :difference_gradient, :interior)
-    mixed_direct_interior = finest(:mixed, :direct_gradient, :interior)
-    raw_density_boundary = finest(:none, :summation_density, :boundary)
-    shepard_density_boundary = finest(:shepard, :summation_density, :boundary)
-    reinitialized_density_boundary = finest(:shepard, :density_reinitialization, :boundary)
-    reinitialized_density_interior = finest(:shepard, :density_reinitialization, :interior)
-
-    @test shepard_interpolation_interior.order > 1.8
-    @test gradient_difference_interior.order > 1.8
-    @test mixed_difference_interior.order > 1.8
-    @test mixed_direct_interior.order > 1.8
-    @test shepard_density_boundary.error < raw_density_boundary.error
-    @test abs(shepard_density_boundary.order) < 0.1
-    @test reinitialized_density_boundary.order > 0.9
-    @test reinitialized_density_interior.order > 1.8
-
-    pressure_operators = (:pressure_summation,
-                          :pressure_interparticle_summation,
-                          :pressure_continuity,
-                          :pressure_interparticle_continuity)
-    for operator in pressure_operators
-        @test finest(:gradient, operator, :interior).order > 1.8
-        @test finest(:mixed, operator, :interior).order > 1.8
+    @test all(r -> r.region == :periodic && isfinite(r.error), results)
+    finest(method,
+           operator) = only(r
+                            for r in results
+                            if r.method == method &&
+                               r.operator == operator && r.resolution == 48)
+    for (method, operator) in
+        ((:shepard, :interpolation), (:gradient, :difference_gradient),
+         (:mixed, :direct_gradient), (:shepard, :density_reinitialization),
+         (:gradient, :pressure_continuity), (:mixed, :pressure_interparticle_continuity),
+         (:shepard_mixed, :pressure_summation),
+         (:shepard_mixed, :pressure_interparticle_summation))
+        @test 1.9 < finest(method, operator).order < 2.1
     end
-    for operator in (:pressure_summation, :pressure_interparticle_summation)
-        @test finest(:shepard_mixed, operator, :interior).order > 1.8
-    end
+    @test finest(:mixed, :direct_gradient).error < finest(:none, :direct_gradient).error
+    @test finest(:none, :pressure_tensile_positive).error ≈
+          finest(:none, :pressure_continuity).error
+    constant_results = filter(r -> startswith(string(r.operator), "constant_pressure_"),
+                              results)
+    @test maximum(r -> r.error, constant_results) < 1e-12
 
-    constant_pressure_results = filter(results) do result
-        startswith(string(result.operator), "constant_pressure_") &&
-            result.region == :interior && result.resolution == 48
-    end
-    @test !isempty(constant_pressure_results)
-    @test maximum(result -> result.error, constant_pressure_results) < 1e-7
-
-    for region in (:boundary, :interior)
-        tensile = finest(:none, :pressure_tensile_positive, region)
-        continuity = finest(:none, :pressure_continuity, region)
-        @test tensile.error ≈ continuity.error rtol = 5e-13
-    end
-
-    saved_results = CSV.read(csv_file, DataFrame)
-    @test saved_results.l2_error == getproperty.(results, :error)
-    @test saved_results.resolution == getproperty.(results, :resolution)
-    @test occursin("not full-discretization convergence orders", read(report_file, String))
+    saved = CSV.read(csv_file, DataFrame)
+    @test saved.l2_error == getproperty.(results, :error)
+    @test unique(saved.region) == ["periodic"]
+    @test unique(saved.dimension) == [2]
+    @test occursin("2D periodic case", read(report_file, String))
 
     @trixi_test_nowarn trixi_include(@__MODULE__,
                                      joinpath(validation_dir(), "corrections",
                                               "plot_correction_results.jl");
-                                     output_directory, hydrostatic_directories=()) [
-        r"GKS: cannot open display - headless operation mode active\n"
-    ]
-    @test Set(keys(report.figures)) == Set(["operators"])
-    @test length(report.figures["operators"].subplots) == 4
-    @test sum(envelope -> envelope.count, report.operator_envelopes) == length(results)
-    @test all(eachrow(saved_results)) do row
-        matches = filter(envelope -> envelope.method == row.method &&
-                                     envelope.region == row.region &&
-                                     row.operator in envelope.operators,
-                         report.operator_envelopes)
-        length(matches) == 1 || return false
-        envelope = only(matches)
-        index = only(findall(==(row.resolution), envelope.resolution))
-        return envelope.lower[index] <= row.l2_error <= envelope.upper[index]
+                                     output_directory) [r"GKS: cannot open display - headless operation mode active\n"]
+    @test length(figure.subplots) == 4
+    html = read(report_file, String)
+    encoded = match(r"href='data:text/csv;base64,([^']+)'", html).captures[1]
+    @test base64decode(encoded) == read(csv_file)
+
+    for d in (1, 3)
+        rows = CorrectionConvergence.run_convergence(dimension=d, resolutions=(12, 16))
+        @test all(r -> r.dimension == d && isfinite(r.error), rows)
+        for (method, operator) in
+            ((:shepard, :interpolation), (:gradient, :difference_gradient),
+             (:mixed, :pressure_continuity))
+            row = only(r
+                       for r in rows
+                       if r.method == method && r.operator == operator &&
+                          r.resolution == 16)
+            @test 1.85 < row.order < 2.1
+        end
+        @test maximum(r.error
+                      for r in rows if startswith(string(r.operator), "constant_pressure_")) <
+              1e-12
+        x = fill(0.125, d)
+        exact = TrixiParticles.ForwardDiff.gradient(CorrectionConvergence.field, x)
+        @test all(!iszero, exact) && CorrectionConvergence.field_gradient(x, Val(d)) ≈ exact
     end
-    @test report.operator_rows == length(results)
-    @test occursin("zero acceleration", report.html)
-    @test occursin("production one-pass density can retain a floor", report.html)
-    @test !occursin(r"(?:src|href)='https?://", report.html)
-    @test read(report_file, String) == report.html
-    encoded = match(r"download='correction_convergence.csv' href='data:text/csv;base64,([^']+)'",
-                    report.html).captures[1]
-    embedded = CSV.read(IOBuffer(base64decode(encoded)), DataFrame)
-    @test embedded.l2_error == saved_results.l2_error
-    @test embedded.operator == saved_results.operator
-    for (order, name) in ((1, "O(h) guide"), (2, "O(h²) guide"))
-        reference = only(filter(series -> series[:label] == name,
-                                report.figures["operators"].subplots[1].series_list))
-        x, y = reference[:x], reference[:y]
-        @test log(first(y) / last(y)) / log(last(x) / first(x)) ≈ order
-    end
-    @test length(collect(eachmatch(r"<img ", report.html))) == 1
-    @test !any(endswith(".png"), readdir(output_directory))
 end

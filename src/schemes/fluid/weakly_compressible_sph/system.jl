@@ -9,8 +9,7 @@
                                  density_correction=nothing, gradient_correction=nothing,
                                  force_correction=nothing, source_terms=nothing,
                                 surface_tension=nothing, surface_normal_method=nothing,
-                                 reference_particle_spacing=0.0, color_value=1,
-                                 initial_density_correction=false))
+                                reference_particle_spacing=0.0, color_value=1))
 
 System for particles of a fluid.
 The weakly compressible SPH (WCSPH) scheme is used, wherein a stiff equation of state
@@ -67,13 +66,7 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 - `color_value`:                Integer label used for calculation of surface normals.
                                 Currently this is only used together with [`BoundaryModelDummyParticles`](@ref) and
                                 [`ColorfieldSurfaceNormal`](@ref): fluid-boundary normal evaluation
-                                 reads the resulting boundary colorfield to detect wall contact.
-- `initial_density_correction`: Preserve the prescribed initial density with
-                                 `SummationDensity` on a fixed particle set. Add a constant
-                                 per-particle reference offset to the raw or Shepard-filtered
-                                 density operator. Density still responds to subsequent
-                                 particle motion. References are retained by restarts
-                                 (default: `false`).
+                                reads the resulting boundary colorfield to detect wall contact.
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K, V, DD, COR,
                                    PF, SC, ST, B, SRFT, SRFN, PR,
@@ -113,12 +106,7 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
                                      gradient_correction=nothing,
                                      force_correction=nothing, source_terms=nothing,
                                      surface_tension=nothing, surface_normal_method=nothing,
-                                     reference_particle_spacing=0, color_value=1,
-                                     initial_density_correction=false)
-    if initial_density_correction &&
-       (!(density_calculator isa SummationDensity) || !isnothing(buffer_size))
-        throw(ArgumentError("initial_density_correction requires SummationDensity without a particle buffer"))
-    end
+                                     reference_particle_spacing=0, color_value=1)
     buffer = isnothing(buffer_size) ? nothing :
              SystemBuffer(nparticles(initial_condition), buffer_size)
 
@@ -168,11 +156,6 @@ function WeaklyCompressibleSPHSystem(initial_condition; smoothing_kernel,
                                                                      gradient_correction_)
 
     cache = (; create_cache_density(initial_condition, density_calculator)...,
-             (initial_density_correction ?
-              (; initial_density_offset=zeros(ELTYPE, n_particles),
-               initial_filtered_density_offset=zeros(ELTYPE, n_particles),
-               density_predictor_cache=zeros(ELTYPE, n_particles),
-               initial_density_reference_ready=Ref(false)) : (;))...,
              create_cache_correction(correction, initial_condition.density, NDIMS,
                                      n_particles)...,
              create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
@@ -326,7 +309,6 @@ function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
     # Update speed of sound when an adaptive state equation is used
     update_speed_of_sound!(system, v, system.state_equation)
     compute_density!(system, u, u_ode, semi, density_calculator)
-    apply_initial_density_offset!(system, semi)
 
     @trixi_timeit timer() "update density diffusion" update!(density_diffusion, v, u,
                                                              system, semi)
@@ -335,62 +317,6 @@ function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
 end
 
 @inline update_speed_of_sound!(system, v, state_equation) = system
-
-function requires_initial_density_reference(system::WeaklyCompressibleSPHSystem)
-    hasproperty(system.cache, :initial_density_offset)
-end
-
-function density_reference_initialized(system::WeaklyCompressibleSPHSystem)
-    !requires_initial_density_reference(system) ||
-        system.cache.initial_density_reference_ready[]
-end
-
-function initialize_density_reference!(system::WeaklyCompressibleSPHSystem, u, u_ode, semi)
-    density_reference_initialized(system) && return system
-    offset = system.cache.initial_density_offset
-    summation_density!(system, semi, u, u_ode, offset)
-    offset .= system.initial_condition.density .- offset
-    system.cache.initial_filtered_density_offset .= zero(eltype(system))
-    return system
-end
-
-function initialize_shepard_reference!(system::WeaklyCompressibleSPHSystem)
-    density_reference_initialized(system) && return system
-    correction_density(system.correction) isa ShepardKernelCorrection || return system
-    system.cache.initial_filtered_density_offset .= system.initial_condition.density .-
-                                                    system.cache.density
-    return system
-end
-
-function finalize_density_reference!(system::WeaklyCompressibleSPHSystem)
-    requires_initial_density_reference(system) &&
-        (system.cache.initial_density_reference_ready[] = true)
-    return system
-end
-
-function apply_initial_density_offset!(system::WeaklyCompressibleSPHSystem, semi)
-    requires_initial_density_reference(system) || return system
-    correction_density(system.correction) isa ShepardKernelCorrection && return system
-    system.cache.density .+= system.cache.initial_density_offset
-    return system
-end
-
-function prepare_density_predictor!(system::WeaklyCompressibleSPHSystem)
-    requires_initial_density_reference(system) || return system
-    correction_density(system.correction) isa ShepardKernelCorrection || return system
-    # Use the physical unfiltered estimate for boundary pressure prediction, while
-    # retaining the raw sum for the existing Shepard-volume calculation.
-    copyto!(system.cache.density_predictor_cache, system.cache.density)
-    system.cache.density .+= system.cache.initial_density_offset
-    return system
-end
-
-function restore_density_predictor!(system::WeaklyCompressibleSPHSystem)
-    requires_initial_density_reference(system) || return system
-    correction_density(system.correction) isa ShepardKernelCorrection || return system
-    copyto!(system.cache.density, system.cache.density_predictor_cache)
-    return system
-end
 
 @inline function update_speed_of_sound!(system::WeaklyCompressibleSPHSystem, v,
                                         state_equation::StateEquationAdaptiveCole)
@@ -425,10 +351,6 @@ function update_density_correction!(system::WeaklyCompressibleSPHSystem, v, u, v
 
     kernel_correct_density!(system, v, u, v_ode, u_ode, semi, density_correction,
                             density_calculator)
-    if requires_initial_density_reference(system) &&
-       density_correction isa ShepardKernelCorrection
-        system.cache.density .+= system.cache.initial_filtered_density_offset
-    end
 
     return system
 end
@@ -564,10 +486,6 @@ prepare_reinit_density!(system, density_calculator, v, u, v_ode, u_ode, semi) = 
 
 function prepare_reinit_density!(system::WeaklyCompressibleSPHSystem, ::ContinuityDensity,
                                  v, u, v_ode, u_ode, semi)
-    return prepare_shepard_reinit_density(system, v, u, v_ode, u_ode, semi)
-end
-
-function prepare_shepard_reinit_density(system, v, u, v_ode, u_ode, semi)
     # Compute all coefficients before any reinitialization overwrites continuity density.
     coefficient = similar(v, size(v, 2))
     compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode, semi,
@@ -594,13 +512,6 @@ function apply_reinit_density!(system::WeaklyCompressibleSPHSystem, ::Continuity
                                coefficient, v, u, v_ode, u_ode, semi)
     isnothing(coefficient) && return system
 
-    apply_shepard_reinit_density!(system, coefficient, v, u, v_ode, u_ode, semi)
-    compute_pressure!(system, v, semi)
-
-    return system
-end
-
-function apply_shepard_reinit_density!(system, coefficient, v, u, v_ode, u_ode, semi)
     # Compute density with `SummationDensity` and store the result in `v`,
     # overwriting the previous integrated density.
     summation_density!(system, semi, u, u_ode, current_density(v, system))
@@ -608,6 +519,8 @@ function apply_shepard_reinit_density!(system, coefficient, v, u, v_ode, u_ode, 
     @threaded semi for particle in eachparticle(system)
         v[end, particle] /= coefficient[particle]
     end
+
+    compute_pressure!(system, v, semi)
 
     return system
 end
@@ -652,21 +565,6 @@ function restart_with!(system::WeaklyCompressibleSPHSystem, v, u)
 end
 
 function restart_with!(system, ::SummationDensity, v, u)
-    if requires_initial_density_reference(system)
-        system.initial_condition.density .= current_density(v, system)
-    end
-    return system
-end
-
-function restore_previous_state!(system::WeaklyCompressibleSPHSystem, file)
-    requires_initial_density_reference(system) || return system
-    data = vtk2trixi(file; create_initial_condition=false)
-    hasproperty(data, :initial_density_offset) &&
-    hasproperty(data, :initial_filtered_density_offset) ||
-        throw(ArgumentError("restart file is missing the initial density reference"))
-    system.cache.initial_density_offset .= data.initial_density_offset
-    system.cache.initial_filtered_density_offset .= data.initial_filtered_density_offset
-    system.cache.initial_density_reference_ready[] = true
     return system
 end
 

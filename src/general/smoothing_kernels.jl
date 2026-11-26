@@ -612,8 +612,9 @@ w(q) = \sigma \begin{cases}
 \end{cases}
 ```
 
-where `` d `` is the number of dimensions and `` \sigma `` is a normalization factor dependent
-on the dimension. The normalization factor `` \sigma `` is `` 78 / 7 \pi`` in two dimensions or `` 1365 / 64\pi`` in three dimensions.
+for two and three dimensions, with ``\sigma = 39/(14\pi)`` and ``1365/(512\pi)``, respectively.
+In one dimension, writing ``s=q/2``, the normalized profile within the support is
+``w(q) = (55/64)(1-s)^7(1+7s+19s^2+21s^3)``.
 
 This kernel function has a compact support of `` [0, 2h] ``.
 
@@ -626,6 +627,23 @@ where ``\delta`` is the typical particle spacing.
 For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
 """
 struct WendlandC6Kernel{NDIMS} <: AbstractWendlandKernel{NDIMS} end
+
+@fastpow @inline function kernel_unsafe(kernel::WendlandC6Kernel{1}, r::Real, h)
+    h_inv = 1 / h
+    s = r * h_inv / 2
+    return normalization_factor(kernel, h_inv) * (1 - s)^7 * (1 + 7s + 19s^2 + 21s^3)
+end
+
+@fastpow @inline function kernel_deriv_div_r_unsafe(kernel::WendlandC6Kernel{1}, r::Real, h)
+    h_inv = 1 / h
+    s = r * h_inv / 2
+    return -normalization_factor(kernel, h_inv) * (3h_inv^2 / 2) *
+           (1 - s)^6 * (3 + 18s + 35s^2)
+end
+
+@inline function normalization_factor(::WendlandC6Kernel{1}, h_inv)
+    return oftype(h_inv, 55 / 64) * h_inv
+end
 
 @fastpow @inline function kernel_unsafe(kernel::WendlandC6Kernel, r::Real, h)
     h_inv = 1 / h

@@ -183,10 +183,9 @@ function predict_boundary_densities!(semi, v_ode, u_ode, t)
     any_boundary_needs_prediction(semi.systems, semi) || return semi
 
     # Shepard's boundary volumes m_b/ρ_b use a provisional density from the current
-    # unfiltered fluid state. The final extrapolation uses the Shepard-corrected density.
+    # uncorrected fluid state. The final extrapolation uses the Shepard-corrected density.
     # EDAC pressure is already available in the ODE state.
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
-        prepare_density_predictor!(system)
         update_pressure!(system, v, u, v_ode, u_ode, semi, t)
     end
     foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
@@ -194,41 +193,6 @@ function predict_boundary_densities!(semi, v_ode, u_ode, t)
         predict_pressure_extrapolated_density!(system.boundary_model, system, v, u,
                                                v_ode, u_ode, semi)
     end
-    foreach_system(restore_density_predictor!, semi)
-    return semi
-end
-
-function initialize_density_references!(v_ode, u_ode, semi, t)
-    any(system -> !density_reference_initialized(system), semi.systems) || return semi
-
-    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
-        update_positions!(system, v, u, v_ode, u_ode, semi, t)
-    end
-    update_nhs!(semi, u_ode)
-    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
-        initialize_density_reference!(system, u, u_ode, semi)
-    end
-
-    # Measure only the density operator. Its uncorrected intermediate value may
-    # produce an inadmissible EOS boundary pressure before the offset is known.
-    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
-        update_quantities!(system, v, u, v_ode, u_ode, semi, t)
-    end
-    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
-        update_structure_boundary_density!(system, v, u, v_ode, u_ode, semi)
-    end
-    predict_boundary_densities!(semi, v_ode, u_ode, t)
-    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
-        update_density_correction_values!(system, v, u, v_ode, u_ode, semi, t)
-    end
-    foreach_system_wrapped(semi, v_ode, u_ode) do system, v, u
-        update_density_correction!(system, v, u, v_ode, u_ode, semi, t)
-    end
-    foreach_system(semi) do system
-        initialize_shepard_reference!(system)
-    end
-    update_systems_and_nhs(v_ode, u_ode, semi, t)
-    foreach_system(finalize_density_reference!, semi)
     return semi
 end
 
