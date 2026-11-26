@@ -240,6 +240,24 @@ For fluid-structure interaction with a [`TotalLagrangianSPHSystem`](@ref) or a
 its own `gradient_correction`. See [Boundary Corrections](@ref boundary_corrections) for
 how the fluid and boundary gradients enter the pressure acceleration.
 
+### Periodic correction consistency
+
+`validation/corrections/validation_corrections.jl` measures interpolation, density,
+gradient and pressure-acceleration errors on a periodic line, square or cube. Every particle,
+including those with neighbors across the periodic seams, contributes to the error.
+Refining the lattice at fixed ``h/\Delta x=2`` tests local operator scaling. A corrected
+gradient can exhibit second-order scaling on this symmetric lattice without implying
+second-order convergence of a time-dependent flow. Pass the dimension (1, 2 or 3; default 2)
+when running the study from the repository root:
+
+```bash
+julia --project=. validation/corrections/validation_corrections.jl 3
+```
+
+The companion `validation/corrections/validation_tgv_decay.jl` uses moving particles in
+a doubly periodic 2D Taylor–Green vortex. It compares density and gradient corrections
+using both the exact kinetic-energy decay and the velocity error along particle trajectories.
+
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("general", "corrections.jl")]

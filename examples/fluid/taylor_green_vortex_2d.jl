@@ -60,11 +60,14 @@ n_particles_xy = round(Int, box_length / particle_spacing)
 wcsph = false
 
 nu = U * box_length / reynolds_number
+viscosity = ViscosityAdami(; nu)
 
 background_pressure = sound_speed^2 * fluid_density
 
 smoothing_length = 1.0 * particle_spacing
 smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
+density_correction = nothing
+gradient_correction = nothing
 
 # To be set via `trixi_include`
 perturb_coordinates = true
@@ -84,17 +87,19 @@ if wcsph
     fluid_system = WeaklyCompressibleSPHSystem(fluid;
                                                smoothing_kernel, smoothing_length,
                                                density_calculator, state_equation,
+                                               density_correction, gradient_correction,
                                                pressure_acceleration=TrixiParticles.inter_particle_averaged_pressure,
-                                               viscosity=ViscosityAdami(; nu),
+                                               viscosity,
                                                shifting_technique=TransportVelocityAdami(;
                                                                                          background_pressure))
 else
     density_calculator = SummationDensity()
     fluid_system = EntropicallyDampedSPHSystem(fluid; smoothing_kernel, smoothing_length,
                                                sound_speed, density_calculator,
+                                               density_correction, gradient_correction,
                                                shifting_technique=TransportVelocityAdami(;
                                                                                          background_pressure),
-                                               viscosity=ViscosityAdami(; nu))
+                                               viscosity)
 end
 
 # ==========================================================================================
@@ -116,7 +121,7 @@ callbacks = CallbackSet(info_callback, saving_callback, pp_callback, UpdateCallb
 dt_max = min(smoothing_length / 4 * (sound_speed + U), smoothing_length^2 / (8 * nu))
 
 # Use a Runge-Kutta method with automatic (error based) time step size control
-sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-8, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=dt_max, save_everystep=false, callback=callbacks);
+saveat = ()
+solve_options = (; abstol=1e-8, reltol=1e-4, dtmax=dt_max, saveat, tstops=saveat,
+                 save_everystep=false, callback=callbacks)
+sol = solve(ode, RDPK3SpFSAL49(); solve_options...);

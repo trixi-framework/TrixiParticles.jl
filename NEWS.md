@@ -27,6 +27,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 ### Features
 
 - `ImplicitIncompressibleSPHSystem` supports GPU execution, also in single precision.
+- Added a periodic manufactured-field study of SPH correction consistency in 1D, 2D and 3D (#1286).
 
 ### Important Bugfixes
 

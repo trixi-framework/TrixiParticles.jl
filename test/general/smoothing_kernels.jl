@@ -55,6 +55,7 @@
             SchoenbergCubicSplineKernel,
             SchoenbergQuarticSplineKernel,
             SchoenbergQuinticSplineKernel,
+            WendlandC6Kernel,
             LaguerreGaussKernel
         ]
 
@@ -93,6 +94,7 @@
             SchoenbergCubicSplineKernel,
             SchoenbergQuarticSplineKernel,
             SchoenbergQuinticSplineKernel,
+            WendlandC6Kernel,
             LaguerreGaussKernel
         ]
 
@@ -152,6 +154,7 @@
             SchoenbergCubicSplineKernel,
             SchoenbergQuarticSplineKernel,
             SchoenbergQuinticSplineKernel,
+            WendlandC6Kernel,
             LaguerreGaussKernel
         ]
 

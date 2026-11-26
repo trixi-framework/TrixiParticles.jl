@@ -1,4 +1,7 @@
 @testset verbose=true "Validation" begin
+    include("corrections.jl")
+    include("tgv_decay.jl")
+
     @trixi_testset "poiseuille_carreau_2d" begin
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(validation_dir(), "poiseuille_carreau_2d",
