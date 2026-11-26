@@ -19,6 +19,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 - Added the `ThrustCalculator` custom quantity to calculate the hydrodynamic force exerted by
   interacting fluid systems on a `TotalLagrangianSPHSystem` along a given `direction` (#1229).
+- Added a 2D vortex street validation case based on Tafuni et al. (2018).
+  The example `vortex_street_2d.jl` now uses `BoundaryModelDynamicalPressureZhang` with a
+  prescribed outlet pressure and no longer uses `tensile_instability_control` (#1223).
 
 ### Important Bugfixes
 

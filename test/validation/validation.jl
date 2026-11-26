@@ -189,19 +189,61 @@
             r"\[ Info: To create the self-interaction neighborhood search.*\n"
         ]
         @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol) == 0
 
-        # The vortex shedding is fully developed after about `t = 1.5`, which leaves about
-        # six shedding cycles to analyze.
-        # Not using `@trixi_test_nowarn` here because the plot script logs the computed
-        # quantities with `@info`.
-        trixi_include(@__MODULE__,
-                      joinpath(validation_dir(), "vortex_street_2d",
-                               "plot_vortex_street_reference_2d.jl"),
-                      directory="out", resolution_factor=0.2, t_start=2.0)
+        # The vortex shedding is fully developed after about `t = 1.5`.
+        # Starting the analysis at `t = 2` leaves about six shedding cycles.
+        # Allow the `@info` output of the computed quantities.
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(validation_dir(), "vortex_street_2d",
+                                                  "plot_vortex_street_reference_2d.jl"),
+                                         directory="out",
+                                         file_prefix="validation_result_vortex_street",
+                                         resolution_factor=0.2, t_start=2.0) [
+            r"┌ Info: .*\n",
+            r"└ .*\n"
+        ]
 
         # For this coarse resolution and short analysis time, even small differences
         # in the floating point results between platforms can shift the shedding frequency.
         # Use a large tolerance to avoid cross-platform CI failures.
         @test isapprox(strouhal_number, 0.2, atol=0.04)
+
+        # `argmax` always returns a frequency, so also check that the spectrum has a clear
+        # peak. The current value is about 0.55.
+        @test band_fraction_v_y > 0.5
+
+        # Check the drag and lift computation with the `ThrustCalculator`.
+        # The output interval is `dt = 0.02`, so `tspan = (0.0, 5.0)` yields
+        # 5.0 / 0.02 + 1 = 251 samples.
+        @test length(drag_coefficients) == length(times) == 251
+        @test length(lift_coefficients) == length(times)
+        @test all(isfinite, drag_coefficients)
+        @test all(isfinite, lift_coefficients)
+
+        # The current mean drag coefficient is about 1.14. The value at the coarse
+        # resolution is sensitive to small floating point differences, so use loose bounds.
+        @test 0.5 < drag_coefficient_mean < 1.5
+
+        # The lift oscillates around zero due to the symmetry of the setup.
+        # The current mean lift coefficient is about -0.02.
+        @test abs(mean(lift_coefficients_cut)) < 0.05
+    end
+
+    @trixi_testset "vortex_street_2d (reference data)" begin
+        # Analyze the committed reference data with the default parameters.
+        # No simulation is involved, so the results are deterministic and we can use
+        # tight tolerances.
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(validation_dir(), "vortex_street_2d",
+                                                  "plot_vortex_street_reference_2d.jl")) [
+            r"┌ Info: .*\n",
+            r"└ .*\n"
+        ]
+
+        @test isapprox(strouhal_number, 0.21398002853066556, rtol=1e-8)
+        @test isapprox(drag_coefficient_mean, 1.456938198711208, rtol=1e-8)
+        @test isapprox(lift_amplitude, 0.6721642375613147, rtol=1e-8)
+        @test isapprox(band_fraction_v_y, 0.42087449922368775, rtol=1e-8)
     end
 end

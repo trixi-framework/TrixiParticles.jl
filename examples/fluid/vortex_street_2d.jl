@@ -91,8 +91,8 @@ density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 
 shifting_technique = ParticleShiftingTechnique(; sound_speed_factor=0.2, v_max_factor=0)
 
-# Note that `tensile_instability_control` is not momentum-conserving for negative pressures.
-# Use the default formulation when forces on the cylinder are measured like in the
+# We don't use `tensile_instability_control` here because it is not momentum-conserving
+# for negative pressures, which would corrupt the forces on the cylinder measured in the
 # validation case corresponding to this example file.
 fluid_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel, smoothing_length,
                                            density_calculator=fluid_density_calculator,
@@ -104,9 +104,9 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid; smoothing_kernel, smoothing_le
 # ==== Open Boundary
 open_boundary_model = BoundaryModelDynamicalPressureZhang()
 
-# With only the inflow velocity prescribed and all other quantities extrapolated,
-# the pressure level in the domain is not determined by the boundary conditions
-# and can drift. Prescribing the outlet pressure fixes the pressure level.
+# With only the inflow velocity prescribed, the pressure level in the domain is not
+# determined by the boundary conditions and can drift.
+# Prescribing the outlet pressure fixes the pressure level.
 outlet_reference_pressure = 0.0
 
 # Note that we use bidirectional flow for both the inlet and outlet.

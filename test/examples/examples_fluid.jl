@@ -558,7 +558,10 @@
         @trixi_test_nowarn trixi_include(@__MODULE__,
                                          joinpath(examples_dir(), "fluid",
                                                   "vortex_street_2d.jl"),
-                                         tspan=(0.0, 0.2))
+                                         tspan=(0.0, 0.2),
+                                         # Sort more often to make sure that sorting
+                                         # happens at least once in this short `tspan`.
+                                         sorting_callback=SortingCallback(interval=10))
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol) == 0
     end

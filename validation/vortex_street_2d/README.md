@@ -24,8 +24,14 @@ The following files are provided here:
    This allows for regression testing and for analyzing the behavior of the simulation
    when changing model or parameters.
    The resolution can be selected with `resolution_factor`.
+   The signals are only analyzed after the start time `t_start` (default `6.0`), when the
+   vortex shedding has become periodic. For shorter simulations, pass a smaller value,
+   e.g. `trixi_include("plot_vortex_street_reference_2d.jl", t_start=2.0)`.
 3. `plot_vortex_street_result_2d.jl`: The same as `plot_vortex_street_reference_2d.jl`,
    but reading the current simulation results from the `out` directory.
 
 The reference results produced with TrixiParticles.jl are provided in
-`resulting_force_dp*.json`, where the number denotes the resolution `d / dx`.
+`validation_reference_<n>.json`, where `<n>` denotes the resolution `d / dx`.
+Each file contains the time series of the drag coefficient, the lift coefficient and the
+transverse velocity `v_y` of the wake sensor, as recorded by the `PostprocessCallback`
+in `validation_vortex_street_2d.jl`.

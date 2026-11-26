@@ -2,15 +2,17 @@ using TrixiParticles
 
 tspan = (0.0, 20.0)
 
-# In Tafuni et al. (2018), the resolution factor is `0.01` (5M particles), which result
-# in 1.3M particles. `resolution_factor = 0.02` results in 200k particles and much noisier
-# results compared to Tafuni et al. (2018).
+# In Tafuni et al. (2018), the resolution factor is `0.01` (d/dx = 100, 5M particles).
+# `resolution_factor = 0.02` results in 1.3M particles. The default `0.05` results in
+# 200k particles and much noisier results compared to Tafuni et al. (2018).
 resolution_factor = 0.05
 
 reynolds_number = 200
 cylinder_diameter = 0.1
-domain_size = (25 * cylinder_diameter, 20 * cylinder_diameter)
 
+# Use the original domain size and boundary model from Tafuni et al. (2018)
+# instead of the smaller domain and the default boundary model of the example.
+domain_size = (25 * cylinder_diameter, 20 * cylinder_diameter)
 mirror_method = FirstOrderMirroring(; firstorder_tolerance=1e-3)
 open_boundary_model = BoundaryModelMirroringTafuni(; mirror_method)
 
@@ -21,18 +23,18 @@ update_strategy = ParallelUpdate()
 # Set this to a GPU backend like `CUDABackend()` to run the simulation on a GPU.
 parallelization_backend = PolyesterBackend()
 
-# Import variables into scope without running the simulation.
-trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "vortex_street_2d.jl"),
-              reynolds_number=reynolds_number, saving_callback=nothing,
-              open_boundary_model=open_boundary_model, update_strategy=update_strategy,
-              particle_spacing_factor=resolution_factor,
-              domain_size=domain_size, tspan=tspan, sol=nothing)
+# Overrides that are shared by both `trixi_include` calls of the example below.
+example_overrides = (; reynolds_number, open_boundary_model, update_strategy,
+                     particle_spacing_factor=resolution_factor, domain_size, tspan,
+                     saving_callback=nothing, sol=nothing)
 
-# The force on the cylinder is computed from the pairwise interaction forces between fluid
-# and cylinder particles. With `tensile_instability_control`, the pressure force between
-# fluid and cylinder vanishes where the pressure is negative, so the suction on the cylinder
-# is not captured. Use the default momentum-conserving pressure formulation instead.
-# The transport velocity formulation already prevents the tensile instability.
+# Import variables into scope without running the simulation.
+trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "vortex_street_2d.jl");
+              example_overrides..., ode=nothing, semi=nothing)
+
+# Replace the particle shifting technique of the example by the transport velocity
+# formulation. With a large background pressure, it prevents the tensile instability
+# without `tensile_instability_control`, which would corrupt the measured forces.
 shifting_technique = TransportVelocityAdami(background_pressure=5 * fluid_density *
                                                                 sound_speed^2)
 
@@ -50,17 +52,13 @@ boundary_system_cylinder = TotalLagrangianSPHSystem(cylinder; smoothing_kernel,
 
 # Set up the simulation with the TLSPH cylinder without running it, so that the force
 # calculators can be created for the cylinder system in the final semidiscretization.
-trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "vortex_street_2d.jl"),
-              parallelization_backend=parallelization_backend,
-              reynolds_number=reynolds_number,
-              open_boundary_model=open_boundary_model, update_strategy=update_strategy,
-              shifting_technique=shifting_technique,
-              boundary_system_cylinder=boundary_system_cylinder,
-              particle_spacing_factor=resolution_factor, domain_size=domain_size,
-              tspan=tspan, saving_callback=nothing, sol=nothing)
+trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "vortex_street_2d.jl");
+              example_overrides..., parallelization_backend, shifting_technique,
+              boundary_system_cylinder)
 
 # The `Semidiscretization` creates a copy of the TLSPH system, so the `ThrustCalculator`
 # needs the system as it is stored in the semidiscretization.
+# The TLSPH system is the last system in the semidiscretization.
 cylinder_system = semi.systems[end]
 
 # The force coefficients are computed from the total hydrodynamic force on the cylinder,
@@ -94,6 +92,7 @@ end
 # (whereas `v_x` oscillates with twice the shedding frequency).
 velocity_sensor_point = [cylinder_center[1] + 2 * cylinder_diameter; cylinder_center[2];;]
 
+# Only record the wake velocity for the fluid system.
 wake_velocity_y(system, dv_ode, du_ode, v_ode, u_ode, semi, t) = nothing
 
 let velocity_sensor_point = velocity_sensor_point
@@ -106,16 +105,17 @@ let velocity_sensor_point = velocity_sensor_point
     end
 end
 
-# Tag the output file with the resolution, e.g. `resulting_force_dp20.json` for a particle
-# spacing of `d/20`.
-resolution_name = round(Int, 1 / resolution_factor)
+# Tag the output file with the resolution, e.g. `validation_result_vortex_street_20.json`
+# for a particle spacing of `d/20`.
+particles_per_diameter = round(Int, 1 / resolution_factor)
+output_filename = "validation_result_vortex_street_$(particles_per_diameter)"
 
 pp_callback = PostprocessCallback(; dt=0.02,
                                   lift_coefficient, drag_coefficient, wake_velocity_y,
-                                  filename="resulting_force_dp$(resolution_name)",
+                                  filename=output_filename,
                                   write_csv=false, write_file_interval=10)
 
-# ======================================================================================
+# ==========================================================================================
 # ==== Run the simulation
 callbacks = CallbackSet(callbacks, pp_callback)
 
