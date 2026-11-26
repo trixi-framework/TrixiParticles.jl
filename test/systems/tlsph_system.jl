@@ -191,7 +191,10 @@
                 function TrixiParticles.smoothing_kernel_grad(::MockSystem,
                                                               pos_diff, distance,
                                                               particle)
-                    return kernel_derivative * pos_diff / distance
+                    # Like the real kernel gradient, this is zero for the particle itself.
+                    # Pairs at zero distance are not skipped in the neighbor loop.
+                    return kernel_derivative * pos_diff /
+                           TrixiParticles.clamp_distance(distance, 1.0)
                 end
                 semi = DummySemidiscretization()
 
