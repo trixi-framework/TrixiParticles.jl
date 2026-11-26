@@ -23,20 +23,30 @@ update_strategy = ParallelUpdate()
 # Set this to a GPU backend like `CUDABackend()` to run the simulation on a GPU.
 parallelization_backend = PolyesterBackend()
 
+# Unlike Tafuni et al. (2018), we prescribe the pressure at the outlet in addition to the
+# inflow velocity, as in the example. Tafuni et al. only prescribe the inflow velocity and
+# extrapolate the outlet pressure from the fluid. Then the pressure level in the domain is
+# not fixed by the boundary conditions and can drift. In our experiments, this setup was
+# fragile. It only remained stable at high resolutions. At lower resolutions, the pressure
+# drifted with all shifting techniques we tried, and most simulations crashed.
+outlet_reference_pressure = 0.0
+
 # Overrides that are shared by both `trixi_include` calls of the example below.
-example_overrides = (; reynolds_number, open_boundary_model, update_strategy,
-                     particle_spacing_factor=resolution_factor, domain_size, tspan,
-                     saving_callback=nothing, sol=nothing)
+example_overrides = (; reynolds_number, open_boundary_model, outlet_reference_pressure,
+                     update_strategy, particle_spacing_factor=resolution_factor,
+                     domain_size, tspan, saving_callback=nothing, sol=nothing)
 
 # Import variables into scope without running the simulation.
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "vortex_street_2d.jl");
               example_overrides..., ode=nothing, semi=nothing)
 
-# Replace the particle shifting technique of the example by the transport velocity
-# formulation. With a large background pressure, it prevents the tensile instability
-# without `tensile_instability_control`, which would corrupt the measured forces.
-shifting_technique = TransportVelocityAdami(background_pressure=5 * fluid_density *
-                                                                sound_speed^2)
+# Replace the consistent particle shifting technique of the example by the original
+# Particle Shifting Technique by Sun et al. (2017). Like the shifting used by
+# Tafuni et al. (2018), this is a position correction that does not conserve volume
+# and adds no additional terms to the momentum equation, which could affect the measured
+# forces. Shifting also prevents the tensile instability without
+# `tensile_instability_control`, which would corrupt the measured forces.
+shifting_technique = ParticleShiftingTechniqueSun2017()
 
 # ==========================================================================================
 # ==== Postprocessing
@@ -105,6 +115,27 @@ let velocity_sensor_point = velocity_sensor_point
     end
 end
 
+# Monitor the volume loss caused by the non-conservative shifting (see above).
+# Since all fluid particles have the same mass `m`, the particle count `N` is proportional
+# to the total mass in the domain. The total volume of the fluid particles can be computed
+# in postprocessing as `N * m / average_density`. This is exact up to the (negligible)
+# difference between the harmonic and the arithmetic mean of the density.
+function n_fluid_particles(system::TrixiParticles.AbstractFluidSystem,
+                           dv_ode, du_ode, v_ode, u_ode, semi, t)
+    return length(TrixiParticles.each_active_particle(system))
+end
+
+# Only record this quantity for the fluid system.
+n_fluid_particles(system, dv_ode, du_ode, v_ode, u_ode, semi, t) = nothing
+
+function average_density(system::TrixiParticles.AbstractFluidSystem,
+                         dv_ode, du_ode, v_ode, u_ode, semi, t)
+    return TrixiParticles.avg_density(system, dv_ode, du_ode, v_ode, u_ode, semi, t)
+end
+
+# Only record this quantity for the fluid system.
+average_density(system, dv_ode, du_ode, v_ode, u_ode, semi, t) = nothing
+
 # Tag the output file with the resolution, e.g. `validation_result_vortex_street_20.json`
 # for a particle spacing of `d/20`.
 particles_per_diameter = round(Int, 1 / resolution_factor)
@@ -112,6 +143,7 @@ output_filename = "validation_result_vortex_street_$(particles_per_diameter)"
 
 pp_callback = PostprocessCallback(; dt=0.02,
                                   lift_coefficient, drag_coefficient, wake_velocity_y,
+                                  n_fluid_particles, average_density,
                                   filename=output_filename,
                                   write_csv=false, write_file_interval=10)
 

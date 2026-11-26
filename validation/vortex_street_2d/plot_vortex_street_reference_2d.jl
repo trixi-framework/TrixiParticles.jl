@@ -95,18 +95,18 @@ function dominant_frequency(frequencies, spectrum)
     return f_dominant, band_fraction
 end
 
+# Compute the Strouhal number from the lift coefficient, which oscillates with the
+# shedding frequency.
+frequencies_lift, spectrum_lift = frequency_spectrum(lift_coefficients_cut, dt)
+f_dominant_lift, band_fraction = dominant_frequency(frequencies_lift, spectrum_lift)
+strouhal_number = f_dominant_lift * cylinder_diameter / prescribed_velocity
+
 # The force coefficients are very noisy at low resolutions. The transverse velocity in the
-# wake of the cylinder yields a much cleaner signal, so the Strouhal number is computed
-# from `v_y`.
+# wake of the cylinder yields a much cleaner signal, so also compute the Strouhal number
+# from `v_y`. This is used to test the shedding frequency at very low resolutions.
 frequencies_v_y, spectrum_v_y = frequency_spectrum(v_y_cut, dt)
 f_dominant_v_y, band_fraction_v_y = dominant_frequency(frequencies_v_y, spectrum_v_y)
-strouhal_number = f_dominant_v_y * cylinder_diameter / prescribed_velocity
-
-# For comparison, also compute the Strouhal number from the lift coefficient.
-# This only yields a meaningful value at sufficiently high resolutions.
-frequencies_lift, spectrum_lift = frequency_spectrum(lift_coefficients_cut, dt)
-f_dominant_lift, band_fraction_lift = dominant_frequency(frequencies_lift, spectrum_lift)
-strouhal_number_lift = f_dominant_lift * cylinder_diameter / prescribed_velocity
+strouhal_number_v_y = f_dominant_v_y * cylinder_diameter / prescribed_velocity
 
 # The maximum values are sensitive to noise, so also report the mean drag coefficient
 # and the lift amplitude computed from the RMS value (exact for a harmonic oscillation).
@@ -115,11 +115,10 @@ drag_coefficient_max = maximum(drag_coefficients_cut)
 lift_amplitude = sqrt(2) * std(lift_coefficients_cut)
 drag_coefficient_mean = mean(drag_coefficients_cut)
 
-@info "Strouhal number (from the wake velocity v_y)" round(strouhal_number, digits=3)
+@info "Strouhal number (from the lift coefficient)" round(strouhal_number, digits=3)
+@info "Dominant frequency band fraction of the C_L spectrum" round(band_fraction, digits=3)
+@info "Strouhal number (from the wake velocity v_y)" round(strouhal_number_v_y, digits=3)
 @info "Dominant frequency band fraction of the v_y spectrum" round(band_fraction_v_y,
-                                                                   digits=3)
-@info "Strouhal number (from the lift coefficient)" round(strouhal_number_lift, digits=3)
-@info "Dominant frequency band fraction of the C_L spectrum" round(band_fraction_lift,
                                                                    digits=3)
 @info "C_L_max for the periodic shedding" round(lift_coefficient_max, digits=3)
 @info "C_D_max for the periodic shedding" round(drag_coefficient_max, digits=3)
@@ -143,8 +142,8 @@ plot_velocity = plot(times, v_y, xlims=time_limits, label="v_y", color=:green,
                      xlabel="t (s)", ylabel="v_y (m/s)")
 plot!(plot_velocity, top_margin=2Plots.mm)
 
-spectrum_title = "Frequency spectrum of v_y (St = $(round(strouhal_number, digits=3)))"
-plot_spectrum = plot(frequencies_v_y, spectrum_v_y, xlabel="Frequency (Hz)",
+spectrum_title = "Frequency spectrum of C_L (St = $(round(strouhal_number, digits=3)))"
+plot_spectrum = plot(frequencies_lift, spectrum_lift, xlabel="Frequency (Hz)",
                      size=(400, 200), ylabel="Amplitude", title=spectrum_title,
                      label=nothing, linewidth=2)
 plot!(plot_spectrum, top_margin=2Plots.mm)
