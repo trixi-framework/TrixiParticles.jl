@@ -2,8 +2,13 @@ abstract type AbstractSmoothingKernel{NDIMS} end
 
 @inline Base.ndims(::AbstractSmoothingKernel{NDIMS}) where {NDIMS} = NDIMS
 
-# Threshold below which a `distance` is considered zero, where `h` is the length scale
+# Threshold for distances that are numerically zero, where `h` is the length scale
 # of the coordinates (e.g., the smoothing length or the compact support).
+# It is used in two ways:
+# - As the lower bound of the divisor in `clamp_distance`, which makes the kernel functions
+#   and other terms that divide by `distance` safe for zero distances.
+# - As a threshold below which a `distance` is considered zero, e.g., to skip interactions
+#   of a particle with itself in the surface tension and DEM models.
 # Since the coordinates are in the order of `h`, `distance^2` is in the order of `h^2`,
 # so the rounding error of `distance^2` is in the order of `eps(h^2) ≈ eps(typeof(h)) * h^2`.
 # Hence, we consider `distance` almost zero if `distance^2 < eps(typeof(h)) * h^2`,
@@ -26,11 +31,10 @@ abstract type AbstractSmoothingKernel{NDIMS} end
     return ifelse(distance < almostzero_, almostzero_, distance)
 end
 
-# Equivalent to `max(x, 0)` for all `x` that are not NaN.
-# We use `ifelse` instead of `max` because `max` has to handle NaN and `-0.0` correctly
-# (`max(NaN, 0.0) == NaN` and `max(-0.0, 0.0) == 0.0`). On x86 CPUs, `max` therefore
-# compiles to a NaN check and a blend, or even a branch, in addition to the `vmaxsd`
-# instruction, whereas `ifelse(x < 0, zero(x), x)` compiles to a single `vmaxsd`.
+# Equivalent to `max(x, 0)`, except that `-0.0` is returned unchanged.
+# We use `ifelse` instead of `max` because `max` has to return `max(-0.0, 0.0) == 0.0`,
+# which adds extra instructions on x86.
+# `ifelse(x < 0, zero(x), x)` instead compiles to a single `vmaxsd` instruction.
 # Note that `Base.FastMath.max_fast` compiles to the same instruction, but `ifelse`
 # makes it explicit what happens without relying on fast-math semantics.
 @inline clamp0(x) = ifelse(x < 0, zero(x), x)

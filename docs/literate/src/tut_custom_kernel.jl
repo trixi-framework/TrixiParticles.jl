@@ -71,10 +71,13 @@ struct MyGaussianKernel <: TrixiParticles.AbstractSmoothingKernel{2} end
 # this avoids an extra division in the hot loop.
 # The functions `TrixiParticles.kernel_deriv` and `TrixiParticles.kernel_grad`
 # are defined automatically by TrixiParticles from this method.
-# Both functions must be safe for all ``r \geq 0``, i.e., they must be zero outside of
-# the compact support and must not divide by zero for ``r = 0``.
-# Here, ``q / r = 1 / h``, so the derivative divided by ``r`` doesn't need a division
-# by ``r``. Kernels that do need a division by ``r`` can divide by
+#
+# Both `TrixiParticles.kernel` and `TrixiParticles.kernel_deriv_div_r` must be safe
+# for all ``r \geq 0``, i.e., they must be zero outside of the compact support
+# and must not divide by zero for ``r = 0``.
+# Here, we use `ifelse` to select zero outside of the compact support.
+# Since ``q / r = 1 / h`` for this kernel, the derivative divided by ``r`` doesn't need
+# a division by ``r``. Kernels that do need a division by ``r`` can divide by
 # `TrixiParticles.clamp_distance(r, h)` instead to avoid divisions by zero.
 function TrixiParticles.kernel(kernel::MyGaussianKernel, r::Real, h)
     q = r / h

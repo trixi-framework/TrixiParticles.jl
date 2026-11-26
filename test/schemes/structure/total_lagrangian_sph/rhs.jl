@@ -79,13 +79,13 @@
             TrixiParticles.each_integrated_particle(::MockSystem) = each_integrated_particle
             TrixiParticles.smoothing_length(::MockSystem, _) = eps()
 
-            function TrixiParticles.smoothing_kernel_grad(::MockSystem,
+            function TrixiParticles.smoothing_kernel_grad(system::MockSystem,
                                                           pos_diff, distance,
                                                           particle)
                 # Like the real kernel gradient, this is zero for the particle itself.
                 # Pairs at zero distance are not skipped in the neighbor loop.
-                return kernel_deriv * pos_diff /
-                       TrixiParticles.clamp_distance(distance, 1.0)
+                h = TrixiParticles.smoothing_length(system, particle)
+                return kernel_deriv * pos_diff / TrixiParticles.clamp_distance(distance, h)
             end
             TrixiParticles.compact_support(::MockSystem, ::MockSystem) = 1000.0
             function TrixiParticles.current_coords(system::MockSystem, particle)

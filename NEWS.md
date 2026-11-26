@@ -26,7 +26,7 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
     must be zero outside of the compact support and must not divide by zero for `r = 0`.
     Divide by `TrixiParticles.clamp_distance(r, h)` instead of `r` where needed
     (see the tutorial on custom smoothing kernels).
-    Custom kernels that only define the `_unsafe` functions still work until then.
+    Custom kernels that only define the `_unsafe` functions still work until then (#1401).
 - Replaced the experimental `MechanicalWorkCalculatorCallback` with
   `MechanicalWorkCalculator`, which can be passed as a custom quantity to
   `PostprocessCallback` (#1228).
