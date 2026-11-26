@@ -1,3 +1,17 @@
+# Adami dummy pressure is reconstructed from the fluid, not an independent pressure DOF.
+# Close its inter-particle pressure flux with the fluid's local corrected gradient.
+# A second correction reconstructed on the truncated dummy-particle support introduces
+# a spurious boundary force. Fluid-fluid pairs still use both endpoint gradients.
+# `interact_structure_fluid!` evaluates this same fluid-oriented flux and applies its
+# exact opposite, so using a fluid-side closure does not lose interface momentum balance.
+@inline function use_fluid_boundary_pressure_gradient(::EntropicallyDampedSPHSystem,
+                                                      ::Union{WallBoundarySystem{<:BoundaryModelDummyParticles{<:AdamiPressureExtrapolation}},
+                                                              RigidBodySystem{<:BoundaryModelDummyParticles{<:AdamiPressureExtrapolation}},
+                                                              TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{<:AdamiPressureExtrapolation}}},
+                                                      ::typeof(inter_particle_averaged_pressure))
+    return true
+end
+
 # Fluid-fluid and fluid-boundary interaction
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system,

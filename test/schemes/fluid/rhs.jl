@@ -1176,8 +1176,7 @@
                 if distance < almostzero
                     pressure = scheme == "EDAC with average pressure reduction" ? 0.0 :
                                state_equation(density)
-                    pressure_gradient = scheme == "WCSPH" &&
-                                        boundary_density isa AdamiPressureExtrapolation ?
+                    pressure_gradient = boundary_density isa AdamiPressureExtrapolation ?
                                         -2W_a : W_b - W_a
                     expected = pressure * volume^2 * pressure_gradient
                     @test isapprox(force_fluid, expected, rtol=1e-14, atol=1e-14)

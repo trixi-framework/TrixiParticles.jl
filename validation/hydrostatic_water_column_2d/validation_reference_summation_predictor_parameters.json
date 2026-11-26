@@ -1,0 +1,19 @@
+{
+  "generator": "validation_summation_density.jl",
+  "density_boundary_policy": "raw-pressure-predictor",
+  "reference_epoch": "after boundary prediction, before reference initialization and WCSPH fluid-side flux",
+  "wcsph_summation_initialization": "uncalibrated",
+  "wcsph_extrapolated_pressure_gradient": "two-sided",
+  "validation_version": 2,
+  "significant_digits": 8,
+  "resolutions": [3, 5],
+  "methods": ["wcsph", "edac"],
+  "correction_cases": ["none", "shepard", "mixed", "combined", "continuity_reinit"],
+  "tspan": [0.0, 0.02],
+  "sample_dt": 0.0025,
+  "reinitialization_dt": 0.005,
+  "wcsph_density_mode": "summation",
+  "wcsph_pressure_clipping": true,
+  "wcsph_artificial_viscosity": "ArtificialViscosityMonaghan(alpha=0.1,beta=0.0)",
+  "interpretation": "Archived post-predictor density-consistency stress reference, not a hydrostatic accuracy target. Compatible EDAC and continuity-control initial states remain regression fixtures; reference-initialized WCSPH summation is checked analytically."
+}

@@ -242,6 +242,19 @@ end
         @test result.relative_residual < 2e-13
     end
 
+    # Adami pressure is a fluid-side reconstruction. Its EDAC pressure flux must not
+    # change when the dummy particles use a different gradient correction. Check the
+    # actual coupled RHS and reaction, not just the algebraic pair formula.
+    for correction in (GradientCorrection(), MixedKernelGradientCorrection())
+        plain_boundary = coupled_result(:edac, :tlsph, correction;
+                                        boundary_correction=nothing)
+        corrected_boundary = coupled_result(:edac, :tlsph, correction)
+        @test plain_boundary.fluid_rhs≈corrected_boundary.fluid_rhs rtol=1e-12 atol=1e-10
+        @test plain_boundary.fluid_force≈corrected_boundary.fluid_force rtol=1e-12 atol=1e-10
+        @test plain_boundary.structure_force≈corrected_boundary.structure_force rtol=1e-12 atol=1e-10
+        @test corrected_boundary.relative_residual < 2e-13
+    end
+
     # Global system ordering must not alter EDAC fluid-structure results.
     for structure_kind in (:rigid, :tlsph)
         forward = coupled_result(:edac, structure_kind, GradientCorrection())

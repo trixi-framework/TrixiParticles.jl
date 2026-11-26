@@ -70,6 +70,52 @@
                                           W_a) == zero(W_a)
     end
 
+    @testset "EDAC reconstructed Adami pressure flux" begin
+        kernel = WendlandC6Kernel{2}()
+        initial = InitialCondition(; coordinates=zeros(2, 1), density=1000.0,
+                                   mass=[1.2], pressure=2.0)
+        fluid = EntropicallyDampedSPHSystem(initial; smoothing_kernel=kernel,
+                                            smoothing_length=0.2, sound_speed=10.0,
+                                            gradient_correction=MixedKernelGradientCorrection())
+        equation = StateEquationCole(; sound_speed=10.0, reference_density=1000.0,
+                                     exponent=1)
+        r = SVector(-0.1, 0.02)
+        grad_fluid = SVector(0.2, -0.1)
+        values = (1.2, 0.8, 1000.0, 980.0, 2.0, 3.0)
+        acceleration_values = (1.2, 0.8, 2.0, 3.0, 1000.0, 980.0)
+        interparticle = TrixiParticles.inter_particle_averaged_pressure
+
+        for calculator in (AdamiPressureExtrapolation(), PressureMirroring())
+            model = BoundaryModelDummyParticles([980.0], [0.8], calculator, kernel, 0.2;
+                                                state_equation=equation,
+                                                gradient_correction=MixedKernelGradientCorrection())
+            model.cache.kernel_correction_coefficient .= 0.8
+            model.cache.dw_gamma[:, 1] .= (0.3, -0.7)
+            model.cache.correction_matrix[:, :, 1] .= [1.5 0.1; 0.2 0.9]
+            wall = WallBoundarySystem(initial, model)
+            actual = TrixiParticles.pressure_acceleration(fluid, wall, 1, 1,
+                                                          acceleration_values...,
+                                                          r, norm(r), grad_fluid,
+                                                          MixedKernelGradientCorrection())
+            if calculator isa AdamiPressureExtrapolation
+                @test actual ≈ interparticle(values..., grad_fluid)
+                # A different dummy-particle gradient must not change a fluid-side closure.
+                model.cache.dw_gamma[:, 1] .*= -3
+                model.cache.correction_matrix[:, :, 1] .*= 2
+                @test TrixiParticles.pressure_acceleration(fluid, wall, 1, 1,
+                                                           acceleration_values...,
+                                                           r, norm(r), grad_fluid,
+                                                           MixedKernelGradientCorrection()) ≈
+                      actual
+            else
+                grad_wall = TrixiParticles.hydrodynamic_smoothing_kernel_grad(wall, -r,
+                                                                              norm(r), 1)
+                @test actual ≈ interparticle(values..., grad_fluid, grad_wall)
+                @test !isapprox(actual, interparticle(values..., grad_fluid))
+            end
+        end
+    end
+
     @testset verbose=true "Illegal Inputs" begin
         correction_dict_1 = Dict(
             "KernelCorrection" => KernelCorrection(),
