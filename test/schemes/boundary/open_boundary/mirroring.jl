@@ -1,4 +1,5 @@
 @testset verbose=true "Mirroring" begin
+    include("mirroring_corrections.jl")
     validation_dir = pkgdir(TrixiParticles, "test", "schemes", "boundary", "open_boundary",
                             "data")
 

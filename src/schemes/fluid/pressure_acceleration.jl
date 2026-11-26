@@ -164,14 +164,25 @@ end
 
 @inline pressure_acceleration_formulation(system) = system.pressure_acceleration_formulation
 
-# Use the local pressure offset by default. Specialized pair methods can combine offsets from
-# both systems when both directed interaction evaluations support the same reduction.
-@inline interaction_pressure_offset(system, particle) = zero(eltype(system))
+@inline pressure_reference(system, particle) = zero(eltype(system))
+@inline pressure_reference_enabled(system) = false
 
 @propagate_inbounds function pair_pressure_offset(system, neighbor_system, particle,
                                                   neighbor)
-    return interaction_pressure_offset(system, particle)
+    return pressure_reference(system, particle)
 end
+
+# Both directed fluid evaluations must subtract the same reference, including
+# mixed EDAC/WCSPH pairs and pairs with reduction enabled at just one endpoint.
+@propagate_inbounds function pair_pressure_offset(system::AbstractFluidSystem,
+                                                  neighbor_system::AbstractFluidSystem,
+                                                  particle, neighbor)
+    count = pressure_reference_enabled(system) + pressure_reference_enabled(neighbor_system)
+    iszero(count) && return zero(eltype(system))
+    return (pressure_reference(system, particle) +
+            pressure_reference(neighbor_system, neighbor)) / count
+end
+
 @inline use_fluid_boundary_pressure_gradient(system, neighbor, formulation) = false
 
 # Boundary laws can specialize this wrapper without changing the inter-particle

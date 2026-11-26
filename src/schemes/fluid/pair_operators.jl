@@ -20,12 +20,10 @@
     surface_tension_a = surface_tension_model(particle_system)
     surface_tension_b = surface_tension_model(neighbor_system)
 
-    # This technique by Basa et al. 2017 (10.1002/fld.1927) aims to reduce numerical
-    # errors due to large pressures by subtracting the average pressure of neighboring
-    # particles.
-    # It results in significant improvement for EDAC, especially with TVF,
-    # but not for WCSPH, according to Ramachandran & Puri (2019), Section 3.2.
-    # Note that the return value is zero when not using average pressure reduction.
+    # EDAC pressure reduction (see Basa et al. 2017, 10.1002/fld.1927) limits errors from
+    # large pressures. Use a spatially constant reference shared by connected fluids to
+    # preserve affine pressure gradients and pairwise momentum. The offset is zero when
+    # neither endpoint enables reduction.
     p_avg = pair_pressure_offset(particle_system, neighbor_system, particle, neighbor)
 
     # WCSPH and EDAC use their force correction; IISPH keeps unit factors.

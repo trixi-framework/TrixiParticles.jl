@@ -67,6 +67,13 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 - Fixed linear-momentum conservation for corrected pressure forces, made EDAC
   average-pressure reduction pair-symmetric, and applied exact fluid-structure pressure
   reaction forces (#1289).
+- Fixed EDAC pressure reduction to share a spatially constant reference across connected
+  fluids, preserving affine pressure gradients and reciprocal pressure forces (#1359).
+- Fixed viscous momentum conservation for asymmetric corrected fluid gradients and removed
+  the dependence of mirrored ghost reconstruction on unrelated fluid correction caches
+  (#1359).
+- Fixed particle shifting with normalized kernel gradients by excluding zero-distance
+  interactions that otherwise introduce spurious self-shifting and particle clustering (#1359).
 
 ## Version 0.5.6
 
