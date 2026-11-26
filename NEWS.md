@@ -8,6 +8,25 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### API Changes
 
+- All kernel functions (`TrixiParticles.kernel`, `kernel_deriv`, `kernel_grad`,
+  `smoothing_kernel` and `smoothing_kernel_grad`) are now safe for all distances,
+  including zero distance and distances outside of the compact support, without branches.
+  Pairs of particles at zero distance are no longer skipped in the neighbor loops, since
+  their kernel gradient is now exactly zero. Pairs closer than a tiny threshold
+  (see `TrixiParticles.almostzero`) are no longer treated as being at zero distance.
+  The `_unsafe` versions of the kernel functions (`kernel_unsafe`,
+  `kernel_deriv_div_r_unsafe`, `kernel_grad_unsafe`, `smoothing_kernel_unsafe` and
+  `smoothing_kernel_grad_unsafe`) as well as `skip_zero_distance` are deprecated and will
+  be removed in the next major release. To migrate:
+  - Replace calls of the `_unsafe` functions by the regular functions and remove the
+    checks with `skip_zero_distance`.
+  - Custom smoothing kernels should define `TrixiParticles.kernel` and
+    `TrixiParticles.kernel_deriv_div_r` instead of `kernel_unsafe` and
+    `kernel_deriv_div_r_unsafe`. These functions must be safe for all `r >= 0`, i.e., they
+    must be zero outside of the compact support and must not divide by zero for `r = 0`.
+    Divide by `TrixiParticles.clamp_distance(r, h)` instead of `r` where needed
+    (see the tutorial on custom smoothing kernels).
+    Custom kernels that only define the `_unsafe` functions still work until then (#1401).
 - Replaced the experimental `MechanicalWorkCalculatorCallback` with
   `MechanicalWorkCalculator`, which can be passed as a custom quantity to
   `PostprocessCallback` (#1228).

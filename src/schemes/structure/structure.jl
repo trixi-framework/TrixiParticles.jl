@@ -143,29 +143,17 @@ function interact_structure_fluid!(dv, v_particle_system, u_particle_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    h = initial_smoothing_length(neighbor_system)
-
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     foreach_point_neighbor(particle_system, neighbor_system,
                            system_coords, neighbor_coords, semi;
                            points=eachparticle) do particle, neighbor, pos_diff, distance
-        # Skip neighbors with (almost) the same position if the fluid gradient vanishes,
-        # because computing it would divide by zero (see `almostzero`). The boundary
-        # gradient also vanishes in this case (see `check_boundary_model_correction`).
-        # Note that `return` only exits the closure, i.e., skips the current neighbor.
-        if skip_zero_distance(neighbor_system) && distance < almostzero(h)
-            return
-        end
-
-        # Now we can safely call the unsafe version of the kernel gradient to avoid
-        # redundant zero checks.
         # Evaluate the gradient exactly as in the fluid-structure interaction, i.e.,
         # with the fluid particle's kernel and correction and the fluid-first displacement.
         # Note that we cannot just flip the sign of the structure-first gradient, since
         # corrections like `KernelCorrection` add a term that keeps its sign
         # when the displacement is reversed.
-        grad_kernel_fluid = smoothing_kernel_grad_unsafe(neighbor_system, -pos_diff,
-                                                         distance, neighbor)
+        grad_kernel_fluid = smoothing_kernel_grad(neighbor_system, -pos_diff,
+                                                  distance, neighbor)
 
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 

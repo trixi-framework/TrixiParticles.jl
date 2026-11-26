@@ -1,5 +1,7 @@
 include("initial_condition.jl")
 include("smoothing_kernels.jl")
+# TODO remove in the next major release.
+include("deprecated.jl")
 include("corrections.jl")
 include("density_calculator.jl")
 include("semidiscretization.jl")

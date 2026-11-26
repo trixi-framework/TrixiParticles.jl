@@ -511,14 +511,13 @@
                                 # change the sign of the corrected gradient in this fixture.
                                 # These corrected kernels are not symmetric.
                                 pos_diff = SVector(1.5, 0.0)
-                                grad_kernel = TrixiParticles.smoothing_kernel_grad_unsafe(fluid,
-                                                                                          pos_diff,
-                                                                                          1.5,
-                                                                                          1)
-                                grad_kernel_fluid = TrixiParticles.smoothing_kernel_grad_unsafe(fluid,
-                                                                                                -pos_diff,
-                                                                                                1.5,
-                                                                                                1)
+                                grad_kernel = TrixiParticles.smoothing_kernel_grad(fluid,
+                                                                                   pos_diff,
+                                                                                   1.5, 1)
+                                grad_kernel_fluid = TrixiParticles.smoothing_kernel_grad(fluid,
+                                                                                         -pos_diff,
+                                                                                         1.5,
+                                                                                         1)
                                 @test !isapprox(grad_kernel_fluid, -grad_kernel)
                             end
 
@@ -839,14 +838,14 @@
         end
 
         # Check the pressure forces when a fluid particle and a structure particle are
-        # at the same position (coincident particles), or less than `almostzero(h)` apart.
+        # at the same position (coincident particles).
         #
-        # The uncorrected kernel gradient is treated as zero at these distances, which
+        # The uncorrected kernel gradient is exactly zero at zero distance, which
         # includes the gradient of the boundary model of the structure. With
         # `KernelCorrection`, the fluid gradient can still be nonzero. Prescribe fluid
         # correction data with a nonzero gradient at zero distance. The fluid and structure
         # must then experience equal and opposite forces. For the other configurations
-        # tested here, pairs at the same position are skipped and both forces must be zero.
+        # tested here, both forces must be zero.
         #
         # For rigid bodies, use `ContinuityDensity` and also check that the boundary-density
         # derivative, which uses the uncorrected gradient of the boundary model, vanishes.
@@ -859,18 +858,16 @@
             dw_gamma = SVector(-0.5, -0.5)
             # Kernel-corrected fluid gradient `(∇W - W γ) / c` at zero distance
             fluid_gradient = -kernel_zero * dw_gamma / coefficient
-            near_zero_configurations = (("WCSPH", KernelCorrection()),
-                                        ("WCSPH", GradientCorrection()),
-                                        ("WCSPH", BlendedGradientCorrection(0.3)),
-                                        ("WCSPH", nothing),
-                                        ("EDAC", nothing),
-                                        ("EDAC with average pressure reduction", nothing))
-            almostzero = TrixiParticles.almostzero(smoothing_length)
-            distances = (0.0, almostzero / 2)
+            coincident_configurations = (("WCSPH", KernelCorrection()),
+                                         ("WCSPH", GradientCorrection()),
+                                         ("WCSPH", BlendedGradientCorrection(0.3)),
+                                         ("WCSPH", nothing),
+                                         ("EDAC", nothing),
+                                         ("EDAC with average pressure reduction", nothing))
 
-            for (structure_type, (scheme, correction), distance) in
-                Iterators.product(structure_types, near_zero_configurations, distances)
-                fluid_coordinates = reshape([1.5 + distance, 0.0], 2, 1)
+            for (structure_type, (scheme, correction)) in
+                Iterators.product(structure_types, coincident_configurations)
+                fluid_coordinates = reshape([1.5, 0.0], 2, 1)
                 fluid_system = create_fluid_system(scheme, velocity, density, nothing;
                                                    correction,
                                                    coordinates=fluid_coordinates)

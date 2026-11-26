@@ -539,8 +539,6 @@ end
 @inline function calc_deformation_grad!(deformation_grad, system, semi)
     (; mass, material_density) = system
 
-    h = initial_smoothing_length(system)
-
     # Loop over all pairs of particles and neighbors within the kernel cutoff
     initial_coords = initial_coordinates(system)
     neighborhood_search = get_neighborhood_search(system, semi)
@@ -560,18 +558,8 @@ end
                                               init=zero(L_a)) do particle, neighbor,
                                                                  initial_pos_diff,
                                                                  initial_distance
-
-            # Skip neighbors with (almost) the same position because the kernel gradient
-            # is zero, but computing it would divide by zero (see `almostzero`).
-            # Note that `return` only exits the closure, i.e., skips the current neighbor.
-            if skip_zero_distance(system) && initial_distance < almostzero(h)
-                return zero(L_a)
-            end
-
-            # Now that we know that `distance` is not zero, we can safely call the unsafe
-            # version of the kernel gradient to avoid redundant zero checks.
-            grad_kernel = smoothing_kernel_grad_unsafe(system, initial_pos_diff,
-                                                       initial_distance, particle)
+            grad_kernel = smoothing_kernel_grad(system, initial_pos_diff,
+                                                initial_distance, particle)
 
             # Since this is one of the most performance critical functions, using fast
             # divisions here gives a significant speedup on GPUs.

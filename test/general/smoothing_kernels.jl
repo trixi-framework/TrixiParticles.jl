@@ -107,11 +107,14 @@
 
                 for h in smoothing_lengths
                     compact_support_ = TrixiParticles.compact_support(kernel_, h)
-                    # Test 11 different radii
-                    radii = 0:(0.1 * compact_support_):(compact_support_ * 1.01)
+                    # Test 16 different radii, including radii outside of the compact
+                    # support, where the kernel and its derivative must be exactly zero.
+                    radii = 0:(0.1 * compact_support_):(compact_support_ * 1.5)
 
                     if kernel_ isa SpikyKernel
-                        # The Spiky kernel is not differentiable at r=0
+                        # The Spiky kernel is not differentiable at r=0,
+                        # but its derivative must not divide by zero.
+                        @test isfinite(TrixiParticles.kernel_deriv_div_r(kernel_, 0.0, h))
                         radii = radii[2:end]
                     end
 
@@ -126,6 +129,11 @@
                         # This should work with very tight tolerances
                         @test isapprox(analytic_deriv, automatic_deriv,
                                        rtol=5e-15, atol=4 * eps())
+
+                        if r >= compact_support_
+                            @test iszero(TrixiParticles.kernel(kernel_, r, h))
+                            @test iszero(analytic_deriv)
+                        end
                     end
                 end
             end

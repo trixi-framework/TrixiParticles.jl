@@ -188,10 +188,14 @@
 
                 Base.getindex(::Val{:mock_material_density}, ::Int64) = density
 
-                function TrixiParticles.smoothing_kernel_grad_unsafe(::MockSystem,
-                                                                     pos_diff, distance,
-                                                                     particle)
-                    return kernel_derivative * pos_diff / distance
+                function TrixiParticles.smoothing_kernel_grad(system::MockSystem,
+                                                              pos_diff, distance,
+                                                              particle)
+                    # Like the real kernel gradient, this is zero for the particle itself.
+                    # Pairs at zero distance are not skipped in the neighbor loop.
+                    return kernel_derivative * pos_diff /
+                           TrixiParticles.clamp_distance(distance,
+                                                         system.smoothing_length)
                 end
                 semi = DummySemidiscretization()
 
