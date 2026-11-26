@@ -36,6 +36,9 @@ used in the Julia ecosystem. Notable changes will be documented in this file for
 
 ### Important Bugfixes
 
+- Fixed correction-cache updates after open-boundary interpolation and particle transfers
+  so callback-based particle shifting uses current density and gradients for newly
+  activated and reused buffer particles (#1353).
 - Fixed pressure mirroring for TLSPH and rigid-body neighbors and for EDAC momentum,
   pressure diffusion, and average-pressure reduction at walls and structures.
   With a boundary viscosity, `PressureMirroring` now computes the wall velocity of the
