@@ -19,15 +19,27 @@ abstract type AbstractSmoothingKernel{NDIMS} end
 # Instead of checking for zero distances and discarding the result, we divide by
 # a distance that is never smaller than `almostzero(h)` (see `almostzero`).
 # Then, `g` is finite and the result is exactly zero, since `pos_diff` is exactly zero.
-# This is a single `max` instead of a comparison and a selection, and it doesn't branch,
-# so it can be used in SIMD-vectorized loops.
-@inline clamp_distance(distance, h) = max(distance, almostzero(h))
+# This doesn't branch, so it can be used in SIMD-vectorized loops.
+@inline function clamp_distance(distance, h)
+    almostzero_ = almostzero(h)
+    # Note that we use `ifelse` instead of `max` here (see `clamp0`).
+    return ifelse(distance < almostzero_, almostzero_, distance)
+end
+
+# Equivalent to `max(x, 0)` for all `x` that are not NaN.
+# We use `ifelse` instead of `max` because `max` has to handle NaN and `-0.0` correctly
+# (`max(NaN, 0.0) == NaN` and `max(-0.0, 0.0) == 0.0`). On x86 CPUs, `max` therefore
+# compiles to a NaN check and a blend, or even a branch, in addition to the `vmaxsd`
+# instruction, whereas `ifelse(x < 0, zero(x), x)` compiles to a single `vmaxsd`.
+# Note that `Base.FastMath.max_fast` compiles to the same instruction, but `ifelse`
+# makes it explicit what happens without relying on fast-math semantics.
+@inline clamp0(x) = ifelse(x < 0, zero(x), x)
 
 # All kernel functions below are safe for all `r >= 0`. They are zero outside of
 # the compact support and don't divide by zero for `r == 0`.
 # For the piecewise polynomial kernels, the compact support is enforced by clamping
-# the base of the outermost power to zero, e.g., `max(1 - q / 2, 0)^4`, which is a single
-# `max` instead of a comparison and a selection.
+# the base of the outermost power to zero, e.g., `clamp0(1 - q / 2)^4`, which is
+# a single instruction instead of a comparison and a selection.
 @inline function kernel_grad(kernel, pos_diff, distance, h)
     # Since this is used as `kernel_deriv / distance * pos_diff`, we already divide by `r`
     # (or rather skip a multiplication by `r`) inside `kernel_deriv_div_r`
@@ -182,7 +194,7 @@ struct SchoenbergCubicSplineKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
     h_inv = 1 / h
     q = r * h_inv
 
-    result = 1 * max(2 - q, zero(q))^3 / 4 - (q < 1) * (1 - q)^3
+    result = 1 * clamp0(2 - q)^3 / 4 - (q < 1) * (1 - q)^3
 
     return normalization_factor(kernel, h_inv) * result
 end
@@ -191,7 +203,7 @@ end
     h_inv = 1 / h
     q = r * h_inv
 
-    result = -3 * max(2 - q, zero(q))^2 / 4 + 3 * (q < 1) * (1 - q)^2
+    result = -3 * clamp0(2 - q)^2 / 4 + 3 * (q < 1) * (1 - q)^2
     kernel_deriv = normalization_factor(kernel, h_inv) * result * h_inv
 
     # Since this is one of the most performance critical functions, using fast divisions
@@ -263,7 +275,7 @@ struct SchoenbergQuarticSplineKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} en
     q = r * h_inv
 
     # Note: using `5 // 2` here makes it 8x slower on GPUs for some reason
-    q5_2 = max(2.5f0 - q, zero(q))
+    q5_2 = clamp0(2.5f0 - q)
     q3_2 = 1.5f0 - q
     q1_2 = 0.5f0 - q
 
@@ -275,12 +287,12 @@ struct SchoenbergQuarticSplineKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} en
 end
 
 @inline function kernel_deriv_div_r(kernel::SchoenbergQuarticSplineKernel,
-                                           r::Real, h)
+                                    r::Real, h)
     h_inv = 1 / h
     q = r * h_inv
 
     # Note: using `5 // 2` here makes it 8x slower on GPUs for some reason
-    q5_2 = max(2.5f0 - q, zero(q))
+    q5_2 = clamp0(2.5f0 - q)
     q3_2 = 1.5f0 - q
     q1_2 = 0.5f0 - q
 
@@ -350,17 +362,17 @@ struct SchoenbergQuinticSplineKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} en
     h_inv = 1 / h
     q = r * h_inv
 
-    result = max(3 - q, zero(q))^5 - 6 * (q < 2) * (2 - q)^5 + 15 * (q < 1) * (1 - q)^5
+    result = clamp0(3 - q)^5 - 6 * (q < 2) * (2 - q)^5 + 15 * (q < 1) * (1 - q)^5
 
     return normalization_factor(kernel, h_inv) * result
 end
 
 @fastpow @inline function kernel_deriv_div_r(kernel::SchoenbergQuinticSplineKernel,
-                                                    r::Real, h)
+                                             r::Real, h)
     h_inv = 1 / h
     q = r * h_inv
 
-    result = -5 * max(3 - q, zero(q))^4 + 30 * (q < 2) * (2 - q)^4 -
+    result = -5 * clamp0(3 - q)^4 + 30 * (q < 2) * (2 - q)^4 -
              75 * (q < 1) * (1 - q)^4
 
     kernel_deriv = normalization_factor(kernel, h_inv) * result * h_inv
@@ -429,7 +441,7 @@ struct WendlandC2Kernel{NDIMS} <: AbstractWendlandKernel{NDIMS} end
     h_inv = 1 / h
     q = r * h_inv
 
-    return normalization_factor(kernel, h_inv) * max(1 - q / 2, zero(q))^4 * (2 * q + 1)
+    return normalization_factor(kernel, h_inv) * clamp0(1 - q / 2)^4 * (2 * q + 1)
 end
 
 @inline function kernel_deriv_div_r(kernel::WendlandC2Kernel, r::Real, h)
@@ -437,7 +449,7 @@ end
     q = r * h_inv
 
     # This is zero for `q >= 2`.
-    return -5 * normalization_factor(kernel, h_inv) * max(1 - q / 2, zero(q))^3 * h_inv^2
+    return -5 * normalization_factor(kernel, h_inv) * clamp0(1 - q / 2)^3 * h_inv^2
 end
 
 @inline function normalization_factor(::WendlandC2Kernel{2}, h_inv)
@@ -485,7 +497,7 @@ struct WendlandC4Kernel{NDIMS} <: AbstractWendlandKernel{NDIMS} end
     h_inv = 1 / h
     q = r * h_inv
 
-    result = max(1 - q / 2, zero(q))^6 * (35 * q^2 / 12 + 3 * q + 1)
+    result = clamp0(1 - q / 2)^6 * (35 * q^2 / 12 + 3 * q + 1)
 
     return normalization_factor(kernel, h_inv) * result
 end
@@ -494,7 +506,7 @@ end
     h_inv = 1 / h
     q = r * h_inv
 
-    result = oftype(r, -7 / 3) * (2 + 5 * q) * max(1 - q / 2, zero(q))^5 * h_inv^2
+    result = oftype(r, -7 / 3) * (2 + 5 * q) * clamp0(1 - q / 2)^5 * h_inv^2
 
     return normalization_factor(kernel, h_inv) * result
 end
@@ -544,7 +556,7 @@ struct WendlandC6Kernel{NDIMS} <: AbstractWendlandKernel{NDIMS} end
     h_inv = 1 / h
     q = r * h_inv
 
-    result = max(1 - q / 2, zero(q))^8 * (4 * q^3 + 25 * q^2 / 4 + 4 * q + 1)
+    result = clamp0(1 - q / 2)^8 * (4 * q^3 + 25 * q^2 / 4 + 4 * q + 1)
 
     return normalization_factor(kernel, h_inv) * result
 end
@@ -553,7 +565,7 @@ end
     h_inv = 1 / h
     q = r * h_inv
 
-    result = oftype(r, -11 / 4) * (8 * q^2 + 7 * q + 2) * max(1 - q / 2, zero(q))^7 *
+    result = oftype(r, -11 / 4) * (8 * q^2 + 7 * q + 2) * clamp0(1 - q / 2)^7 *
              h_inv^2
 
     return normalization_factor(kernel, h_inv) * result
@@ -608,7 +620,7 @@ struct Poly6Kernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
     h_inv = 1 / h
     q = r * h_inv
 
-    return normalization_factor(kernel, h_inv) * max(1 - q^2, zero(q))^3
+    return normalization_factor(kernel, h_inv) * clamp0(1 - q^2)^3
 end
 
 @inline function kernel_deriv_div_r(kernel::Poly6Kernel, r::Real, h)
@@ -618,7 +630,7 @@ end
     # The kernel derivative is `-6 * q * (1 - q^2)^2 * h_inv` times the normalization
     # factor `θ`. The returned result is therefore `θ * (-6 * q * (1 - q^2)^2 * h_inv) / r`.
     # Since `q / r = h_inv`, the division by `r` is only a multiplication by `h_inv`.
-    return normalization_factor(kernel, h_inv) * -6 * max(1 - q^2, zero(q))^2 * h_inv^2
+    return normalization_factor(kernel, h_inv) * -6 * clamp0(1 - q^2)^2 * h_inv^2
 end
 
 @inline compact_support(::Poly6Kernel, h) = h
@@ -671,14 +683,14 @@ struct SpikyKernel{NDIMS} <: AbstractSmoothingKernel{NDIMS} end
     h_inv = 1 / h
     q = r * h_inv
 
-    return normalization_factor(kernel, h_inv) * max(1 - q, zero(q))^3
+    return normalization_factor(kernel, h_inv) * clamp0(1 - q)^3
 end
 
 @inline function kernel_deriv_div_r(kernel::SpikyKernel, r::Real, h)
     h_inv = 1 / h
     q = r * h_inv
 
-    kernel_deriv = -3 * normalization_factor(kernel, h_inv) * max(1 - q, zero(q))^2 * h_inv
+    kernel_deriv = -3 * normalization_factor(kernel, h_inv) * clamp0(1 - q)^2 * h_inv
 
     # Since this is one of the most performance critical functions, using fast divisions
     # here gives a significant speedup on GPUs.

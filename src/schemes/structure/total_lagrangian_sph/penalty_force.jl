@@ -56,14 +56,16 @@ end
     # Since this is one of the most performance critical functions, using fast divisions
     # here gives a significant speedup on GPUs.
     # See the docs page "Development" for more details on `div_fast`.
-    # `clamp_distance` makes this safe for `initial_distance == current_distance == 0`
-    # (the particle itself) and computes a zero result in that case to avoid branching
-    # in the hot loop.
-    h = smoothing_length(system, particle)
-    initial_distance_ = clamp_distance(initial_distance, h)
-    current_distance_ = clamp_distance(current_distance, h)
+    # For the particle itself, `initial_distance == current_distance == 0`, and both
+    # `delta_sum` and `current_pos_diff` are exactly zero.
+    # To avoid branching in the hot loop, we clamp the denominator to the smallest
+    # positive normal number. Then, the result is exactly zero for the particle itself.
+    # We use `ifelse` instead of `max` because it is faster (see `clamp0`).
+    denominator = initial_distance^2 * current_distance^2 * m_a
+    denominator_ = ifelse(denominator < floatmin(denominator), floatmin(denominator),
+                          denominator)
     dv_particle += div_fast((alpha / 2) * volume_a * volume_b * kernel_weight * delta_sum,
-                            initial_distance_^2 * current_distance_^2 * m_a) *
+                            denominator_) *
                    current_pos_diff
 
     return dv_particle
