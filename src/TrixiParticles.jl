@@ -62,12 +62,14 @@ include("preprocessing/preprocessing.jl")
 # Note that `semidiscretization.jl` depends on the system types and has to be
 # included separately. The following files in turn depend on the semidiscretization type.
 include("general/semidiscretization.jl")
+include("schemes/fluid/implicit_incompressible_sph/pressure_cache.jl")
 include("general/time_integration.jl")
 include("general/ode_rhs.jl")
 include("general/gpu.jl")
 include("io/io.jl")
 include("general/restart.jl")
 include("visualization/recipes_plots.jl")
+include("visualization/makie.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export PairsNHSHandler, SharedNHSHandler
@@ -77,6 +79,7 @@ export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangian
        OpenBoundarySystem,
        ImplicitIncompressibleSPHSystem
 export BoundaryZone, InFlow, OutFlow, BidirectionalFlow
+export iisph_pressure_iteration_stats, reset_iisph_pressure_iteration_stats!
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback, SteadyStateReachedCallback,
        SplitIntegrationCallback, MechanicalWorkCalculator, calculated_mechanical_work,
@@ -103,14 +106,16 @@ export PrescribedMotion, OscillatingMotion2D
 export RCRWindkesselModel
 export examples_dir, validation_dir
 export trixi2vtk, vtk2trixi
+export trixi2makie, trixi2makie!
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export ParticlePackingSystem, SignedDistanceField
 export WindingNumberHormann, WindingNumberJacobson
-export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_geometry,
+export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_geometry, delete_faces,
        sample_boundary, planar_geometry_to_face
 export SourceTermDamping
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
-       GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection
+       GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection,
+       CorrectionConfiguration
 export nparticles, eachparticle
 export available_data, kinetic_energy, total_mass, max_pressure, min_pressure, avg_pressure,
        max_density, min_density, avg_density

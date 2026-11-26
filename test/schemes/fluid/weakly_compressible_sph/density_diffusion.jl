@@ -27,7 +27,8 @@
                                                      smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
                                                      smoothing_length=1.0, state_equation,
                                                      density_calculator=ContinuityDensity(),
-                                                     density_diffusion, correction)
+                                                     density_diffusion,
+                                                     gradient_correction=correction)
                 ode = semidiscretize(Semidiscretization(system;
                                                         parallelization_backend=SerialBackend()),
                                      (0.0, 0.01))

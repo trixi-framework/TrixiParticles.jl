@@ -78,3 +78,47 @@
         @test all(buffer.active_particle)
     end
 end
+
+@testset "Unequal query and neighbor counts" begin
+    kernel = SchoenbergCubicSplineKernel{2}()
+    initial_conditions = (InitialCondition(; coordinates=[0.0 0.5 4.0; 0.0 0.0 0.0],
+                                           density=1000.0, particle_spacing=1.0),
+                          InitialCondition(; coordinates=reshape([0.75, 0.0], 2, 1),
+                                           density=1000.0, particle_spacing=1.0))
+    systems = map(initial_conditions) do ic
+        WeaklyCompressibleSPHSystem(ic; smoothing_kernel=kernel, smoothing_length=1.0,
+                                    density_calculator=ContinuityDensity(),
+                                    state_equation=nothing)
+    end
+    trivial = TrixiParticles.TrivialNeighborhoodSearch{2}()
+    templates = (PrecomputedNeighborhoodSearch{2}(),
+                 PrecomputedNeighborhoodSearch{2}(; update_neighborhood_search=trivial),
+                 GridNeighborhoodSearch{2}(), trivial)
+    cases = ((systems[1], systems[2], [1, 1, 0], [0, 0, 1]),
+             (systems[2], systems[1], [2], [1]))
+
+    function count_neighbors(search, x, y)
+        counts = zeros(Int, size(x, 2))
+        PointNeighbors.foreach_point_neighbor(x, y, search;
+                                              parallelization_backend=SerialBackend()) do particle,
+                                                                                          _,
+                                                                                          _,
+                                                                                          _
+            counts[particle] += 1
+        end
+        return counts
+    end
+
+    for template in templates, (system, neighbor, expected, expected_moved) in cases
+        x = TrixiParticles.initial_coordinates(system)
+        y = copy(TrixiParticles.initial_coordinates(neighbor))
+        search = TrixiParticles.create_neighborhood_search(template, system, neighbor)
+        PointNeighbors.initialize!(search, x, y; parallelization_backend=SerialBackend())
+        @test count_neighbors(search, x, y) == expected
+
+        y[1, 1] += 4.0
+        PointNeighbors.update!(search, x, y; points_moving=(false, true),
+                               parallelization_backend=SerialBackend())
+        @test count_neighbors(search, x, y) == expected_moved
+    end
+end

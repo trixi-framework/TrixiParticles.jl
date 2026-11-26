@@ -198,10 +198,9 @@ function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_syst
     x_range = range(min_corner[1], max_corner[1], length=n_points_per_dimension[1])
     y_range = range(min_corner[2], max_corner[2], length=n_points_per_dimension[2])
 
-    # Generate points within the plane. Use `place_on_shell=true` to generate points
-    # on the shell of the geometry.
-    point_coords = rectangular_shape_coords(resolution, n_points_per_dimension, min_corner,
-                                            place_on_shell=true)
+    # Generate points from the exact ranges used for VTK output. This keeps interpolation
+    # points inside the requested box even when `resolution` does not divide its side lengths.
+    point_coords = plane_point_coords(x_range, y_range)
 
     results = interpolate_points(point_coords, semi, ref_system, v_ode, u_ode;
                                  smoothing_length, cut_off_bnd, include_wall_velocity,
@@ -211,14 +210,8 @@ function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_syst
         # Find indices where neighbor_count > 0
         indices = findall(x -> x > 0, results.neighbor_count)
 
-        # Filter all arrays in the named tuple using these indices
-        results = map(results) do x
-            if isa(x, AbstractVector)
-                return x[indices]
-            else
-                return x[:, indices]
-            end
-        end
+        # Filter all arrays in the named tuple using these indices.
+        results = filter_interpolation_results(results, indices)
     end
 
     return results, x_range, y_range
@@ -309,13 +302,7 @@ function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_syst
 
     # Filter results
     indices = findall(x -> x > 0, results.neighbor_count)
-    filtered_results = map(results) do x
-        if isa(x, AbstractVector)
-            return x[indices]
-        else
-            return x[:, indices]
-        end
-    end
+    filtered_results = filter_interpolation_results(results, indices)
 
     return filtered_results
 end
@@ -489,6 +476,9 @@ function interpolate_points(point_coords, semi, ref_system, v_ode, u_ode;
                               smoothing_length, cut_off_bnd, clip_negative_pressure)
 end
 
+"""Prepare interpolation neighborhood searches for all systems.
+Reuse cached search when valid, otherwise rebuild from interpolation points and adapt
+between CPU/GPU backends as needed."""
 function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length,
                                        point_coords)
     if isapprox(smoothing_length, initial_smoothing_length(ref_system))
@@ -610,7 +600,9 @@ end
                 interpolate_system!(cache, v, neighbor_system,
                                     point, neighbor, volume_b, W_ab, clip_negative_pressure)
             else
-                other_density[point] += m_b * W_ab
+                if cut_off_bnd
+                    other_density[point] += m_b * W_ab
+                end
 
                 if include_wall_velocity
                     velocity_neighbor_ = current_velocity(v, neighbor_system, neighbor)
@@ -659,6 +651,35 @@ end
     end
 
     return (; computed_density, point_coords, neighbor_count, cache...)
+end
+
+"""Create a 2D point matrix from x and y ranges.
+Returns a 2×N array in y-major order so points match interpolation VTK ranges."""
+function plane_point_coords(x_range, y_range)
+    ELTYPE = promote_type(eltype(x_range), eltype(y_range))
+    point_coords = Array{ELTYPE, 2}(undef, 2, length(x_range) * length(y_range))
+
+    point = 1
+    for y in y_range, x in x_range
+        point_coords[1, point] = x
+        point_coords[2, point] = y
+        point += 1
+    end
+
+    return point_coords
+end
+
+"""Filter interpolation results by point indices.
+Each field in the tuple is filtered consistently across its point dimension."""
+function filter_interpolation_results(results, indices)
+    return map(field -> filter_interpolation_field(field, indices), results)
+end
+
+"""Filter one interpolation field at selected points.
+For vectors this is direct indexing; for tensors, only the last axis is sliced."""
+function filter_interpolation_field(field::AbstractArray, indices)
+    selectors = ntuple(dim -> dim == ndims(field) ? indices : Colon(), ndims(field))
+    return field[selectors...]
 end
 
 @inline function create_cache_interpolation(ref_system::AbstractFluidSystem, n_points, semi)

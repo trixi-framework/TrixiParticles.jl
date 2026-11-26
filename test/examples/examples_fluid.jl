@@ -175,7 +175,7 @@
                                             smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
                                             smoothing_length=0.5 *
                                                              fluid_particle_spacing,
-                                            correction=AkinciFreeSurfaceCorrection(fluid_density),
+                                            force_correction=AkinciFreeSurfaceCorrection(fluid_density),
                                             density_diffusion=nothing,
                                             adhesion_coefficient=0.05,
                                             sound_speed=100.0,
@@ -227,12 +227,7 @@
             r"└ New tank length in y-direction.*\n"
         ]
         @test sol.retcode == ReturnCode.Success
-        if VERSION < v"1.11"
-            # For some reason, 1.10 produces allocations here
-            @test count_rhs_allocations(sol) <= 32
-        else
-            @test count_rhs_allocations(sol) == 0
-        end
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/dam_break_2d_iisph.jl with PressureMirroring" begin
@@ -245,12 +240,7 @@
             r"└ New tank length in y-direction.*\n"
         ]
         @test sol.retcode == ReturnCode.Success
-        if VERSION < v"1.11"
-            # For some reason, 1.10 produces allocations here
-            @test count_rhs_allocations(sol) <= 32
-        else
-            @test count_rhs_allocations(sol) == 0
-        end
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/dam_break_2d_iisph.jl with AdamiPressureExtrapolation" begin
@@ -263,12 +253,7 @@
             r"└ New tank length in y-direction.*\n"
         ]
         @test sol.retcode == ReturnCode.Success
-        if VERSION < v"1.11"
-            # For some reason, 1.10 produces allocations here
-            @test count_rhs_allocations(sol) <= 32
-        else
-            @test count_rhs_allocations(sol) == 0
-        end
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/dam_break_2d_iisph.jl with BernoulliPressureExtrapolation" begin
@@ -281,12 +266,22 @@
             r"└ New tank length in y-direction.*\n"
         ]
         @test sol.retcode == ReturnCode.Success
-        if VERSION < v"1.11"
-            # For some reason, 1.10 produces allocations here
-            @test count_rhs_allocations(sol) <= 32
-        else
-            @test count_rhs_allocations(sol) == 0
-        end
+        @test count_rhs_allocations(sol) == 0
+    end
+
+    @trixi_testset "fluid/dam_break_2d_iisph.jl with AdamiPressureExtrapolation and no-slip walls" begin
+        @trixi_test_nowarn trixi_include(@__MODULE__,
+                                         joinpath(examples_dir(), "fluid",
+                                                  "dam_break_2d_iisph.jl"),
+                                         tspan=(0.0, 0.1),
+                                         boundary_density_calculator=AdamiPressureExtrapolation(),
+                                         viscosity_wall=ViscosityAdami(nu=1e-4)) [
+            r"┌ Info: The desired tank length in y-direction .*\n",
+            r"└ New tank length in y-direction.*\n"
+        ]
+        @test sol.retcode == ReturnCode.Success
+        @test TrixiParticles.has_iisph_wall_extrapolation(sol.prob.p.semi)
+        @test count_rhs_allocations(sol) <= (VERSION < v"1.11" ? 32 : 0)
     end
 
     @trixi_testset "fluid/dam_break_2d_iisph.jl with PressureBoundaries" begin
@@ -298,12 +293,7 @@
             r"└ New tank length in y-direction.*\n"
         ]
         @test sol.retcode == ReturnCode.Success
-        if VERSION < v"1.11"
-            # For some reason, 1.10 produces allocations here
-            @test count_rhs_allocations(sol) <= 32
-        else
-            @test count_rhs_allocations(sol) == 0
-        end
+        @test count_rhs_allocations(sol) == 0
     end
 
     @trixi_testset "fluid/dam_break_2d_gpu.jl" begin

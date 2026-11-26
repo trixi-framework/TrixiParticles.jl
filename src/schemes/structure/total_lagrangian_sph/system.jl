@@ -33,10 +33,9 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
                     See [`PrescribedMotion`](@ref) for details.
 - `boundary_model`: Boundary model to compute the hydrodynamic density and pressure for
                     fluid-structure interaction (see [Boundary Models](@ref boundary_models)).
-                    For [`BoundaryModelDummyParticles`](@ref), [`SummationDensity`](@ref)
-                    and [`ContinuityDensity`](@ref) are not supported and `correction`
-                    must be `nothing`, since corrections at the boundary particles of
-                    structures are not supported yet.
+                    For [`BoundaryModelDummyParticles`](@ref), see
+                    [Boundary Corrections](@ref boundary_corrections) for the supported
+                    corrections. [`ContinuityDensity`](@ref) is not supported.
 - `penalty_force`:  Penalty force to ensure regular particle position under large deformations
                     (see [`PenaltyForceGanzenmueller`](@ref)).
 - `viscosity`:      Artificial viscosity model to stabilize both the TLSPH and the FSI.
@@ -194,7 +193,8 @@ function TotalLagrangianSPHSystem(initial_condition; smoothing_kernel, smoothing
                                   n_clamped_particles)
 
     cache = (; create_cache_tlsph(clamped_particles_motion, initial_condition_sorted)...,
-             create_cache_tlsph(velocity_averaging, initial_condition_sorted)...)
+             create_cache_tlsph(velocity_averaging, initial_condition_sorted)...,
+             create_cache_structure_boundary(boundary_model, initial_condition_sorted)...)
 
     return TotalLagrangianSPHSystem(initial_condition_sorted, initial_coordinates,
                                     current_coordinates, mass, correction_matrix,
@@ -385,6 +385,8 @@ end
                             particle, v_particle)
 end
 
+@inline system_boundary_model(system::TotalLagrangianSPHSystem) = system.boundary_model
+
 # In fluid-structure interaction, use the "hydrodynamic pressure" of the structure particles
 # corresponding to the chosen boundary model.
 @propagate_inbounds function current_pressure(v, system::TotalLagrangianSPHSystem)
@@ -395,8 +397,36 @@ end
     return system.boundary_model.hydrodynamic_mass[particle]
 end
 
-@propagate_inbounds function correction_matrix(system, particle)
+@propagate_inbounds function tlsph_correction_matrix(system, particle)
     extract_smatrix(system.correction_matrix, system, particle)
+end
+
+@inline function hydrodynamic_correction(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles})
+    return correction_gradient(system.boundary_model.correction)
+end
+
+@inline function hydrodynamic_smoothing_length(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
+                                               particle)
+    return smoothing_length(system.boundary_model, particle)
+end
+
+@inline function hydrodynamic_smoothing_kernel(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles})
+    return system.boundary_model.smoothing_kernel
+end
+
+@inline function kernel_correction_coefficient(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
+                                               particle)
+    return system.boundary_model.cache.kernel_correction_coefficient[particle]
+end
+
+@inline function dw_gamma(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
+                          particle)
+    return extract_svector(system.boundary_model.cache.dw_gamma, system, particle)
+end
+
+@inline function correction_matrix(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
+                                   particle)
+    return extract_smatrix(system.boundary_model.cache.correction_matrix, system, particle)
 end
 
 @propagate_inbounds function deformation_gradient(system, particle)
@@ -518,6 +548,13 @@ function update_boundary_interpolation!(system::TotalLagrangianSPHSystem, v, u,
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
 end
 
+function update_gradient_correction!(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
+                                     v, u, v_ode, u_ode, semi, t)
+    update_gradient_correction!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
+
+    return system
+end
+
 @inline function compute_pk1_corrected!(system, semi)
     (; deformation_grad, pk1_rho2, material_density) = system
 
@@ -526,7 +563,7 @@ end
     @threaded semi for particle in eachparticle(system)
         pk1_particle = @inbounds pk1_stress_tensor(system, particle)
         pk1_particle_corrected = pk1_particle *
-                                 @inbounds correction_matrix(system, particle)
+                                 @inbounds tlsph_correction_matrix(system, particle)
         rho2_inv = 1 / @inbounds material_density[particle]^2
 
         for j in 1:ndims(system), i in 1:ndims(system)
@@ -551,7 +588,7 @@ end
         # We are looping over the particles of `system`, so it is guaranteed
         # that `particle` is in bounds of `system`.
         current_coords_a = @inbounds current_coords(system, particle)
-        L_a = @inbounds correction_matrix(system, particle)
+        L_a = @inbounds tlsph_correction_matrix(system, particle)
 
         # Accumulate the contributions over all neighbors before writing
         # to `deformation_grad` to reduce the number of memory writes.
@@ -857,9 +894,6 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems, nhs)
                                 "specified when simulating a fluid-structure interaction."))
         end
     end
-
-    check_boundary_model_density(system, boundary_model)
-    check_boundary_model_correction(system, boundary_model)
 
     foreach_system(systems) do neighbor
         check_smoothing_kernel_fsi(system, boundary_model, neighbor)

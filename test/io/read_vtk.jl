@@ -257,6 +257,38 @@
             end
         end
 
+        @testset "Non-fluid output" begin
+            spacing = 0.1f0
+            particles = RectangularShape(spacing, (3, 2), (0.0f0, 0.0f0);
+                                         density=1000.0f0, coordinates_eltype=Float32)
+            model = BoundaryModelMonaghanKajtar(1.0f0, 1.0f0, spacing, particles.mass)
+            wall = WallBoundarySystem(particles, model)
+
+            semi = Semidiscretization(wall; parallelization_backend=SerialBackend())
+            ode = semidiscretize(semi, (0.0f0, 1.0f0))
+            trixi2vtk(ode.u0, semi, 0.25f0; output_directory=tmp_dir)
+
+            wall_file = joinpath(tmp_dir, "boundary_1_current.vtu")
+            wall_data = vtk2trixi(wall_file; create_initial_condition=false)
+            @test wall_data.coordinates == particles.coordinates
+            @test wall_data.time === 0.25f0
+            @test TrixiParticles.time_span((0.25, 1.0), (wall_file,)) === (0.25, 1.0)
+
+            structure = TotalLagrangianSPHSystem(particles;
+                                                 smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+                                                 smoothing_length=1.2f0 * spacing,
+                                                 young_modulus=1.0f6, poisson_ratio=0.3f0,
+                                                 boundary_model=model)
+            semi = Semidiscretization(structure; parallelization_backend=SerialBackend())
+            ode = semidiscretize(semi, (0.0f0, 1.0f0))
+            structure_marker(system, dv_ode, du_ode, v_ode, u_ode, semi,
+                             t) = fill(Int32(7), nparticles(system))
+            trixi2vtk(ode.u0, semi, 0.25f0; output_directory=tmp_dir, structure_marker)
+
+            structure_data = vtk2trixi(joinpath(tmp_dir, "structure_1_current.vtu"))
+            @test structure_data.structure_marker == fill(Int32(7), nparticles(structure))
+        end
+
         @testset verbose=true "`RigidBodySystem`" begin
             coordinates_rigid = [-1.0 1.0
                                  0.0 0.0]

@@ -4,6 +4,148 @@ TrixiParticles.jl follows the interpretation of
 [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 
+## Version 0.6.0
+
+### API Changes
+
+- Replaced the `correction` keyword of `WeaklyCompressibleSPHSystem`,
+  `EntropicallyDampedSPHSystem`, and `BoundaryModelDummyParticles` with
+  `density_correction`, `gradient_correction`, and `force_correction`.
+  Use `density_correction=ShepardKernelCorrection()` for density normalization,
+  `gradient_correction` for kernel/gradient corrections, and `force_correction` for
+  `AkinciFreeSurfaceCorrection` (#1285).
+- Custom functions passed as `pressure_acceleration` must accept both pair gradients
+  (`W_a`, `W_b`) when either interacting system uses an asymmetric gradient correction
+  (#1289).
+- Adami and Bernoulli walls that exert forces on an `ImplicitIncompressibleSPHSystem`
+  must not have a state equation, since the fluid is incompressible, and must use the
+  default fluid–wall interaction (#1394).
+- The relaxation parameter `omega` of `ImplicitIncompressibleSPHSystem` must be between
+  0 and 1 (exclusive), since the relaxed Jacobi scheme can diverge for `omega >= 1`
+  (#1394).
+
+### Features
+
+- `ImplicitIncompressibleSPHSystem` supports GPU execution, also in single precision.
+
+### Important Bugfixes
+
+- Fixed SPH correction updates to apply density corrections before pressure and update
+  boundary, gradient, and surface quantities in consistent phases across fluid and
+  structure systems (#1284).
+- Fixed Shepard density correction to handle invalid normalization coefficients,
+  finalize corrected density before pressure evaluation, and use evolved continuity
+  density for particle volumes during density reinitialization (#1292).
+- Fixed a stale boundary-density cache in Shepard-corrected WCSPH and EDAC with summation
+  density and Adami or Bernoulli pressure extrapolation. Shepard normalization now uses
+  a boundary density predicted from the current fluid state (#1368).
+- Updated Zhang open-boundary pressures before dummy-wall pressure extrapolation so
+  the wall uses the current inlet or outlet pressure regardless of system order (#1368).
+- Fixed the coupling of IISPH with Adami and Bernoulli walls. The pressure solve treated
+  the wall pressure as zero, while the forces used the extrapolated wall pressure. The
+  wall pressure is now extrapolated from the fluid pressure in every iteration of the
+  pressure solve, so the forces satisfy the solved density balance. The solve runs after
+  the pressure updates of all other systems, whose pressure the walls can also extrapolate.
+  With these walls, the solve starts from zero pressure and terminates on the average
+  absolute density error. This changes results and requires more iterations, about
+  3 times as many in the 2D dam break example (#1394).
+- Fixed the IISPH prediction to use the no-slip velocity of Adami and Bernoulli walls
+  computed from the current fluid velocity (#1394).
+- Fixed the IISPH density prediction to use the velocity of moving walls, and made the
+  IISPH prediction independent of the order of systems (#1394).
+- Fixed missing off-diagonal pressure contributions in IISPH `PressureBoundaries` rows
+  (#1394).
+- Fixed `ImplicitIncompressibleSPHSystem` in single precision, where parameters with
+  default values were not converted to the element type of the system.
+- Fixed `KernelCorrection` to fall back to uncorrected gradients for invalid normalization
+  coefficients and preserve Float32 boundary correction caches (#1291).
+- Fixed gradient correction matrices to use raw kernel gradients, scale-independent
+  singularity detection, and identity fallback. Added validation of blended correction
+  factors and preserved boundary cache element types (#1290).
+- Fixed `MixedKernelGradientCorrection` to assemble its matrix from the kernel-corrected
+  raw gradient and preserve matching cache element types (#1288).
+- Fixed linear-momentum conservation for corrected pressure forces, made EDAC
+  average-pressure reduction pair-symmetric, and applied exact fluid-structure pressure
+  reaction forces (#1289).
+- Fixed EDAC pressure reduction to share a spatially constant reference across connected
+  fluids, preserving affine pressure gradients and reciprocal pressure forces (#1359).
+- Fixed viscous momentum conservation for asymmetric corrected fluid gradients and removed
+  the dependence of mirrored ghost reconstruction on unrelated fluid correction caches
+  (#1359).
+- Fixed particle shifting with normalized kernel gradients by excluding zero-distance
+  interactions that otherwise introduce spurious self-shifting and particle clustering (#1359).
+
+## Version 0.5.6
+
+### Features
+
+- Added history-dependent static and kinetic friction to `RigidContactModel` for
+  rigid-wall and rigid-rigid contact. Tangential spring history requires
+  `UpdateCallback(interval=1)` and currently supports CPU backends (#1126).
+- Added optional suppression of attractive pressure forces at sparsely wetted boundaries
+  through `AdamiPressureExtrapolation(anti_sticking_threshold=...)`. The default threshold
+  of zero disables this anti-sticking technique (#1315).
+- Added an optional Makie recipe for rendering two- and three-dimensional particle systems
+  with `plot`, `plot!`, `trixi2makie`, and `trixi2makie!` (#1257).
+
+## Version 0.5.5
+
+### API Changes
+
+- `load_geometry` now closes 2D `.asc` and `.dxf` curves by default. Use `close_curve=false`
+  for intentional open curves. `ComplexShape`, geometric `intersect` and `setdiff`, and
+  `SignedDistanceField` with `use_for_boundary_packing=true` now require closed
+  geometries (#1187).
+- Boundary models of `TotalLagrangianSPHSystem` and `RigidBodySystem` now support
+  `SummationDensity` and kernel corrections over the current hydrodynamic neighborhood
+  (#1351).
+
+### Features
+
+- Added `BoundaryModelDummyParticles(initial_condition; fluid_system, ...)`, which infers
+  kernel, smoothing length, correction, and state equation from the adjacent fluid system.
+  `OpenBoundarySystem` now defaults to `BoundaryModelMirroringTafuni` and infers its
+  buffer size from the fluid system (#1145).
+
+### Important Bugfixes
+
+- Fixed plane interpolation coordinates to match the requested bounds, filtering of
+  tensor-valued interpolation results, and wall-velocity interpolation with
+  `cut_off_bnd=false` (#1183).
+- Fixed stale connectivity, normals, and bounding boxes after geometry face deletion.
+  The new `delete_faces(geometry, indices)` function returns a geometry with the selected
+  faces removed and derived data rebuilt (#1190).
+- Fixed zero vertex normals in triangle meshes being normalized to `NaN` for degenerate
+  or duplicated faces (#1191).
+- Fixed `RectangularTank` to trim overlapping fluid regions to the tank dimensions,
+  handle empty fluid regions, and validate sizes, boundary layers, and spacing ratio (#1198).
+- Fixed `sample_boundary` to respect `boundary_thickness` and the offset implied by
+  `place_on_shell`. Added a matching `boundary_thickness` keyword to `ParticlePackingSystem`
+  so boundary packing uses the sampled thickness (#1199).
+- Fixed validation of `SphereShape` cutout bounds and `extrude_geometry` direction
+  dimensionality, zero directions, and non-positive extrusion layer counts (#1200).
+- Fixed 3D `BoundaryZone` validation to reject collinear or non-orthogonal face edges
+  and inconsistent face normals before sampling particles (#1202).
+- Fixed surface-tension configuration checks across fluid systems and corrected the
+  Morris surface tension curvature when more than one fluid system uses a surface
+  normal method (#1214).
+- Fixed configuration validation to reject mixing `ImplicitIncompressibleSPHSystem`
+  with `EntropicallyDampedSPHSystem` (#1217).
+- Fixed EDAC kernel and gradient correction cache updates and applied Shepard density
+  correction when using `SummationDensity` (#1218).
+- Fixed double-counted Monaghan–Kajtar repulsion in the TVF momentum and
+  background-pressure shifting operators (#1344).
+- Shared the physical fluid-pair momentum operator with structure reactions so
+  transport-only terms do not contribute to structural loads (#1345).
+- Fixed correction-cache updates after open-boundary interpolation and particle transfers
+  so callback-based particle shifting uses current density and gradients (#1353).
+- Fixed the no-slip wall velocity for `SummationDensity`, `ContinuityDensity`,
+  `PressureZeroing`, and `PressureBoundaries`. With IISPH, Adami and Bernoulli
+  extrapolation now provide the wall velocity before advection prediction (#1361).
+- Fixed corrected WCSPH pressure forces at Adami/Bernoulli dummy boundaries to use the
+  fluid-side gradient, removing spurious constant-pressure forces while retaining
+  the exact opposite structural reaction (#1369).
+
 ## Version 0.5.4
 
 ### API Changes

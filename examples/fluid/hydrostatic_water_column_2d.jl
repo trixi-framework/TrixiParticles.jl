@@ -60,10 +60,8 @@ boundary_density_calculator = AdamiPressureExtrapolation()
 
 # This is to set wall viscosity with `trixi_include`
 viscosity_wall = nothing
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+boundary_model = BoundaryModelDummyParticles(tank.boundary; fluid_system=fluid_system,
                                              boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length;
-                                             state_equation,
                                              viscosity=viscosity_wall)
 boundary_system = WallBoundarySystem(tank.boundary, boundary_model,
                                      prescribed_motion=nothing)

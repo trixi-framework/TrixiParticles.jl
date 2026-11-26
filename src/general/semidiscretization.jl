@@ -75,7 +75,7 @@ semi = Semidiscretization(fluid_system, boundary_system;
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct Semidiscretization{BACKEND, S, RU, RV, NSH, IM, UCU, IT}
+struct Semidiscretization{BACKEND, S, RU, RV, NSH, IM, UCU, IT, IPS, IPC}
     systems                     :: S
     ranges_u                    :: RU
     ranges_v                    :: RV
@@ -84,6 +84,8 @@ struct Semidiscretization{BACKEND, S, RU, RV, NSH, IM, UCU, IT}
     parallelization_backend     :: BACKEND
     update_callback_used        :: UCU
     integrate_tlsph             :: IT # `false` if TLSPH integration is decoupled
+    iisph_pressure_state        :: IPS
+    iisph_pressure_cache        :: IPC
 
     # Dispatch at `systems` to distinguish this constructor from the one below when
     # 4 systems are passed.
@@ -92,14 +94,17 @@ struct Semidiscretization{BACKEND, S, RU, RV, NSH, IM, UCU, IT}
                                 neighborhood_search_handler,
                                 interaction_matrix,
                                 parallelization_backend::PointNeighbors.ParallelizationBackend,
-                                update_callback_used, integrate_tlsph)
+                                update_callback_used, integrate_tlsph,
+                                iisph_pressure_state, iisph_pressure_cache)
         new{typeof(parallelization_backend), typeof(systems), typeof(ranges_u),
             typeof(ranges_v), typeof(neighborhood_search_handler),
             typeof(interaction_matrix), typeof(update_callback_used),
-            typeof(integrate_tlsph)}(systems, ranges_u, ranges_v,
-                                     neighborhood_search_handler, interaction_matrix,
-                                     parallelization_backend,
-                                     update_callback_used, integrate_tlsph)
+            typeof(integrate_tlsph), typeof(iisph_pressure_state),
+            typeof(iisph_pressure_cache)}(systems, ranges_u, ranges_v,
+                                          neighborhood_search_handler, interaction_matrix,
+                                          parallelization_backend, update_callback_used,
+                                          integrate_tlsph, iisph_pressure_state,
+                                          iisph_pressure_cache)
     end
 end
 
@@ -124,6 +129,8 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
     # Other checks might be added here later.
     check_configuration(systems, neighborhood_search)
+    check_pressure_acceleration_configuration(systems, interaction_matrix)
+    check_iisph_interaction_configuration(systems, interaction_matrix)
 
     sizes_u = [u_nvariables(system) * n_integrated_particles(system)
                for system in systems]
@@ -148,10 +155,13 @@ function Semidiscretization(systems::Union{AbstractSystem, Nothing}...;
     # with this set to false.
     integrate_tlsph = Ref(true)
 
+    iisph_pressure_state = create_iisph_pressure_state()
+    iisph_pressure_cache = create_iisph_pressure_cache(systems, parallelization_backend)
+
     return Semidiscretization(systems, ranges_u, ranges_v, neighborhood_search_handler,
                               interaction_matrix,
                               parallelization_backend, update_callback_used,
-                              integrate_tlsph)
+                              integrate_tlsph, iisph_pressure_state, iisph_pressure_cache)
 end
 
 function create_interaction_matrix(::Nothing, systems)
@@ -264,12 +274,12 @@ Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
     [trixi-framework/Trixi.jl#1583](https://github.com/trixi-framework/Trixi.jl/issues/1583).
 - `restart_with=nothing`: Restart the simulation from VTK solution files created by
     [`SolutionSavingCallback`](@ref). This can be either `nothing` (default, no restart) or
-    a tuple of filenames, one for each system in the
-    [`Semidiscretization`](@ref TrixiParticles.Semidiscretization). The tuple order must match
-    the system order. When restarting, `semidiscretize` replaces the initial time (`tspan[1]`)
-    with the timestamp read from the VTK files. If the provided `tspan[1]` does not match the
-    restart time, it is adjusted and an info message is logged. Timestamps in multiple files
-    must match.
+     a tuple of filenames, one for each system in the
+     [`Semidiscretization`](@ref TrixiParticles.Semidiscretization). The tuple order must match
+     the system order. When restarting, `semidiscretize` replaces the initial time (`tspan[1]`)
+     with the timestamp read from the VTK files. If the provided `tspan[1]` does not match the
+     restart time, it is adjusted and an info message is logged. Timestamps in multiple files
+     must match.
 
 # Returns
 A `DynamicalODEProblem` (see [the OrdinaryDiffEq.jl docs](https://docs.sciml.ai/DiffEqDocs/stable/types/dynamical_types/))
@@ -294,6 +304,16 @@ u0: ([...], [...]) *this line is ignored by filter*
 """
 function semidiscretize(semi, tspan; reset_threads=true, restart_with=nothing)
     (; systems) = semi
+
+    # Tangential contact uses CPU dictionaries for accepted-step history and persistent wall
+    # descriptors. Reject it before adapting state arrays so GPU runs cannot fail later in an
+    # RHS kernel with an opaque host-container error.
+    if semi.parallelization_backend isa KernelAbstractions.GPU &&
+       any(system -> system isa RigidBodySystem &&
+                     !isnothing(system.contact_model) &&
+                     has_tangential_contact(system.contact_model), systems)
+        throw(ArgumentError("rigid contact friction is not supported on GPU backends"))
+    end
 
     if restart_with isa String
         restart_with = (restart_with,)

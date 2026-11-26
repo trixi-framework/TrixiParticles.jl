@@ -5,14 +5,20 @@
 
         show_compact = "BoundaryModelMonaghanKajtar(10.0, 3.0, Nothing)"
         @test repr(boundary_model) == show_compact
+        @test boundary_model.minimum_distance_ratio == 0.01
+
+        regularized_model = BoundaryModelMonaghanKajtar(10.0, 3.0, 0.1, [1.0];
+                                                        minimum_distance_ratio=0.001)
+        @test regularized_model.minimum_distance_ratio == 0.001
+        @test_throws ArgumentError BoundaryModelMonaghanKajtar(10.0, 3.0, 0.1, [1.0];
+                                                               minimum_distance_ratio=0.0)
     end
 
     @testset "RHS" begin
         particle_spacing = 0.1
 
-        # The state equation is only needed to unpack `sound_speed`, so we can mock
-        # it by using a `NamedTuple`.
-        state_equation = (; sound_speed=0.0)
+        state_equation = StateEquationCole(; sound_speed=1.0, reference_density=1000.0,
+                                           exponent=7)
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
         smoothing_length = 1.2particle_spacing
         search_radius = TrixiParticles.compact_support(smoothing_kernel, smoothing_length)
@@ -65,5 +71,29 @@
 
         # The middle column of fluid particles should experience weaker accelerations
         @test isapprox(dv[1, [2, 5, 8]], [-26.052449, -95.162888, -26.052449])
+
+        regularized_model = BoundaryModelMonaghanKajtar(K, spacing_ratio, 2particle_spacing,
+                                                        boundary.mass;
+                                                        minimum_distance_ratio=0.02)
+        regularized_wall = WallBoundarySystem(boundary, regularized_model)
+        dv_regularized = zero(dv)
+        TrixiParticles.interact!(dv_regularized, v, u, v_neighbor, u_neighbor, fluid_system,
+                                 regularized_wall, semi)
+        # The corners only interact within the regularized distance; the middle
+        # particle also has neighbors outside it.
+        @test dv_regularized[1, [3, 9]] ≈ dv[1, [3, 9]] ./ 2
+        @test dv[1, 6] < dv_regularized[1, 6] < 0
+
+        structure_model = BoundaryModelMonaghanKajtar(K, 1.0, particle_spacing,
+                                                      fluid.mass)
+        structure_system = TotalLagrangianSPHSystem(fluid; smoothing_kernel,
+                                                    smoothing_length,
+                                                    young_modulus=1.0e6,
+                                                    poisson_ratio=0.3,
+                                                    boundary_model=structure_model)
+        semi_coupled = Semidiscretization(fluid_system, boundary_system, structure_system;
+                                          parallelization_backend=SerialBackend())
+        ode = semidiscretize(semi_coupled, (0.0, 0.1))
+        @test_nowarn TrixiParticles.update_nhs!(semi_coupled, ode.u0.x[2])
     end
 end

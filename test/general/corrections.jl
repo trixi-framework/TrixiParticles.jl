@@ -1,3 +1,16 @@
+@trixi_testset "Correction Consistency" begin
+    include("corrections/common.jl")
+    include("corrections/lifecycle.jl")
+    include("corrections/boundary_density_predictor.jl")
+    include("corrections/shepard.jl")
+    include("corrections/kernel.jl")
+    include("corrections/gradient.jl")
+    include("corrections/mixed.jl")
+    include("corrections/coupling.jl")
+    include("corrections/configuration.jl")
+    include("corrections/rigid_density.jl")
+end
+
 @testset verbose=true "Corrections" begin
     @testset "Gradient correction matrix of a fluid system" begin
         kernel = SchoenbergCubicSplineKernel{2}()
@@ -49,7 +62,7 @@
             system = WeaklyCompressibleSPHSystem(ic; smoothing_kernel=kernel,
                                                  smoothing_length=1.0, state_equation,
                                                  density_calculator=ContinuityDensity(),
-                                                 correction)
+                                                 gradient_correction=correction)
             semi = Semidiscretization(system; parallelization_backend=SerialBackend())
             ode = semidiscretize(semi, (0.0, 0.01))
             v_ode, u_ode = ode.u0.x
