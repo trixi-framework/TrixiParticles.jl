@@ -61,6 +61,7 @@ end
     # To avoid branching in the hot loop, we clamp the denominator to the smallest
     # positive normal number. Then, the result is exactly zero for the particle itself.
     # We use `ifelse` instead of `max` because it is faster (see `clamp0`).
+    # This is significantly faster than `clamp_distance(initial_distance^2, h^2)`.
     denominator = initial_distance^2 * current_distance^2 * m_a
     denominator_ = ifelse(denominator < floatmin(denominator), floatmin(denominator),
                           denominator)
