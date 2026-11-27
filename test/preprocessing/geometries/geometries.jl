@@ -54,6 +54,55 @@
         end
     end
 
+    @testset verbose=true "`delete_faces` Rebuilds Derived Data" begin
+        triangle = [0.0 1.0 0.5 0.0;
+                    0.0 0.0 0.7 0.0]
+
+        edge_only = TrixiParticles.delete_faces(TrixiParticles.Polygon(triangle), [1, 2])
+
+        @test TrixiParticles.nfaces(edge_only) == 1
+        @test length(edge_only.vertices) == 2
+        @test length(edge_only.vertex_normals) == 1
+        @test edge_only.min_corner == min.(edge_only.edge_vertices[1]...)
+        @test edge_only.max_corner == max.(edge_only.edge_vertices[1]...)
+        @test edge_only.vertex_normals[1] == (edge_only.edge_normals[1],
+               edge_only.edge_normals[1])
+
+        square = TrixiParticles.Polygon([0.0 0.0 1.0 1.0 0.0;
+                                         0.0 1.0 1.0 0.0 0.0])
+        unchanged = delete_faces(square, Int[])
+        @test first(unchanged.vertices) == last(unchanged.vertices)
+        @test unchanged.vertices == square.vertices
+        @test unchanged.edge_vertices == square.edge_vertices
+        @test all(unchanged.vertices[a] == edge[1] && unchanged.vertices[b] == edge[2]
+                  for ((a, b), edge) in zip(unchanged.edge_vertices_ids,
+                          unchanged.edge_vertices))
+        @test TrixiParticles.volume(unchanged) ≈ TrixiParticles.volume(square)
+        sampled = ComplexShape(unchanged; particle_spacing=0.1, density=1.0)
+        reference = ComplexShape(square; particle_spacing=0.1, density=1.0)
+        @test sampled.coordinates == reference.coordinates
+
+        # A gap created by deleting an edge must not acquire a closing vertex.
+        partial = delete_faces(square, 2)
+        @test first(partial.vertices) != last(partial.vertices)
+        @test TrixiParticles.nfaces(partial) == 3
+
+        A = SVector(0.0, 0.0, 0.0)
+        B = SVector(1.0, 0.0, 0.0)
+        C = SVector(0.0, 1.0, 0.0)
+        D = SVector(1.0, 1.0, 0.0)
+        face_vertices = [(A, B, C), (B, D, C)]
+        face_normals = [SVector(0.0, 0.0, 1.0), SVector(0.0, 0.0, 1.0)]
+        mesh = TrixiParticles.TriangleMesh(face_vertices, face_normals, [A, B, C, D])
+
+        mesh = TrixiParticles.delete_faces(mesh, 1)
+
+        @test TrixiParticles.nfaces(mesh) == 1
+        @test length(mesh.vertices) == 3
+        @test length(mesh.edge_normals) == 3
+        @test mesh.face_vertices == [face_vertices[2]]
+    end
+
     @testset verbose=true "Real World Data" begin
         data_dir = pkgdir(TrixiParticles, "examples", "preprocessing", "data")
         validation_dir = pkgdir(TrixiParticles, "test", "preprocessing", "data")
