@@ -157,6 +157,19 @@
         end
     end
 
+    @testset verbose=true "Degenerate Triangle Normals" begin
+        vertex = SVector(0.0, 0.0, 0.0)
+        normal = SVector(0.0, 0.0, 0.0)
+
+        geometry = TrixiParticles.TriangleMesh([(vertex, vertex, vertex)],
+                                               [normal], [vertex, vertex, vertex])
+
+        @test all(iszero, geometry.vertex_normals)
+        @test all(iszero, geometry.edge_normals)
+        @test all(all(isfinite, normal) for normal in geometry.vertex_normals)
+        @test all(all(isfinite, normal) for normal in geometry.edge_normals)
+    end
+
     @testset verbose=true "Union" begin
         # Build a single geometry by uniting multiple STL patches (cuboid.stl contains separate solids).
         # The union should produce a closed volume.
