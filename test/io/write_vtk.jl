@@ -60,6 +60,25 @@
             @test !("ignored" in keys(field_data))
         end
 
+        @testset verbose=true "VTK Compression Options" begin
+            coordinate_data = [0.0 1.0 2.0; 0.0 1.0 2.0]
+            compressed_file = trixi2vtk(coordinate_data; output_directory=tmp_dir,
+                                        filename="parallel_compression",
+                                        parallel_compression=true)
+            uncompressed_file = trixi2vtk(initial_condition;
+                                          output_directory=tmp_dir,
+                                          filename="uncompressed", compress=false)
+
+            compressed_vtk = TrixiParticles.ReadVTK.VTKFile(compressed_file * ".vtu")
+            uncompressed_vtk = TrixiParticles.ReadVTK.VTKFile(uncompressed_file * ".vtu")
+            @test TrixiParticles.ReadVTK.is_compressed(compressed_vtk)
+            @test !TrixiParticles.ReadVTK.is_compressed(uncompressed_vtk)
+            @test TrixiParticles.ReadVTK.get_points(compressed_vtk)[1:2, :] ==
+                  coordinate_data
+            @test TrixiParticles.ReadVTK.get_points(uncompressed_vtk)[1:2, :] ==
+                  initial_condition.coordinates
+        end
+
         @testset verbose=true "Max Coordinates Clips Output Points" begin
             output_path = joinpath(tmp_dir, "max_coordinates_stdout.txt")
             open(output_path, "w") do io
