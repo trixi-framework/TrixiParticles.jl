@@ -240,6 +240,7 @@ function add_system_data!(system_data, state_equation::StateEquationCole)
     system_data["state_equation"]["reference_density"] = state_equation.reference_density
     system_data["state_equation"]["background_pressure"] = state_equation.background_pressure
     system_data["state_equation"]["exponent"] = state_equation.exponent
+    add_minimum_pressure_data!(system_data["state_equation"], state_equation)
 end
 
 function add_system_data!(system_data, state_equation::StateEquationAdaptiveCole)
@@ -251,6 +252,15 @@ function add_system_data!(system_data, state_equation::StateEquationAdaptiveCole
     system_data["state_equation"]["mach_number_target"] = state_equation.mach_number_target
     system_data["state_equation"]["min_sound_speed"] = state_equation.min_sound_speed
     system_data["state_equation"]["max_sound_speed"] = state_equation.max_sound_speed
+    add_minimum_pressure_data!(system_data["state_equation"], state_equation)
+end
+
+function add_minimum_pressure_data!(state_equation_data, state_equation)
+    has_minimum_pressure(state_equation) || return state_equation_data
+
+    state_equation_data["minimum_pressure"] = state_equation.minimum_pressure
+    state_equation_data["minimum_pressure_transition_width"] = state_equation.minimum_pressure_transition_width
+    return state_equation_data
 end
 
 function add_system_data!(system_data, state_equation::StateEquationIdealGas)

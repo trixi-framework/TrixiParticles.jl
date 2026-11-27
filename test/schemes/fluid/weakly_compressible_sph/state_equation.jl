@@ -59,6 +59,115 @@
             @test state_equation(999.0) == 0.0
             @test state_equation(900.0) == 0.0
         end
+
+        @testset "Minimum Pressure" begin
+            minimum_pressure = -100_000.0
+            transition_width = 10_000.0
+            sound_speed = 100.0
+            exponent = 7.0
+            reference_density = 1000.0
+
+            state_equations = (StateEquationCole(; sound_speed, exponent, reference_density,
+                                                 minimum_pressure,
+                                                 minimum_pressure_transition_width=transition_width),
+                               StateEquationAdaptiveCole(; min_sound_speed=sound_speed,
+                                                         max_sound_speed=sound_speed,
+                                                         mach_number_target=0.1,
+                                                         exponent, reference_density,
+                                                         minimum_pressure,
+                                                         minimum_pressure_transition_width=transition_width))
+
+            B = reference_density * sound_speed^2 / exponent
+            density_from_raw_pressure(pressure) = reference_density *
+                                                  (pressure / B + 1)^(1 / exponent)
+
+            for state_equation in state_equations
+                limited_pressure(raw_pressure) = state_equation(density_from_raw_pressure(raw_pressure))
+
+                @test TrixiParticles.has_minimum_pressure(state_equation)
+                @test state_equation(reference_density) == 0.0
+                @test limited_pressure(-120_000.0) ≈ minimum_pressure
+                @test limited_pressure(-110_000.0) ≈ minimum_pressure
+                @test limited_pressure(-100_000.0) ≈ -97_500.0
+                @test limited_pressure(-90_000.0) ≈ -90_000.0
+                @test limited_pressure(10_000.0) ≈ 10_000.0
+
+                epsilon = 0.01
+                lower_transition_pressure = minimum_pressure - transition_width
+                upper_transition_pressure = minimum_pressure + transition_width
+                derivative(pressure) = (limited_pressure(pressure + epsilon) -
+                                        limited_pressure(pressure - epsilon)) /
+                                       (2 * epsilon)
+                @test derivative(lower_transition_pressure) ≈ 0.0 atol=1e-6
+                @test derivative(upper_transition_pressure) ≈ 1.0 atol=1e-6
+
+                raw_pressures = range(-150_000.0, 10_000.0; length=101)
+                pressures = limited_pressure.(raw_pressures)
+                @test minimum(pressures) >= minimum_pressure
+                @test issorted(pressures)
+
+                for pressure in (-100_000.0, -99_000.0, -95_000.0, -90_000.0,
+                                 0.0, 10_000.0)
+                    density = TrixiParticles.inverse_state_equation(state_equation,
+                                                                    pressure)
+                    @test state_equation(density) ≈ pressure atol=1e-8
+                end
+
+                metadata = Dict{String, Any}()
+                TrixiParticles.add_system_data!(metadata, state_equation)
+                @test metadata["state_equation"]["minimum_pressure"] == minimum_pressure
+                @test metadata["state_equation"]["minimum_pressure_transition_width"] ==
+                      transition_width
+            end
+
+            unbounded_state_equation = StateEquationCole(; sound_speed, exponent,
+                                                         reference_density)
+            unbounded_metadata = Dict{String, Any}()
+            TrixiParticles.add_system_data!(unbounded_metadata, unbounded_state_equation)
+            @test !TrixiParticles.has_minimum_pressure(unbounded_state_equation)
+            @test !haskey(unbounded_metadata["state_equation"], "minimum_pressure")
+
+            state_equation32 = StateEquationCole(; sound_speed=100.0f0, exponent=7.0f0,
+                                                 reference_density=1000.0f0,
+                                                 minimum_pressure=-100_000.0f0,
+                                                 minimum_pressure_transition_width=10_000.0f0)
+            @test state_equation32(900.0f0) isa Float32
+
+            adapted_state_equation = TrixiParticles.Adapt.adapt(Array, state_equations[2])
+            @test TrixiParticles.has_minimum_pressure(adapted_state_equation)
+            @test adapted_state_equation.minimum_pressure == minimum_pressure
+            @test adapted_state_equation.minimum_pressure_transition_width ==
+                  transition_width
+
+            @test_throws ArgumentError StateEquationCole(; sound_speed, exponent,
+                                                         reference_density,
+                                                         minimum_pressure)
+            @test_throws ArgumentError StateEquationCole(;
+                                                         sound_speed, exponent,
+                                                         reference_density,
+                                                         minimum_pressure_transition_width=transition_width)
+            @test_throws ArgumentError StateEquationCole(; sound_speed, exponent,
+                                                         reference_density,
+                                                         minimum_pressure,
+                                                         minimum_pressure_transition_width=transition_width,
+                                                         clip_negative_pressure=true)
+            @test_throws ArgumentError StateEquationCole(; sound_speed, exponent,
+                                                         reference_density,
+                                                         minimum_pressure,
+                                                         minimum_pressure_transition_width=110_000.0)
+            @test_throws ArgumentError StateEquationCole(; sound_speed, exponent,
+                                                         reference_density,
+                                                         minimum_pressure=0.0,
+                                                         minimum_pressure_transition_width=1.0)
+            @test_throws ArgumentError StateEquationCole(; sound_speed, exponent,
+                                                         reference_density,
+                                                         minimum_pressure,
+                                                         minimum_pressure_transition_width=0.0)
+            @test_throws ArgumentError StateEquationCole(; sound_speed, exponent,
+                                                         reference_density,
+                                                         minimum_pressure=NaN,
+                                                         minimum_pressure_transition_width=transition_width)
+        end
     end
 
     @testset verbose=true "Linear StateEquationCole" begin
