@@ -26,6 +26,9 @@ TrixiParticles.jl focuses on the following use cases:
 
 It offers intuitive configuration, robust pre- and post-processing, and vendor-agnostic GPU support based on the Julia package [KernelAbstractions.jl](https://github.com/JuliaGPU/KernelAbstractions.jl).
 
+<img width="1672" height="941" alt="Winner of the Helmholtz Software Award 2026 Best Newcomer" src="https://github.com/user-attachments/assets/9c338846-c292-4370-bf92-1af63dece0a8" />
+
+
 ## Conference Talks
 
 <table align="center" border="0" width="100%">
