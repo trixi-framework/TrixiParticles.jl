@@ -29,6 +29,15 @@ parallelization_backend = PolyesterBackend()
 # not fixed by the boundary conditions and can drift. In our experiments, this setup was
 # fragile. It only remained stable at high resolutions. At lower resolutions, the pressure
 # drifted with all shifting techniques we tried, and most simulations crashed.
+#
+# We use the consistent particle shifting technique of the example, which conserves volume.
+# Tafuni et al. (2018) use a non-conservative shifting technique. In our experiments, the
+# closest equivalent, `ParticleShiftingTechniqueSun2017()`, was sensitive to the shifting
+# strength. With the default strength, it did not prevent void regions behind the cylinder
+# at `d / dx = 100`. With four times this strength, particles accumulated in the domain
+# until the simulation crashed.
+# To reproduce the results of Tafuni et al. (2018) use inconsistent shifting and do not
+# prescribe the outlet pressure. The resulting simulation will crash at low resolutions.
 outlet_reference_pressure = 0.0
 
 # Overrides that are shared by both `trixi_include` calls of the example below.
@@ -40,13 +49,6 @@ example_overrides = (; reynolds_number, open_boundary_model, outlet_reference_pr
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "vortex_street_2d.jl");
               example_overrides..., ode=nothing, semi=nothing)
 
-# Replace the consistent particle shifting technique of the example by the original
-# Particle Shifting Technique by Sun et al. (2017). Like the shifting used by
-# Tafuni et al. (2018), this is a position correction that does not conserve volume
-# and adds no additional terms to the momentum equation, which could affect the measured
-# forces. Shifting also prevents the tensile instability without
-# `tensile_instability_control`, which would corrupt the measured forces.
-shifting_technique = ParticleShiftingTechniqueSun2017()
 
 # ==========================================================================================
 # ==== Postprocessing
@@ -63,7 +65,7 @@ boundary_system_cylinder = TotalLagrangianSPHSystem(cylinder; smoothing_kernel,
 # Set up the simulation with the TLSPH cylinder without running it, so that the force
 # calculators can be created for the cylinder system in the final semidiscretization.
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "vortex_street_2d.jl");
-              example_overrides..., parallelization_backend, shifting_technique,
+              example_overrides..., parallelization_backend,
               boundary_system_cylinder)
 
 # The `Semidiscretization` creates a copy of the TLSPH system, so the `ThrustCalculator`
@@ -115,7 +117,7 @@ let velocity_sensor_point = velocity_sensor_point
     end
 end
 
-# Monitor the volume loss caused by the non-conservative shifting (see above).
+# Monitor the conservation of the fluid volume in the domain.
 # Since all fluid particles have the same mass `m`, the particle count `N` is proportional
 # to the total mass in the domain. The total volume of the fluid particles can be computed
 # in postprocessing as `N * m / average_density`. This is exact up to the (negligible)
